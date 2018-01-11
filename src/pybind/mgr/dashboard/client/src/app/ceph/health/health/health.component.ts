@@ -28,41 +28,6 @@ export class HealthComponent implements OnInit {
   //     // Pre-populated initial data at page load
   //     var content_data = {{ content_data }};
 
-  //     rivets.formatters.mon_summary = function(mon_status) {
-  //         var result = mon_status.monmap.mons.length.toString() + " (quorum ";
-  //         result += mon_status.quorum.join(", ");
-  //         result += ")";
-
-  //         return result;
-  //     };
-
-  //     rivets.formatters.mds_summary = function(fs_map) {
-  //         var standbys = 0;
-  //         var active = 0;
-  //         var standby_replay = 0;
-  //         $.each(fs_map.standbys, function(i, s) {
-  //             standbys += 1;
-  //         });
-
-  //         if (fs_map.standbys && !fs_map.filesystems) {
-  //             return standbys + ", no filesystems"
-  //         } else if (fs_map.filesystems.length == 0) {
-  //             return "no filesystems";
-  //         } else {
-  //             $.each(fs_map.filesystems, function(i, fs) {
-  //                 $.each(fs.mdsmap.info, function(j, mds) {
-  //                     if (mds.state == "up:standby-replay") {
-  //                         standby_replay += 1;
-  //                     } else {
-  //                         active += 1;
-  //                     }
-  //                 });
-  //             });
-
-  //             return active + " active, " + (standbys + standby_replay) + " standby";
-  //         }
-  //     };
-
   //     rivets.formatters.mgr_summary = function(mgr_map) {
   //         var result = "";
   //         result += "active: " + mgr_map.active_name;

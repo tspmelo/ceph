@@ -26,7 +26,7 @@
 
         <div class="info-box-content">
           <span class="info-box-text">Monitors</span>
-          <span class="info-box-number">{{ mon_status }}</span>
+          <span class="info-box-number">{{ mon_status | monSummary }}</span>
           <!-- | mon_summary -->
         </div>
       </div>
@@ -37,7 +37,7 @@
 
         <div class="info-box-content">
           <span class="info-box-text">OSDs</span>
-          <span class="info-box-number">{{osd_map}}</span>
+          <span class="info-box-number">{{osd_map | osdSummary}}</span>
         </div>
       </div>
     </div>
@@ -50,7 +50,7 @@
 
         <div class="info-box-content">
           <span class="info-box-text">Metadata servers</span>
-          <span class="info-box-number">{{fs_map}}</span>
+          <span class="info-box-number">{{fs_map | mdsSummary}}</span>
         </div>
       </div>
       <div class="info-box">
@@ -60,7 +60,7 @@
 
         <div class="info-box-content">
           <span class="info-box-text">Manager daemons</span>
-          <span class="info-box-number">{{mgr_map}}</span>
+          <span class="info-box-number">{{mgr_map | mgrSummary}}</span>
         </div>
       </div>
     </div>
@@ -78,7 +78,7 @@
           <table class="ceph-chartbox">
             <tr>
               <td>
-                <span style="font-size: 45px;">{{df.stats.total_objects}}</span>
+                <span style="font-size: 45px;">{{df.stats.total_objects | dimless}}</span>
               </td>
               <td>
                 <div style="height:120px; width: 120px;">
@@ -94,7 +94,7 @@
             <tr>
               <td>Objects</td>
               <td>Raw capacity
-                <br>({{df.stats.total_used_bytes }} used)</td>
+                <br>({{df.stats.total_used_bytes | dimlessBinary}} used)</td>
               <td>Usage by pool</td>
             </tr>
           </table>
@@ -122,13 +122,13 @@
                   {{pool.pool_name}}
                 </td>
                 <td [ngStyle]="pool.pg_status | pgStatusStyle">
-                  {{pool.pg_status }}
+                  {{pool.pg_status | pgStatus}}
                 </td>
                 <td>
-                  {{pool.stats.bytes_used.latest }} / {{pool.stats.max_avail.latest }}
+                  {{pool.stats.bytes_used.latest | dimlessBinary}} / {{pool.stats.max_avail.latest | dimlessBinary}}
                 </td>
                 <td>
-                  {{pool.stats.rd_bytes.rate }} rd, {{ pool.stats.wr_bytes.rate }} wr
+                  {{pool.stats.rd_bytes.rate | dimless }} rd, {{ pool.stats.wr_bytes.rate | dimless }} wr
                 </td>
               </tr>
             </tbody>
