@@ -6,10 +6,14 @@ import { DimlessBinaryPipe } from './dimless-binary.pipe';
 import { DimlessPipe } from './dimless.pipe';
 
 @NgModule({
-  imports: [
-    CommonModule
+  imports: [CommonModule],
+  declarations: [
+    HealthColorPipe,
+    ShortVersionPipe,
+    DimlessBinaryPipe,
+    DimlessPipe
   ],
-  declarations: [HealthColorPipe, ShortVersionPipe, DimlessBinaryPipe, DimlessPipe],
-  exports: [HealthColorPipe, ShortVersionPipe, DimlessBinaryPipe, DimlessPipe]
+  exports: [HealthColorPipe, ShortVersionPipe, DimlessBinaryPipe, DimlessPipe],
+  providers: [DimlessBinaryPipe]
 })
-export class PipesModule { }
+export class PipesModule {}

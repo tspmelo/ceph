@@ -1,5 +1,6 @@
 <!-- Main content -->
-<section class="content" *ngIf="isReady">
+<section class="content"
+         *ngIf="isReady">
   <div class="row">
     <div class="col-sm-6">
       <div class="box">
@@ -82,18 +83,33 @@
               </td>
               <td>
                 <div style="height:120px; width: 120px;">
-                  <!-- <canvas baseChart
-                          [data]="rawUSage.doughnutChartData"
-                          [labels]="rawUSage.doughnutChartLabels"
-                          [chartType]="rawUSage.doughnutChartType"
-                          (chartHover)="rawUSage.chartHovered($event)"
-                          (chartClick)="rawUSage.chartClicked($event)"></canvas> -->
-                  <canvas id="raw_usage_chart"></canvas>
+                  <canvas baseChart
+                          id="raw_usage_chart"
+                          [datasets]="rawUsage.dataset"
+                          [chartType]="rawUsage.chartType"
+                          [options]="rawUsage.options"
+                          [labels]="rawUsage.labels"
+                          [colors]="rawUsage.colors"
+                          (chartHover)="chartHovered($event)"
+                          (chartClick)="chartClicked($event)"
+                          width="120"
+                          height="120"></canvas>
                 </div>
               </td>
               <td>
                 <div style="height:120px; width: 120px;">
-                  <canvas id="pool_usage_chart"></canvas>
+
+                  <canvas baseChart
+                          id="pool_usage_chart"
+                          [datasets]="poolUsage.dataset"
+                          [chartType]="poolUsage.chartType"
+                          [options]="poolUsage.options"
+                          [labels]="poolUsage.labels"
+                          [colors]="poolUsage.colors"
+                          (chartHover)="chartHovered($event)"
+                          (chartClick)="chartClicked($event)"
+                          width="120"
+                          height="120"></canvas>
                 </div>
               </td>
             </tr>

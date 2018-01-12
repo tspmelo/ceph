@@ -9,11 +9,13 @@ import { MdsSummaryPipe } from './mds-summary.pipe';
 import { MgrSummaryPipe } from './mgr-summary.pipe';
 import { OsdSummaryPipe } from './osd-summary.pipe';
 import { PgStatusPipe } from './pg-status.pipe';
+import { ChartsModule } from 'ng2-charts';
 
 @NgModule({
   imports: [
     CommonModule,
-    SharedModule
+    SharedModule,
+    ChartsModule
   ],
   declarations: [
     HealthComponent,
