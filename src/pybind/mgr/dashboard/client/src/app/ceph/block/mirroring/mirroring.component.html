@@ -1,0 +1,183 @@
+<section class="content-header">
+  <h1>
+    Block Mirroring
+  </h1>
+</section>
+
+<section class="content">
+  <div class="row">
+    <div class="col-sm-6">
+      <div class="box">
+        <div class="box-header">
+          <h3 class="box-title">Daemons</h3>
+        </div>
+        <div class="box-body">
+          <table id="daemons"
+                 class="table table-condensed">
+            <thead>
+              <tr>
+                <th>Instance</th>
+                <th>ID</th>
+                <th>Hostname</th>
+                <th>Version</th>
+                <th>Health</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let daemon of content_data.daemons">
+                <td>{{daemon.instance_id}}</td>
+                <td>{{daemon.id}}</td>
+                <td>{{daemon.server_hostname}}</td>
+                <td>{{daemon.version | shortVersion}}</td>
+                <td>
+                  <span [ngClass]="daemon.health_color | mirrorHealthColor">{{daemon.health}}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6">
+      <div class="box">
+        <div class="box-header">
+          <h3 class="box-title">Pools</h3>
+        </div>
+        <div class="box-body">
+          <table id="pools"
+                 class="table table-condensed">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Mode</th>
+                <th>Leader</th>
+                <th># Local</th>
+                <th># Remote</th>
+                <th>Health</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let pool of content_data.pools">
+                <td>{{pool.name}}</td>
+                <td>{{pool.mirror_mode}}</td>
+                <td>{{pool.leader_id}}</td>
+                <td>{{pool.image_local_count}}</td>
+                <td>{{pool.image_remote_count}}</td>
+                <td>
+                  <span [ngClass]="pool.health_color | mirrorHealthColor">{{pool.health}}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="box-header">
+      <h3 class="box-title">Images</h3>
+    </div>
+    <div class="box-body">
+      <div class="nav-tabs-custom">
+        <ul class="nav nav-tabs">
+          <li class="active">
+            <a href="#tab_1"
+               data-toggle="tab">Issues</a>
+          </li>
+          <li>
+            <a href="#tab_2"
+               data-toggle="tab">Syncing</a>
+          </li>
+          <li>
+            <a href="#tab_3"
+               data-toggle="tab">Ready</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active"
+               id="tab_1">
+            <table id="image_errors"
+                   class="table table-condensed">
+              <thead>
+                <tr>
+                  <th>Pool</th>
+                  <th>Image</th>
+                  <th>Issue</th>
+                  <th>State</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let image of content_data.image_error">
+                  <td>{{image.pool_name}}</td>
+                  <td>{{image.name}}</td>
+                  <td>{{image.description}}</td>
+                  <td>
+                    <span [ngClass]="image.state_color | mirrorHealthColor">{{image.state}}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="tab-pane"
+               id="tab_2">
+            <table id="image_syncing"
+                   class="table table-condensed">
+              <thead>
+                <tr>
+                  <th>Pool</th>
+                  <th>Image</th>
+                  <th>Progress</th>
+                  <th>State</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let image of content_data.image_syncing">
+                  <td>{{image.pool_name}}</td>
+                  <td>{{image.name}}</td>
+                  <td>
+                    <div class="progress"
+                         style="width: 100px; height: 18px;">
+                      <div class="progress-bar progress-bar-aqua"
+                          [ngStyle]="image.progress | syncProgressBar">
+                        {{image.progress}}
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="label label-info">Syncing</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="tab-pane"
+               id="tab_3">
+            <table id="image_ready"
+                   class="table table-condensed">
+              <thead>
+                <tr>
+                  <th>Pool</th>
+                  <th>Image</th>
+                  <th>Description</th>
+                  <th>State</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let image of content_data.image_ready">
+                  <td>{{image.pool_name}}</td>
+                  <td>{{image.name}}</td>
+                  <td>{{image.description}}</td>
+                  <td>
+                    <span [ngClass]="image.state_color | mirrorHealthColor">{{image.state}}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
