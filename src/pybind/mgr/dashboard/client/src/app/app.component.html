@@ -1,8 +1,8 @@
 <div style="display:none;"
      id="mon-conn-banner"
      class="alert alert-danger"
-     [hidden]="have_mon_connection">
-  No monitor connection from manager daemon {{mgr_id}}: data may be stale
+     [hidden]="toplevel_data.have_mon_connection">
+  No monitor connection from manager daemon {{toplevel_data.mgr_id}}: data may be stale
 </div>
 
 <div style="display:none;"
@@ -57,14 +57,14 @@
       <!-- Sidebar Menu -->
       <ul class="sidebar-menu">
         <!-- Optionally, you can add icons to the links -->
-        <li>
-          <a routerLink="/health">
+        <li routerLinkActive="active">
+          <a routerLink="/health" >
             <i class="fa fa-heartbeat"
-             [ngStyle]="health_status | healthColor"></i>
+             [ngStyle]="toplevel_data.health_status | healthColor"></i>
             <span>Cluster health</span>
           </a>
         </li>
-        <li>
+        <li routerLinkActive="active">
           <a href="#">
             <i class="fa fa-server"></i>
             <span>Cluster</span>
@@ -81,10 +81,10 @@
             </li>
           </ul>
         </li>
-        <li>
+        <li routerLinkActive="active">
           <a href="#">
             <i class="fa fa-hdd-o"
-              [ngStyle]="block_health_color(rbd_mirroring)"></i>
+              [ngStyle]="toplevel_data.rbd_mirroring | blockHealthColor"></i>
             <span>Block</span>
             <span class="pull-right-container">
               <i class="fa fa-angle-left pull-right"></i>
@@ -95,10 +95,10 @@
               <a routerLink="/rbd_mirroring">
                 <i class="fa fa-exchange"></i> Mirroring
                 <span class="pull-right-container">
-                  <small [hidden]="!rbd_mirroring.warnings"
-                         class="label pull-right bg-yellow">{{rbd_mirroring.warnings}}</small>
-                  <small [hidden]="!rbd_mirroring.errors"
-                         class="label pull-right bg-red">{{rbd_mirroring.errors}}</small>
+                  <small *ngIf="toplevel_data.rbd_mirroring.warnings !== 0"
+                         class="label pull-right bg-yellow">{{toplevel_data.rbd_mirroring.warnings}}</small>
+                  <small *ngIf="toplevel_data.rbd_mirroring.errors !== 0"
+                         class="label pull-right bg-red">{{toplevel_data.rbd_mirroring.errors}}</small>
                 </span>
               </a>
             </li>
@@ -117,17 +117,17 @@
                 </span>
               </a>
               <ul class="treeview-menu">
-                <li *ngFor="let pool of rbd_pools">
+                <li *ngFor="let pool of toplevel_data.rbd_pools">
                   <a routerLink="{{pool.url}}">
                     <i class="fa fa-circle-o"></i> {{pool.name}}</a>
                 </li>
                 <li class="ceph-none-found"
-                    [hidden]="rbd_pools.length === 0">None found</li>
+                    [hidden]="toplevel_data.rbd_pools.length === 0">None found</li>
               </ul>
             </li>
           </ul>
         </li>
-        <li>
+        <li routerLinkActive="active">
           <a href="#">
             <i class="fa fa-folder"></i>
             <span>Filesystems</span>
@@ -136,15 +136,15 @@
             </span>
           </a>
           <ul class="treeview-menu menu-open">
-            <li *ngFor="let filesystem of filesystems">
+            <li *ngFor="let filesystem of toplevel_data.filesystems">
               <a routerLink="{{filesystem.url}}">{{filesystem.name}}</a>
             </li>
             <li class="ceph-none-found"
-                [hidden]="filesystems.length === 0">None found</li>
+                [hidden]="toplevel_data.filesystems.length === 0">None found</li>
           </ul>
         </li>
 
-        <li>
+        <li routerLinkActive="active">
           <a routerLink="/rgw">
             <i class="fa fa-cloud-download"
                aria-hidden="true"></i>
@@ -170,7 +170,7 @@
   <footer class="main-footer">
     <!-- To the right -->
     <div class="pull-right hidden-xs">
-      {{ ceph_version }}
+      {{ toplevel_data.ceph_version }}
     </div>
     <!-- Default to the left -->
     <strong>Copyright &copy; 2016 by Ceph Contributors.</strong> Free software (LGPL 2.1)

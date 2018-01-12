@@ -4,6 +4,7 @@ import { HealthColorPipe } from './health-color.pipe';
 import { ShortVersionPipe } from './short-version.pipe';
 import { DimlessBinaryPipe } from './dimless-binary.pipe';
 import { DimlessPipe } from './dimless.pipe';
+import { BlockHealthColorPipe } from './block-health-color.pipe';
 
 @NgModule({
   imports: [CommonModule],
@@ -11,9 +12,10 @@ import { DimlessPipe } from './dimless.pipe';
     HealthColorPipe,
     ShortVersionPipe,
     DimlessBinaryPipe,
-    DimlessPipe
+    DimlessPipe,
+    BlockHealthColorPipe
   ],
-  exports: [HealthColorPipe, ShortVersionPipe, DimlessBinaryPipe, DimlessPipe],
+  exports: [HealthColorPipe, ShortVersionPipe, DimlessBinaryPipe, DimlessPipe, BlockHealthColorPipe],
   providers: [DimlessBinaryPipe]
 })
 export class PipesModule {}

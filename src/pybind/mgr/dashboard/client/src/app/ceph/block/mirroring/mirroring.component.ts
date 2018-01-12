@@ -9,7 +9,7 @@ import * as _ from 'underscore';
 })
 export class MirroringComponent implements OnInit {
   content_data: any;
-  $: any;
+  wj: any = window;
 
   constructor(private http: HttpClient) {
     this.content_data = {};
@@ -31,7 +31,7 @@ export class MirroringComponent implements OnInit {
 
     let table_ids = ['daemons', 'pools'];
     for (let i = 0; i < table_ids.length; ++i) {
-      $('#' + table_ids[i]).DataTable({
+      this.wj.$('#' + table_ids[i]).DataTable({
         paging: true,
         pageLength: 5,
         lengthChange: false,
@@ -43,7 +43,7 @@ export class MirroringComponent implements OnInit {
 
     table_ids = ['image_errors', 'image_syncing', 'image_ready'];
     for (let i = 0; i < table_ids.length; ++i) {
-      $('#' + table_ids[i]).DataTable({
+      this.wj.$('#' + table_ids[i]).DataTable({
         paging: true,
         pageLength: 10,
         lengthChange: false,

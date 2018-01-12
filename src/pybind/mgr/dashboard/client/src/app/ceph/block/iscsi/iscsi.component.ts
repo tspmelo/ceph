@@ -9,7 +9,7 @@ import * as _ from 'underscore';
 })
 export class IscsiComponent implements OnInit {
   content_data: any;
-  $: any;
+  wj: any = window;
 
   constructor(private http: HttpClient) {
     this.content_data = {};
@@ -18,7 +18,7 @@ export class IscsiComponent implements OnInit {
   refresh() {
     this.http.get('/rbd_iscsi_data').subscribe(data => {
       _.extend(this.content_data, data);
-      $('.inlinesparkline').sparkline();
+      this.wj.$('.inlinesparkline').sparkline();
       setTimeout(() => {
         this.refresh();
       }, 5000);
@@ -26,12 +26,12 @@ export class IscsiComponent implements OnInit {
   }
 
   ngOnInit() {
-    $('.inlinesparkline').sparkline();
+    this.wj.$('.inlinesparkline').sparkline();
     setTimeout(() => {
       this.refresh();
     }, 5000);
 
-    $('#daemons').DataTable({
+    this.wj.$('#daemons').DataTable({
       paging: true,
       pageLength: 5,
       lengthChange: false,
@@ -40,7 +40,7 @@ export class IscsiComponent implements OnInit {
       searching: false
     });
 
-    $('#images').DataTable({
+    this.wj.$('#images').DataTable({
       paging: true,
       pageLength: 10,
       lengthChange: false,

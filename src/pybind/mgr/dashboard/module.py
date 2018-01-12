@@ -532,7 +532,8 @@ class Module(MgrModule):
                     'health_status': self._health_data()['status'],
                     'filesystems': filesystems,
                     'mgr_id': global_instance().get_mgr_id(),
-                    'have_mon_connection': global_instance().have_mon_connection()
+                    'have_mon_connection': global_instance().have_mon_connection(),
+                    'ceph_version': global_instance().version
                 }
 
         class Root(EndPoint):
