@@ -1,5 +1,5 @@
 <!-- Main content -->
-<section class="content">
+<section class="content" *ngIf="isReady">
   <div class="row">
     <div class="col-sm-6">
       <div class="box">
@@ -8,10 +8,10 @@
         </div>
         <div class="box-body">
           Overall status:
-          <span [ngStyle]="health.status | healthColor">{{health.status}}</span>
+          <span [ngStyle]="content_data.health.status | healthColor">{{ content_data.health.status }}</span>
 
           <ul>
-            <li *ngFor="let check of health.checks">
+            <li *ngFor="let check of content_data.health.checks">
               <span [ngStyle]="check.severity | healthColor">{{check.type}}</span>: {{check.summary.message}}
             </li>
           </ul>
@@ -26,7 +26,7 @@
 
         <div class="info-box-content">
           <span class="info-box-text">Monitors</span>
-          <span class="info-box-number">{{ mon_status | monSummary }}</span>
+          <span class="info-box-number">{{ content_data.mon_status | monSummary }}</span>
           <!-- | mon_summary -->
         </div>
       </div>
@@ -37,7 +37,7 @@
 
         <div class="info-box-content">
           <span class="info-box-text">OSDs</span>
-          <span class="info-box-number">{{osd_map | osdSummary}}</span>
+          <span class="info-box-number">{{content_data.osd_map | osdSummary}}</span>
         </div>
       </div>
     </div>
@@ -50,7 +50,7 @@
 
         <div class="info-box-content">
           <span class="info-box-text">Metadata servers</span>
-          <span class="info-box-number">{{fs_map | mdsSummary}}</span>
+          <span class="info-box-number">{{content_data.fs_map | mdsSummary}}</span>
         </div>
       </div>
       <div class="info-box">
@@ -60,7 +60,7 @@
 
         <div class="info-box-content">
           <span class="info-box-text">Manager daemons</span>
-          <span class="info-box-number">{{mgr_map | mgrSummary}}</span>
+          <span class="info-box-number">{{content_data.mgr_map | mgrSummary}}</span>
         </div>
       </div>
     </div>
@@ -78,10 +78,16 @@
           <table class="ceph-chartbox">
             <tr>
               <td>
-                <span style="font-size: 45px;">{{df.stats.total_objects | dimless}}</span>
+                <span style="font-size: 45px;">{{content_data.df.stats.total_objects | dimless}}</span>
               </td>
               <td>
                 <div style="height:120px; width: 120px;">
+                  <!-- <canvas baseChart
+                          [data]="rawUSage.doughnutChartData"
+                          [labels]="rawUSage.doughnutChartLabels"
+                          [chartType]="rawUSage.doughnutChartType"
+                          (chartHover)="rawUSage.chartHovered($event)"
+                          (chartClick)="rawUSage.chartClicked($event)"></canvas> -->
                   <canvas id="raw_usage_chart"></canvas>
                 </div>
               </td>
@@ -94,7 +100,7 @@
             <tr>
               <td>Objects</td>
               <td>Raw capacity
-                <br>({{df.stats.total_used_bytes | dimlessBinary}} used)</td>
+                <br>({{content_data.df.stats.total_used_bytes | dimlessBinary}} used)</td>
               <td>Usage by pool</td>
             </tr>
           </table>
@@ -117,7 +123,7 @@
               <th>Activity</th>
             </thead>
             <tbody>
-              <tr *ngFor="let pool of pools">
+              <tr *ngFor="let pool of content_data.pools">
                 <td>
                   {{pool.pool_name}}
                 </td>
@@ -154,7 +160,7 @@
         <div id="clog"
              class="tab-pane fade in active">
           <span>
-            <span *ngFor="let line of clog">
+            <span *ngFor="let line of content_data.clog">
               {{ line.stamp }}&nbsp;{{line.priority}}&nbsp;
               <span [ngStyle]="line | logColor">
                 {{ line.message }}
@@ -166,7 +172,7 @@
         <div id="audit_log"
              class="tab-pane fade in">
           <span>
-            <span *ngFor="let line of audit_log">
+            <span *ngFor="let line of content_data.audit_log">
               {{ line.stamp }}&nbsp;{{line.priority}}&nbsp;
               <span [ngStyle]="line | logColor">
                 <span style="font-weight: bold;">

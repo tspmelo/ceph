@@ -9,7 +9,7 @@ export class MdsSummaryPipe implements PipeTransform {
     let standbys = 0;
     let active = 0;
     let standby_replay = 0;
-    _.each(fs_map.standbys, (i, s) => {
+    _.each(fs_map.standbys, (s, i) => {
       standbys += 1;
     });
 
@@ -18,8 +18,8 @@ export class MdsSummaryPipe implements PipeTransform {
     } else if (fs_map.filesystems.length === 0) {
       return 'no filesystems';
     } else {
-      _.each(fs_map.filesystems, function(i, fs) {
-        _.each(fs.mdsmap.info, function(j, mds) {  // TODO: test args
+      _.each(fs_map.filesystems, function(fs, i) {
+        _.each(fs.mdsmap.info, function(mds, j) {
           if (mds.state === 'up:standby-replay') {
             standby_replay += 1;
           } else {

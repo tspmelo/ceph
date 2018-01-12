@@ -10,7 +10,7 @@ import { CoreModule } from './core/core.module';
 import { CephModule } from './ceph/ceph.module';
 import { SharedModule } from './shared/shared.module';
 
-import '../../node_modules/chart.js/dist/Chart.js';
+import { ChartsModule } from 'ng2-charts';
 
 @NgModule({
   declarations: [
@@ -22,7 +22,8 @@ import '../../node_modules/chart.js/dist/Chart.js';
     AppRoutingModule,
     CoreModule,
     CephModule,
-    SharedModule
+    SharedModule,
+    ChartsModule
   ],
   providers: [],
   bootstrap: [AppComponent]

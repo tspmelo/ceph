@@ -8,9 +8,9 @@ export class LogColorPipe implements PipeTransform {
     if (value.priority === '[INF]') {
       return ''; // Inherit
     } else if (value.priority === '[WRN]') {
-      return 'color: #FFC200';
+      return '{color: #FFC200}';
     } else if (value.priority === '[ERR]') {
-      return 'color: #FF2222';
+      return '{color: #FF2222}';
     } else {
       return '';
     }

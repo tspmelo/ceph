@@ -9,7 +9,7 @@ export class PgStatusStylePipe implements PipeTransform {
     let warning = false;
     let error = false;
 
-    _.each(pg_status, function(state, count) {
+    _.each(pg_status, function(value, state) {
       if (
         state.includes('inconsistent') ||
         state.includes('incomplete') ||
@@ -28,13 +28,13 @@ export class PgStatusStylePipe implements PipeTransform {
     });
 
     if (error) {
-      return 'color: #FF0000';
+      return {color: '#FF0000'};
     }
 
     if (warning) {
-      return 'color: #FFC200';
+      return {color: '#FFC200'};
     }
 
-    return 'color: #00BB00';
+    return {color: '#00BB00'};
   }
 }

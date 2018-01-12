@@ -34,20 +34,20 @@ export class AppComponent implements OnInit {
   // TODO: change to pipe
   health_color(status_str) {
     if (status_str === 'HEALTH_OK') {
-      return 'color: #00bb00;';
+      return '{color: #00bb00;}';
     } else if (status_str === 'HEALTH_WARN') {
-      return 'color: #FFC200;';
+      return '{color: #FFC200;}';
     } else if (status_str === 'HEALTH_ERR') {
-      return 'color: #ff0000;';
+      return '{color: #ff0000;}';
     }
   }
 
   // TODO: change to pipe
   block_health_color = function(rbd_mirroring) {
     if (rbd_mirroring.errors > 0) {
-      return 'color: #ff0000';
+      return '{color: #ff0000}';
     } else if (rbd_mirroring.warnings > 0) {
-      return 'color: #ffc200';
+      return '{color: #ffc200}';
     }
     return '';
   };

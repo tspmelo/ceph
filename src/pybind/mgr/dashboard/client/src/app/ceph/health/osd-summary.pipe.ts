@@ -8,7 +8,7 @@ export class OsdSummaryPipe implements PipeTransform {
   transform(osd_map: any, args?: any): any {
     let in_count = 0;
     let up_count = 0;
-    _.each(osd_map.osds, function(i, osd) {
+    _.each(osd_map.osds, function(osd, i) {
       // TODO: test
       if (osd.in) {
         in_count++;
