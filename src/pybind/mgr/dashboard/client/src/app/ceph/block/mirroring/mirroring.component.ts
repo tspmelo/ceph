@@ -9,6 +9,7 @@ import * as _ from 'underscore';
 })
 export class MirroringComponent implements OnInit {
   content_data: any;
+  $: any;
 
   constructor(private http: HttpClient) {
     this.content_data = {};
@@ -28,28 +29,28 @@ export class MirroringComponent implements OnInit {
       this.refresh();
     }, 30000);
 
-    // let table_ids = ['daemons', 'pools'];
-    // for (let i = 0; i < table_ids.length; ++i) {
-    //   $('#' + table_ids[i]).DataTable({
-    //     paging: true,
-    //     pageLength: 5,
-    //     lengthChange: false,
-    //     info: false,
-    //     autoWidth: false,
-    //     searching: false
-    //   });
-    // }
+    let table_ids = ['daemons', 'pools'];
+    for (let i = 0; i < table_ids.length; ++i) {
+      $('#' + table_ids[i]).DataTable({
+        paging: true,
+        pageLength: 5,
+        lengthChange: false,
+        info: false,
+        autoWidth: false,
+        searching: false
+      });
+    }
 
-    // const table_ids = ['image_errors', 'image_syncing', 'image_ready'];
-    // for (let i = 0; i < table_ids.length; ++i) {
-    //   $('#' + table_ids[i]).DataTable({
-    //     paging: true,
-    //     pageLength: 10,
-    //     lengthChange: false,
-    //     searching: true,
-    //     ordering: true,
-    //     info: false
-    //   });
-    // }
+    table_ids = ['image_errors', 'image_syncing', 'image_ready'];
+    for (let i = 0; i < table_ids.length; ++i) {
+      $('#' + table_ids[i]).DataTable({
+        paging: true,
+        pageLength: 10,
+        lengthChange: false,
+        searching: true,
+        ordering: true,
+        info: false
+      });
+    }
   }
 }
