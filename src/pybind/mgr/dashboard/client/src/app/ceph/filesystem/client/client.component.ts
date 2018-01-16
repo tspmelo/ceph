@@ -10,16 +10,17 @@ import { ActivatedRoute } from '@angular/router';
 export class ClientComponent implements OnInit {
   content_data: any = {};
   fscid: number;
-  constructor(private http: HttpClient, private route: ActivatedRoute) {}
+  fs_name: string;
 
+  constructor(private http: HttpClient, private route: ActivatedRoute) {}
 
   ngOnInit() {
     this.fscid = +this.route.snapshot.paramMap.get('id');
 
     this.http
       .get('/clients_main_data/' + this.fscid + '/')
-      .subscribe(data => {
-        console.log(data);
+      .subscribe((data: any) => {
+        this.fs_name = data.fs_name;
       });
 
     this.refresh();
