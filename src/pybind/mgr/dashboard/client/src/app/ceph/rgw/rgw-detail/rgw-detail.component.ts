@@ -18,13 +18,11 @@ export class RgwDetailComponent implements OnInit {
   }
 
   refresh() {
-    this.http
-      .get('/rgw/rgw_data/' + this.rgw_id + '/')
-      .subscribe(data => {
-        this.content_data = data;
-        setTimeout(() => {
-          this.refresh();
-        }, 5000);
-      });
+    this.http.get('/rgw/rgw_data/' + this.rgw_id + '/').subscribe(data => {
+      this.content_data = data;
+      setTimeout(() => {
+        this.refresh();
+      }, 5000);
+    });
   }
 }

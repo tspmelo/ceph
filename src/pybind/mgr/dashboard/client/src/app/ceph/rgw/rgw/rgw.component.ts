@@ -7,7 +7,9 @@ import { HttpClient } from '@angular/common/http';
   styleUrls: ['./rgw.component.scss']
 })
 export class RgwComponent implements OnInit {
-  content_data: any;
+  content_data: any = {
+    rgw: {}
+  };
 
   constructor(private http: HttpClient) {}
 
