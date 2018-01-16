@@ -8,6 +8,8 @@ import { RgwComponent } from './rgw/rgw/rgw.component';
 import { RgwDetailComponent } from './rgw/rgw-detail/rgw-detail.component';
 import { MonitorsComponent } from './cluster/monitors/monitors.component';
 import { PoolComponent } from './block/pool/pool.component';
+import { FilesystemComponent } from './filesystem/filesystem/filesystem.component';
+import { ClientComponent } from './filesystem/client/client.component';
 
 const routes: Routes = [
   { path: '', component: HealthComponent },
@@ -18,7 +20,9 @@ const routes: Routes = [
   { path: 'rgw', component: RgwComponent },
   { path: 'rgw_detail/:id', component: RgwDetailComponent },
   { path: 'monitors', component: MonitorsComponent },
-  { path: 'rbd_pool/:id', component: PoolComponent }
+  { path: 'rbd_pool/:id', component: PoolComponent },
+  { path: 'filesystem/:id', component: FilesystemComponent },
+  { path: 'clients/:id', component: ClientComponent }
 ];
 
 @NgModule({

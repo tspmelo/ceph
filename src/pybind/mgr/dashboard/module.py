@@ -145,7 +145,7 @@ class Module(MgrModule):
         # Stateful instances of CephFSClients, hold cached results.  Key to
         # dict is FSCID
         self.cephfs_clients = {}
-         
+
         # Stateful instance of RGW
         self.rgw_daemons = RGWDaemons(self)
 
@@ -645,6 +645,29 @@ class Module(MgrModule):
 
             @cherrypy.expose
             @cherrypy.tools.json_out()
+            def clients_main_data(self, fs_id):
+                try:
+                    fs_id = int(fs_id)
+                except ValueError:
+                    raise cherrypy.HTTPError(400,
+                        "Invalid filesystem id {0}".format(fs_id))
+
+                try:
+                    fs_name = FsMap(global_instance().get(
+                        "fs_map")).get_filesystem(fs_id)['mdsmap']['fs_name']
+                except NotFound:
+                    log.warning("Missing FSCID, dumping fsmap:\n{0}".format(
+                        json.dumps(global_instance().get("fs_map"), indent=2)
+                    ))
+                    raise cherrypy.HTTPError(404,
+                                             "Noasdsasd filesystem with id {0}".format(fs_id))
+
+                return {
+                    'fs_name': fs_name
+                }
+
+            @cherrypy.expose
+            @cherrypy.tools.json_out()
             def clients_data(self, fs_id):
                 try:
                     fs_id = int(fs_id)
@@ -803,20 +826,20 @@ class Module(MgrModule):
                     for counter in counters:
                         data = global_instance().get_counter("mon", mon["name"], counter)
                         if data is not None:
-                            mon["stats"][counter.split(".")[1]] = data[counter] 
+                            mon["stats"][counter.split(".")[1]] = data[counter]
                         else:
                             mon["stats"][counter.split(".")[1]] = []
                     if mon["rank"] in mon_status["quorum"]:
                         in_quorum.append(mon)
                     else:
                         out_quorum.append(mon)
-                    
+
                 return {
                     'mon_status': mon_status,
                     'in_quorum' : in_quorum,
-                    'out_quorum': out_quorum,                
+                    'out_quorum': out_quorum,
                 }
-            
+
             def _servers(self):
                 return {
                     'servers': global_instance().list_servers()
@@ -1193,7 +1216,7 @@ class Module(MgrModule):
 			toplevel_data=json.dumps(toplevel_data, indent=2),
 			content_data=json.dumps(content_data, indent=2)
 		    )
-            
+
             def _rgw_daemons(self):
                 status, data = global_instance().rgw_daemons.get()
                 if data is None:
@@ -1205,7 +1228,7 @@ class Module(MgrModule):
             @cherrypy.tools.json_out()
             def rgw_daemons_data(self):
                 return self._rgw_daemons()
-           
+
             def _rgw(self, rgw_id):
                 daemons = self.rgw_daemons_data()
                 rgw_metadata = {}
@@ -1214,7 +1237,7 @@ class Module(MgrModule):
                 for daemon in daemons["daemons"]:
                     if daemon["id"] != rgw_id:
                         continue
-                    
+
                     rgw_metadata = daemon["metadata"]
                     rgw_status = daemon["status"]
 
@@ -1223,7 +1246,7 @@ class Module(MgrModule):
                     "rgw_metadata": to_sorted_array(rgw_metadata),
                     "rgw_status": to_sorted_array(rgw_status),
                 }
-              
+
             @cherrypy.expose
             @cherrypy.tools.json_out()
             def rgw_data(self, rgw_id):
