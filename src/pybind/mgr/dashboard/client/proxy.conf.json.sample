@@ -1,6 +1,22 @@
 {
+  "/rgw/*_data": {
+    "target": "http://127.0.0.1:41374",
+    "secure": false,
+    "logLevel": "debug"
+  },
+  "/filesystem_data": {
+    "target": "http://127.0.0.1:41374",
+    "secure": false,
+    "logLevel": "debug"
+  },
+  "/clients_data": {
+    "target": "http://127.0.0.1:41374",
+    "secure": false,
+    "logLevel": "debug"
+  },
   "/*_data": {
-    "target": "http://localhost:3000",
-    "secure": false
+    "target": "http://127.0.0.1:41374",
+    "secure": false,
+    "logLevel": "debug"
   }
 }
