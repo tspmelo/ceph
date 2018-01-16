@@ -6,6 +6,7 @@ import { MirroringComponent } from './block/mirroring/mirroring.component';
 import { IscsiComponent } from './block/iscsi/iscsi.component';
 import { RgwComponent } from './rgw/rgw/rgw.component';
 import { RgwDetailComponent } from './rgw/rgw-detail/rgw-detail.component';
+import { MonitorsComponent } from './cluster/monitors/monitors.component';
 
 const routes: Routes = [
   { path: '', component: HealthComponent },
@@ -14,7 +15,8 @@ const routes: Routes = [
   { path: 'rbd_mirroring', component: MirroringComponent },
   { path: 'rbd_iscsi', component: IscsiComponent },
   { path: 'rgw', component: RgwComponent },
-  { path: 'rgw_detail/:id', component: RgwDetailComponent }
+  { path: 'rgw_detail/:id', component: RgwDetailComponent },
+  { path: 'monitors', component: MonitorsComponent }
 ];
 
 @NgModule({

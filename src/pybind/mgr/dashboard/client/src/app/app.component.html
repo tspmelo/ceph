@@ -58,9 +58,9 @@
       <ul class="sidebar-menu">
         <!-- Optionally, you can add icons to the links -->
         <li routerLinkActive="active">
-          <a routerLink="/health" >
+          <a routerLink="/health">
             <i class="fa fa-heartbeat"
-             [ngStyle]="toplevel_data.health_status | healthColor"></i>
+               [ngStyle]="toplevel_data.health_status | healthColor"></i>
             <span>Cluster health</span>
           </a>
         </li>
@@ -79,12 +79,15 @@
             <li>
               <a routerLink="/osd">OSDs</a>
             </li>
+            <li>
+              <a routerLink="/monitors">Monitors</a>
+            </li>
           </ul>
         </li>
         <li routerLinkActive="active">
           <a href="#">
             <i class="fa fa-hdd-o"
-              [ngStyle]="toplevel_data.rbd_mirroring | blockHealthColor"></i>
+               [ngStyle]="toplevel_data.rbd_mirroring | blockHealthColor"></i>
             <span>Block</span>
             <span class="pull-right-container">
               <i class="fa fa-angle-left pull-right"></i>

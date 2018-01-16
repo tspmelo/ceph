@@ -789,7 +789,7 @@ class Module(MgrModule):
             @cherrypy.expose
             @cherrypy.tools.json_out()
             def monitors_data(self):
-                return self._monitors
+                return self._monitors()
 
             def _monitors(self):
                 in_quorum, out_quorum = [], []
