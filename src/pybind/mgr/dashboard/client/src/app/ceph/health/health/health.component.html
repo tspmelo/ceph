@@ -127,37 +127,30 @@
           Pools
         </div>
         <div class="box-body">
-          <cd-table [rows]="content_data.pools">
-            <ngx-datatable-column name="Name"
-                                  prop="pool_name">
-            </ngx-datatable-column>
-            <ngx-datatable-column name="PG status"
-                                  prop="pg_status">
-              <ng-template let-value="value"
-                           ngx-datatable-cell-template>
-                <div [ngStyle]="value | pgStatusStyle">
-                  {{value | pgStatus}}
-                </div>
-              </ng-template>
-            </ngx-datatable-column>
-            <ngx-datatable-column name="Usage"
-                                  prop="stats"
-                                  [sortable]="false">
-              <ng-template let-value="value"
-                           ngx-datatable-cell-template>
-                {{value.bytes_used.latest | dimlessBinary}} / {{value.max_avail.latest | dimlessBinary}}
-
-              </ng-template>
-            </ngx-datatable-column>
-            <ngx-datatable-column name="Activity"
-                                  prop="stats"
-                                  [sortable]="false">
-              <ng-template let-value="value"
-                           ngx-datatable-cell-template>
-                {{value.rd_bytes.rate | dimless }} rd, {{ value.wr_bytes.rate | dimless }} wr
-              </ng-template>
-            </ngx-datatable-column>
-          </cd-table>
+          <table class="table table-condensed">
+            <thead>
+              <th>Name</th>
+              <th>PG status</th>
+              <th>Usage</th>
+              <th>Activity</th>
+            </thead>
+            <tbody>
+              <tr *ngFor="let pool of content_data.pools">
+                <td>
+                  {{pool.pool_name}}
+                </td>
+                <td [ngStyle]="pool.pg_status | pgStatusStyle">
+                  {{pool.pg_status | pgStatus}}
+                </td>
+                <td>
+                  {{pool.stats.bytes_used.latest | dimlessBinary}} / {{pool.stats.max_avail.latest | dimlessBinary}}
+                </td>
+                <td>
+                  {{pool.stats.rd_bytes.rate | dimless }} rd, {{ pool.stats.wr_bytes.rate | dimless }} wr
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
