@@ -1,0 +1,52 @@
+import { Component, OnInit } from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {ActivatedRoute} from '@angular/router';
+import * as _ from 'underscore';
+
+@Component({
+  selector: 'cd-osd-detail',
+  templateUrl: './osd-detail.component.html',
+  styleUrls: ['./osd-detail.component.scss']
+})
+export class OsdDetailComponent implements OnInit {
+  osdId: number;
+  op_w_latency_in_bytes_histogram = {};
+  op_r_latency_out_bytes_histogram = {};
+  osd = {};
+  osd_list = [];
+  osd_metadata_list = [];
+
+  constructor(private http: HttpClient, private route: ActivatedRoute) { }
+
+  ngOnInit() {
+    this.osdId = +this.route.snapshot.paramMap.get('id');
+    this.refresh();
+  }
+
+  refresh() {
+    this.http.get(`/osd/perf_data/${this.osdId}`).subscribe((data: any) => {
+      this.op_w_latency_in_bytes_histogram = data.osd_histogram.osd.op_w_latency_in_bytes_histogram;
+      this.op_r_latency_out_bytes_histogram = data.osd_histogram.osd.op_r_latency_out_bytes_histogram;
+      this.osd = data.osd;
+      let osd_metadata = data.osd_metadata;
+      this.osd_metadata_list = [];
+      this.osd_list = [];
+      _.each(osd_metadata, (v, k) => {
+        this.osd_metadata_list.push({
+          key: k,
+          value: v
+        });
+      });
+      _.each(this.osd, (v, k) => {
+          this.osd_list.push({
+              key: k,
+              value: v
+          });
+      });
+      setTimeout(() => {
+        this.refresh();
+      }, 3000);
+    });
+  }
+
+}

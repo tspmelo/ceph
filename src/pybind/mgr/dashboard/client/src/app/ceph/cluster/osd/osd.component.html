@@ -1,0 +1,50 @@
+<section class="content-header">
+    <h1>
+        OSD daemons
+    </h1>
+</section>
+
+<section class="content">
+    <div class="box">
+        <div class="box-body">
+            <table class="table table-condensed table-bordered">
+            <thead>
+            <tr>
+                <th>Host</th>
+                <th>ID</th>
+                <th>Status</th>
+                <th>PGs</th>
+                <th>Usage</th>
+                <th>Read bytes</th>
+                <th>Write bytes</th>
+                <th>Read ops</th>
+                <th>Write ops</th>
+            </tr>
+            </thead>
+
+            <tbody *ngFor="let server of osdsByServer">
+            <tr *ngFor="let osd of server[1]">
+              <td>{{ server[0] }}</td>
+              <td>
+                <a [href]="'/osd/' + osd.id ">{{ osd.id }}</a>
+              </td>
+              <td>
+                <span [ngStyle]="osd.up | osdUpInStyle">{{ osd.up | osdUp }}</span>,
+                <span [ngStyle]="osd.in | osdUpInStyle">{{ osd.in | osdIn }}</span>
+              </td>
+              <td>{{ osd.stats.numpg }}</td>
+              <td>{{ osd.stats.stat_bytes_used | dimlessBinary }} / {{ osd.stats.stat_bytes | dimlessBinary }}</td>
+              <td>{{ osd.stats.op_out_bytes | dimlessBinary }}/s
+                <span class="inlinesparkline">{{ osd.stats_history.op_out_bytes | osdSparklineData }}</span>
+              </td>
+              <td>{{ osd.stats.op_in_bytes | dimlessBinary }}/s
+                <span class="inlinesparkline">{{ osd.stats_history.op_in_bytes | osdSparklineData }}</span>
+              </td>
+              <td>{{ osd.stats.op_r | dimless }}/s</td>
+              <td>{{ osd.stats.op_w | dimless }}/s</td>
+            </tr>
+            </tbody>
+            </table>
+        </div>
+    </div>
+</section>
