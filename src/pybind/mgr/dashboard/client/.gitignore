@@ -47,3 +47,7 @@ Thumbs.db
 
 # Development configuration
 proxy.conf.json
+
+# npm/yarn lock files
+yarn.lock
+package-lock.json
