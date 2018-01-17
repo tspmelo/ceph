@@ -498,18 +498,10 @@ class Module(MgrModule):
                 """
                 Data consumed by the base.html template
                 """
-                status, data = global_instance().rbd_pool_ls.get()
-                if data is None:
+                status, rbd_pools = global_instance().rbd_pool_ls.get()
+                if rbd_pools is None:
                     log.warning("Failed to get RBD pool list")
-                    data = []
-
-                rbd_pools = sorted([
-                    {
-                        "name": name,
-                        "url": get_prefixed_url("/rbd_pool/{0}/".format(name))
-                    }
-                    for name in data
-                ], key=lambda k: k['name'])
+                    rbd_pools = []
 
                 status, rbd_mirroring = global_instance().rbd_mirroring.toplevel.get()
                 if rbd_mirroring is None:

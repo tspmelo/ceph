@@ -12,29 +12,30 @@
           <h3 class="box-title">Daemons</h3>
         </div>
         <div class="box-body">
-          <table id="daemons"
-                 class="table table-condensed">
-            <thead>
-              <tr>
-                <th>Instance</th>
-                <th>ID</th>
-                <th>Hostname</th>
-                <th>Version</th>
-                <th>Health</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let daemon of content_data.daemons">
-                <td>{{daemon.instance_id}}</td>
-                <td>{{daemon.id}}</td>
-                <td>{{daemon.server_hostname}}</td>
-                <td>{{daemon.version | shortVersion}}</td>
-                <td>
-                  <span [ngClass]="daemon.health_color | mirrorHealthColor">{{daemon.health}}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+
+          <cd-table [rows]="content_data.daemons">
+            <ngx-datatable-column name="Instance"
+                                  prop="instance_id"></ngx-datatable-column>
+            <ngx-datatable-column name="ID"
+                                  prop="id"></ngx-datatable-column>
+            <ngx-datatable-column name="Hostname"
+                                  prop="server_hostname"></ngx-datatable-column>
+            <ngx-datatable-column name="Version"
+                                  prop="version">
+              <ng-template let-value="value"
+                           ngx-datatable-cell-template>
+                {{value | shortVersion}}
+              </ng-template>
+            </ngx-datatable-column>
+            <ngx-datatable-column name="Health"
+                                  prop="health">
+              <ng-template let-value="value"
+                           let-row="row"
+                           ngx-datatable-cell-template>
+                <span [ngClass]="row.health_color | mirrorHealthColor">{{value}}</span>
+              </ng-template>
+            </ngx-datatable-column>
+          </cd-table>
         </div>
       </div>
     </div>
@@ -45,31 +46,26 @@
           <h3 class="box-title">Pools</h3>
         </div>
         <div class="box-body">
-          <table id="pools"
-                 class="table table-condensed">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Mode</th>
-                <th>Leader</th>
-                <th># Local</th>
-                <th># Remote</th>
-                <th>Health</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let pool of content_data.pools">
-                <td>{{pool.name}}</td>
-                <td>{{pool.mirror_mode}}</td>
-                <td>{{pool.leader_id}}</td>
-                <td>{{pool.image_local_count}}</td>
-                <td>{{pool.image_remote_count}}</td>
-                <td>
-                  <span [ngClass]="pool.health_color | mirrorHealthColor">{{pool.health}}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <cd-table [rows]="content_data.pools">
+            <ngx-datatable-column name="Name"
+                                  prop="name"></ngx-datatable-column>
+            <ngx-datatable-column name="Mode"
+                                  prop="mirror_mode"></ngx-datatable-column>
+            <ngx-datatable-column name="Leader"
+                                  prop="leader_id"></ngx-datatable-column>
+            <ngx-datatable-column name="# Local"
+                                  prop="image_local_count"></ngx-datatable-column>
+            <ngx-datatable-column name="# Remote"
+                                  prop="image_remote_count"></ngx-datatable-column>
+            <ngx-datatable-column name="Health"
+                                  prop="health">
+              <ng-template let-value="value"
+                           let-row="row"
+                           ngx-datatable-cell-template>
+                <span [ngClass]="row.health_color | mirrorHealthColor">{{value}}</span>
+              </ng-template>
+            </ngx-datatable-column>
+          </cd-table>
         </div>
       </div>
     </div>
@@ -98,27 +94,24 @@
         <div class="tab-content">
           <div class="tab-pane active"
                id="tab_1">
-            <table id="image_errors"
-                   class="table table-condensed">
-              <thead>
-                <tr>
-                  <th>Pool</th>
-                  <th>Image</th>
-                  <th>Issue</th>
-                  <th>State</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let image of content_data.image_error">
-                  <td>{{image.pool_name}}</td>
-                  <td>{{image.name}}</td>
-                  <td>{{image.description}}</td>
-                  <td>
-                    <span [ngClass]="image.state_color | mirrorHealthColor">{{image.state}}</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+
+            <cd-table [rows]="content_data.image_error"
+                      filter="true">
+              <ngx-datatable-column name="Pool"
+                                    prop="pool_name"></ngx-datatable-column>
+              <ngx-datatable-column name="Image"
+                                    prop="name"></ngx-datatable-column>
+              <ngx-datatable-column name="Issue"
+                                    prop="description"></ngx-datatable-column>
+              <ngx-datatable-column name="State"
+                                    prop="state">
+                <ng-template let-value="value"
+                             let-row="row"
+                             ngx-datatable-cell-template>
+                  <span [ngClass]="row.state_color | mirrorHealthColor">{{value}}</span>
+                </ng-template>
+              </ngx-datatable-column>
+            </cd-table>
           </div>
           <div class="tab-pane"
                id="tab_2">
@@ -140,7 +133,7 @@
                     <div class="progress"
                          style="width: 100px; height: 18px;">
                       <div class="progress-bar progress-bar-aqua"
-                          [ngStyle]="image.progress | syncProgressBar">
+                           [ngStyle]="image.progress | syncProgressBar">
                         {{image.progress}}
                       </div>
                     </div>
