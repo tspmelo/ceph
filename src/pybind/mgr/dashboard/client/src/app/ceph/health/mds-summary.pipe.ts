@@ -5,30 +5,30 @@ import * as _ from 'underscore';
   name: 'mdsSummary'
 })
 export class MdsSummaryPipe implements PipeTransform {
-  transform(fs_map: any, args?: any): any {
+  transform(fsMap: any, args?: any): any {
     let standbys = 0;
     let active = 0;
-    let standby_replay = 0;
-    _.each(fs_map.standbys, (s, i) => {
+    let standbyReplay = 0;
+    _.each(fsMap.standbys, (s, i) => {
       standbys += 1;
     });
 
-    if (fs_map.standbys && !fs_map.filesystems) {
+    if (fsMap.standbys && !fsMap.filesystems) {
       return standbys + ', no filesystems';
-    } else if (fs_map.filesystems.length === 0) {
+    } else if (fsMap.filesystems.length === 0) {
       return 'no filesystems';
     } else {
-      _.each(fs_map.filesystems, function(fs, i) {
+      _.each(fsMap.filesystems, function(fs, i) {
         _.each(fs.mdsmap.info, function(mds, j) {
           if (mds.state === 'up:standby-replay') {
-            standby_replay += 1;
+            standbyReplay += 1;
           } else {
             active += 1;
           }
         });
       });
 
-      return active + ' active, ' + (standbys + standby_replay) + ' standby';
+      return active + ' active, ' + (standbys + standbyReplay) + ' standby';
     }
   }
 }

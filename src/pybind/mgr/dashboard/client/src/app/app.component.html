@@ -1,8 +1,8 @@
 <div style="display:none;"
      id="mon-conn-banner"
      class="alert alert-danger"
-     [hidden]="toplevel_data.have_mon_connection">
-  No monitor connection from manager daemon {{toplevel_data.mgr_id}}: data may be stale
+     [hidden]="toplevelData.have_mon_connection">
+  No monitor connection from manager daemon {{toplevelData.mgr_id}}: data may be stale
 </div>
 
 <div style="display:none;"
@@ -60,7 +60,7 @@
         <li routerLinkActive="active">
           <a routerLink="/health">
             <i class="fa fa-heartbeat"
-               [ngStyle]="toplevel_data.health_status | healthColor"></i>
+               [ngStyle]="toplevelData.health_status | healthColor"></i>
             <span>Cluster health</span>
           </a>
         </li>
@@ -87,7 +87,7 @@
         <li routerLinkActive="active">
           <a href="#">
             <i class="fa fa-hdd-o"
-               [ngStyle]="toplevel_data.rbd_mirroring | blockHealthColor"></i>
+               [ngStyle]="toplevelData.rbd_mirroring | blockHealthColor"></i>
             <span>Block</span>
             <span class="pull-right-container">
               <i class="fa fa-angle-left pull-right"></i>
@@ -98,10 +98,10 @@
               <a routerLink="/rbd_mirroring">
                 <i class="fa fa-exchange"></i> Mirroring
                 <span class="pull-right-container">
-                  <small *ngIf="toplevel_data.rbd_mirroring.warnings !== 0"
-                         class="label pull-right bg-yellow">{{toplevel_data.rbd_mirroring.warnings}}</small>
-                  <small *ngIf="toplevel_data.rbd_mirroring.errors !== 0"
-                         class="label pull-right bg-red">{{toplevel_data.rbd_mirroring.errors}}</small>
+                  <small *ngIf="toplevelData.rbd_mirroring.warnings !== 0"
+                         class="label pull-right bg-yellow">{{toplevelData.rbd_mirroring.warnings}}</small>
+                  <small *ngIf="toplevelData.rbd_mirroring.errors !== 0"
+                         class="label pull-right bg-red">{{toplevelData.rbd_mirroring.errors}}</small>
                 </span>
               </a>
             </li>
@@ -120,12 +120,12 @@
                 </span>
               </a>
               <ul class="treeview-menu">
-                <li *ngFor="let pool of toplevel_data.rbd_pools">
-                  <a routerLink="{{pool.url}}">
-                    <i class="fa fa-circle-o"></i> {{pool.name}}</a>
+                <li *ngFor="let pool of rbdPools">
+                  <a routerLink="rbd_pool/{{pool.pool_name}}">
+                    <i class="fa fa-circle-o"></i> {{pool.pool_name}}</a>
                 </li>
                 <li class="ceph-none-found"
-                    [hidden]="toplevel_data.rbd_pools.length === 0">None found</li>
+                    [hidden]="toplevelData.rbd_pools.length === 0">None found</li>
               </ul>
             </li>
           </ul>
@@ -139,11 +139,11 @@
             </span>
           </a>
           <ul class="treeview-menu menu-open">
-            <li *ngFor="let filesystem of toplevel_data.filesystems">
+            <li *ngFor="let filesystem of toplevelData.filesystems">
               <a routerLink="{{filesystem.url}}">{{filesystem.name}}</a>
             </li>
             <li class="ceph-none-found"
-                [hidden]="toplevel_data.filesystems.length !== 0">None found</li>
+                [hidden]="toplevelData.filesystems.length !== 0">None found</li>
           </ul>
         </li>
 
@@ -173,7 +173,7 @@
   <footer class="main-footer">
     <!-- To the right -->
     <div class="pull-right hidden-xs">
-      {{ toplevel_data.ceph_version }}
+      {{ toplevelData.ceph_version }}
     </div>
     <!-- Default to the left -->
     <strong>Copyright &copy; 2016 by Ceph Contributors.</strong> Free software (LGPL 2.1)

@@ -1,6 +1,6 @@
 <section class="content-header">
   <h1>
-    Block Pool {{ pool_name }}
+    Block Pool {{ poolName }}
   </h1>
 </section>
 
@@ -23,13 +23,13 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let image of content_data.images">
-            <td>{{image.name}}</td>
-            <td>{{image.size | dimlessBinary}}</td>
-            <td>{{image.num_objs | dimless}}</td>
-            <td>{{image.obj_size | dimlessBinary}}</td>
-            <td>{{image.features_name}}</td>
-            <td>{{image.parent}}</td>
+          <tr *ngFor="let image of contentData.images">
+            <td>{{ image.name }}</td>
+            <td>{{ image.size | dimlessBinary }}</td>
+            <td>{{ image.num_objs | dimless }}</td>
+            <td>{{ image.obj_size | dimlessBinary }}</td>
+            <td>{{ image.features_name }}</td>
+            <td>{{ image.parent }}</td>
           </tr>
         </tbody>
       </table>

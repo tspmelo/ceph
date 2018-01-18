@@ -18,7 +18,19 @@ import { OsdPerfHistogramComponent } from './osd-perf-histogram/osd-perf-histogr
     CommonModule,
     SharedModule
   ],
-  declarations: [ServersComponent, ServiceListPipe, MonitorsComponent, MonitorSparklineDataPipe, OsdComponent, OsdUpInStylePipe, OsdUpPipe, OsdInPipe, OsdSparklineDataPipe, OsdDetailComponent, OsdPerfHistogramComponent],
+  declarations: [
+    ServersComponent,
+    ServiceListPipe,
+    MonitorsComponent,
+    MonitorSparklineDataPipe,
+    OsdComponent,
+    OsdUpInStylePipe,
+    OsdUpPipe,
+    OsdInPipe,
+    OsdSparklineDataPipe,
+    OsdDetailComponent,
+    OsdPerfHistogramComponent
+  ],
   exports: []
 })
 export class ClusterModule { }

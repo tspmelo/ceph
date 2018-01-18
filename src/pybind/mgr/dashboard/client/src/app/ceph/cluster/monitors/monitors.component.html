@@ -6,7 +6,7 @@
 </section>
 
 <!-- Main content -->
-<section class="content text-center" *ngIf="content_data">
+<section class="content text-center" *ngIf="contentData">
   <div class="row">
     <div class="col-md-4">
       <div class="box text-left"
@@ -16,7 +16,7 @@
             <td>
               <span style="color:yellow; font-weight:bold">Cluster ID: </span>
             </td>
-            <td>{{content_data.mon_status.monmap.fsid}}
+            <td>{{ contentData.mon_status.monmap.fsid }}
             </td>
           </tr>
           <tr>
@@ -24,7 +24,7 @@
               <p>
                 <span style="color:yellow; font-weight:bold">monmap modified: </span>
             </td>
-            <td> {{content_data.mon_status.monmap.modified}}
+            <td> {{ contentData.mon_status.monmap.modified }}
             </td>
           </tr>
           <tr>
@@ -32,7 +32,7 @@
               <p>
                 <span style="color:yellow; font-weight:bold">monmap epoch: </span>
             </td>
-            <td> {{content_data.mon_status.monmap.epoch}}
+            <td> {{ contentData.mon_status.monmap.epoch }}
             </td>
           </tr>
           <tr>
@@ -40,7 +40,7 @@
               <p>
                 <span style="color:yellow; font-weight:bold">quorum con: </span>
             </td>
-            <td> {{content_data.mon_status.features.quorum_con}}
+            <td> {{ contentData.mon_status.features.quorum_con }}
             </td>
           </tr>
           <tr>
@@ -48,7 +48,7 @@
               <p>
                 <span style="color:yellow; font-weight:bold">quorum mon: </span>
             </td>
-            <td> {{content_data.mon_status.features.quorum_mon}}
+            <td> {{ contentData.mon_status.features.quorum_mon }}
             </td>
           </tr>
           <tr>
@@ -56,7 +56,7 @@
               <p>
                 <span style="color:yellow; font-weight:bold">required con: </span>
             </td>
-            <td> {{content_data.mon_status.features.required_con}}
+            <td> {{ contentData.mon_status.features.required_con }}
             </td>
           </tr>
           <tr>
@@ -64,7 +64,7 @@
               <p>
                 <span style="color:yellow; font-weight:bold">required mon: </span>
             </td>
-            <td> {{content_data.mon_status.features.required_mon}}
+            <td> {{ contentData.mon_status.features.required_mon }}
             </td>
           </tr>
         </table>
@@ -81,11 +81,11 @@
               <th>Public Addr</th>
               <th>Open Sessions</th>
             </thead>
-            <tr *ngFor="let mon of content_data.in_quorum"
+            <tr *ngFor="let mon of contentData.in_quorum"
                 style="font-size:15px;height:80px">
-              <td style="font-weight:bold">{{mon.name}}</td>
-              <td>{{mon.rank}}</td>
-              <td>{{mon.public_addr}}</td>
+              <td style="font-weight:bold">{{ mon.name }}</td>
+              <td>{{ mon.rank }}</td>
+              <td>{{ mon.public_addr }}</td>
               <td>
                 <span class="inlinesparkline"
                       style="font-size:30px">{{ mon.stats.num_sessions | monitorSparklineData }}</span>
@@ -105,11 +105,11 @@
           <th>Rank</th>
           <th>Public Addr</th>
         </thead>
-        <tr *ngFor="let mon of content_data.out_quorum"
+        <tr *ngFor="let mon of contentData.out_quorum"
             class="font-size:15px;height:80px">
-          <td style="font-weight:bold">{{mon.name}}</td>
-          <td>{{mon.rank}}</td>
-          <td>{{mon.public_addr}}</td>
+          <td style="font-weight:bold">{{ mon.name }}</td>
+          <td>{{ mon.rank }}</td>
+          <td>{{ mon.public_addr }}</td>
         </tr>
       </table>
     </div>

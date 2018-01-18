@@ -8,16 +8,16 @@ import * as _ from 'underscore';
   styleUrls: ['./mirroring.component.scss']
 })
 export class MirroringComponent implements OnInit {
-  content_data: any;
+  contentData: any;
   wj: any = window;
 
   constructor(private http: HttpClient) {
-    this.content_data = {};
+    this.contentData = {};
   }
 
   refresh() {
     this.http.get('/rbd_mirroring_data').subscribe(data => {
-      _.extend(this.content_data, data);
+      _.extend(this.contentData, data);
       setTimeout(() => {
         this.refresh();
       }, 30000);
@@ -29,9 +29,9 @@ export class MirroringComponent implements OnInit {
       this.refresh();
     }, 30000);
 
-    let table_ids = ['daemons', 'pools'];
-    for (let i = 0; i < table_ids.length; ++i) {
-      this.wj.$('#' + table_ids[i]).DataTable({
+    let tableIds = ['daemons', 'pools'];
+    for (let i = 0; i < tableIds.length; ++i) {
+      this.wj.$('#' + tableIds[i]).DataTable({
         paging: true,
         pageLength: 5,
         lengthChange: false,
@@ -41,9 +41,9 @@ export class MirroringComponent implements OnInit {
       });
     }
 
-    table_ids = ['image_errors', 'image_syncing', 'image_ready'];
-    for (let i = 0; i < table_ids.length; ++i) {
-      this.wj.$('#' + table_ids[i]).DataTable({
+    tableIds = ['image_errors', 'image_syncing', 'image_ready'];
+    for (let i = 0; i < tableIds.length; ++i) {
+      this.wj.$('#' + tableIds[i]).DataTable({
         paging: true,
         pageLength: 10,
         lengthChange: false,

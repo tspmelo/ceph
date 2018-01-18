@@ -6,11 +6,11 @@ import { Pipe, PipeTransform } from '@angular/core';
 export class OsdSparklineDataPipe implements PipeTransform {
 
   transform(value: any, args?: any): any {
-    let result = "";
+    let result = '';
     for (let i = 1; i < value.length; ++i) {
-        const delta_v = value[i][1] - value[i - 1][1];
-        const delta_t = value[i][0] - value[i - 1][0];
-        result += (delta_v / delta_t + ",");
+      const deltaV = value[i][1] - value[i - 1][1];
+      const deltaT = value[i][0] - value[i - 1][0];
+      result += (deltaV / deltaT + ',');
     }
     return result;
   }

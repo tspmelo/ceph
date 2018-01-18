@@ -1,7 +1,7 @@
 <section class="content-header">
   <h1>
     Clients of
-    <a rv-href="fs_url">{{fs_name}}</a>
+    <a rv-href="fs_url">{{ fsName }}</a>
   </h1>
 </section>
 
@@ -20,13 +20,13 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let client of content_data.clients">
-            <td>{{client.id}}</td>
-            <td>{{client.type}}</td>
-            <td>{{client.state}}</td>
-            <td>{{client.version}}</td>
-            <td>{{client.hostname}}</td>
-            <td>{{client.root}}</td>
+          <tr *ngFor="let client of contentData.clients">
+            <td>{{ client.id }}</td>
+            <td>{{ client.type }}</td>
+            <td>{{ client.state }}</td>
+            <td>{{ client.version }}</td>
+            <td>{{ client.hostname }}</td>
+            <td>{{ client.root }}</td>
           </tr>
         </tbody>
       </table>

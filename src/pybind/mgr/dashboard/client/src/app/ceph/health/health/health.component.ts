@@ -10,7 +10,7 @@ import * as Chart from 'chart.js';
   styleUrls: ['./health.component.scss']
 })
 export class HealthComponent implements OnInit {
-  content_data: any;
+  contentData: any;
   poolUsage: any = {
     chartType: 'doughnut'
   };
@@ -24,7 +24,7 @@ export class HealthComponent implements OnInit {
     private dimlessBinary: DimlessBinaryPipe
   ) {
     this.isReady = false;
-    this.content_data = {};
+    this.contentData = {};
   }
 
   ngOnInit() {
@@ -58,7 +58,7 @@ export class HealthComponent implements OnInit {
 
   refresh() {
     this.http.get('/health_data').subscribe(data => {
-      _.extend(this.content_data, data);
+      _.extend(this.contentData, data);
       this.isReady = true;
       this.draw_usage_charts();
       setTimeout(() => {
@@ -68,33 +68,33 @@ export class HealthComponent implements OnInit {
   }
 
   draw_usage_charts() {
-    let raw_usage_chart_color;
-    const raw_usage_text =
+    let rawUsageChartColor;
+    const rawUsageText =
       Math.round(
         100 *
-          (this.content_data.df.stats.total_used_bytes /
-            this.content_data.df.stats.total_bytes)
+          (this.contentData.df.stats.total_used_bytes /
+            this.contentData.df.stats.total_bytes)
       ) + '%';
     if (
-      this.content_data.df.stats.total_used_bytes /
-        this.content_data.df.stats.total_bytes >=
-      this.content_data.osd_map.full_ratio
+      this.contentData.df.stats.total_used_bytes /
+        this.contentData.df.stats.total_bytes >=
+      this.contentData.osd_map.full_ratio
     ) {
-      raw_usage_chart_color = '#ff0000';
+      rawUsageChartColor = '#ff0000';
     } else if (
-      this.content_data.df.stats.total_used_bytes /
-        this.content_data.df.stats.total_bytes >=
-      this.content_data.osd_map.backfillfull_ratio
+      this.contentData.df.stats.total_used_bytes /
+        this.contentData.df.stats.total_bytes >=
+      this.contentData.osd_map.backfillfull_ratio
     ) {
-      raw_usage_chart_color = '#ff6600';
+      rawUsageChartColor = '#ff6600';
     } else if (
-      this.content_data.df.stats.total_used_bytes /
-        this.content_data.df.stats.total_bytes >=
-      this.content_data.osd_map.nearfull_ratio
+      this.contentData.df.stats.total_used_bytes /
+        this.contentData.df.stats.total_bytes >=
+      this.contentData.osd_map.nearfull_ratio
     ) {
-      raw_usage_chart_color = '#ffc200';
+      rawUsageChartColor = '#ffc200';
     } else {
-      raw_usage_chart_color = '#00bb00';
+      rawUsageChartColor = '#00bb00';
     }
 
     this.rawUsage = {
@@ -104,13 +104,13 @@ export class HealthComponent implements OnInit {
           label: null,
           borderWidth: 0,
           data: [
-            this.content_data.df.stats.total_used_bytes,
-            this.content_data.df.stats.total_avail_bytes
+            this.contentData.df.stats.total_used_bytes,
+            this.contentData.df.stats.total_avail_bytes
           ]
         }
       ],
       options: {
-        center_text: raw_usage_text,
+        center_text: rawUsageText,
         responsive: true,
         legend: { display: false },
         animation: { duration: 0 },
@@ -130,7 +130,7 @@ export class HealthComponent implements OnInit {
       },
       colors: [
         {
-          backgroundColor: [raw_usage_chart_color, '#424d52'],
+          backgroundColor: [rawUsageChartColor, '#424d52'],
           borderColor: 'transparent'
         }
       ],
@@ -160,12 +160,12 @@ export class HealthComponent implements OnInit {
       '#3B3EAC'
     ];
 
-    const pool_labels = [];
-    const pool_data = [];
+    const poolLabels = [];
+    const poolData = [];
 
-    _.each(this.content_data.df.pools, function(pool, i) {
-      pool_labels.push(pool['name']);
-      pool_data.push(pool['stats']['bytes_used']);
+    _.each(this.contentData.df.pools, function(pool, i) {
+      poolLabels.push(pool['name']);
+      poolData.push(pool['stats']['bytes_used']);
     });
 
     this.poolUsage = {
@@ -174,7 +174,7 @@ export class HealthComponent implements OnInit {
         {
           label: null,
           borderWidth: 0,
-          data: pool_data
+          data: poolData
         }
       ],
       options: {
@@ -201,7 +201,7 @@ export class HealthComponent implements OnInit {
           borderColor: 'transparent'
         }
       ],
-      labels: pool_labels
+      labels: poolLabels
     };
   }
 }

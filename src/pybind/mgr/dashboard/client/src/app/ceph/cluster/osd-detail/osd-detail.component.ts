@@ -10,11 +10,11 @@ import * as _ from 'underscore';
 })
 export class OsdDetailComponent implements OnInit {
   osdId: number;
-  op_w_latency_in_bytes_histogram = {};
-  op_r_latency_out_bytes_histogram = {};
+  opWLatencyInBytesHistogram = {};
+  opRLatencyOutBytesHistogram = {};
   osd = {};
-  osd_list = [];
-  osd_metadata_list = [];
+  osdList = [];
+  osdMetadataList = [];
 
   constructor(private http: HttpClient, private route: ActivatedRoute) { }
 
@@ -25,20 +25,20 @@ export class OsdDetailComponent implements OnInit {
 
   refresh() {
     this.http.get(`/osd/perf_data/${this.osdId}`).subscribe((data: any) => {
-      this.op_w_latency_in_bytes_histogram = data.osd_histogram.osd.op_w_latency_in_bytes_histogram;
-      this.op_r_latency_out_bytes_histogram = data.osd_histogram.osd.op_r_latency_out_bytes_histogram;
+      this.opWLatencyInBytesHistogram = data.osd_histogram.osd.op_w_latency_in_bytes_histogram;
+      this.opRLatencyOutBytesHistogram = data.osd_histogram.osd.op_r_latency_out_bytes_histogram;
       this.osd = data.osd;
-      let osd_metadata = data.osd_metadata;
-      this.osd_metadata_list = [];
-      this.osd_list = [];
-      _.each(osd_metadata, (v, k) => {
-        this.osd_metadata_list.push({
+      const osdMetadata = data.osd_metadata;
+      this.osdMetadataList = [];
+      this.osdList = [];
+      _.each(osdMetadata, (v, k) => {
+        this.osdMetadataList.push({
           key: k,
           value: v
         });
       });
       _.each(this.osd, (v, k) => {
-          this.osd_list.push({
+          this.osdList.push({
               key: k,
               value: v
           });

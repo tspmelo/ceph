@@ -1,6 +1,6 @@
 <section class="content-header">
   <h1>
-    Filesystem {{content_data.filesystem.name}}
+    Filesystem {{ contentData.filesystem.name }}
   </h1>
 </section>
 
@@ -8,8 +8,8 @@
          *ngIf="ready">
   <p style="font-size: 1.3em;">
     <i class="fa fa-desktop"></i>&nbsp;&nbsp;Clients:
-    <span style="font-weight:bold;">{{content_data.filesystem.client_count}}</span>
-    <a href="{{content_data.filesystem.clients_url}}">Detail...</a>
+    <span style="font-weight:bold;">{{ contentData.filesystem.client_count }}</span>
+    <a href="{{contentData.filesystem.clients_url}}">Detail...</a>
   </p>
 
   <div class="row">
@@ -31,13 +31,13 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let rank of content_data.filesystem.ranks">
-                <td>{{rank.rank}}</td>
-                <td>{{rank.state}}</td>
-                <td>{{rank.mds}}</td>
-                <td>{{rank.activity}}</td>
-                <td>{{rank.dns | dimless}}</td>
-                <td>{{rank.inos | dimless}}</td>
+              <tr *ngFor="let rank of contentData.filesystem.ranks">
+                <td>{{ rank.rank }}</td>
+                <td>{{ rank.state }}</td>
+                <td>{{ rank.mds }}</td>
+                <td>{{ rank.activity }}</td>
+                <td>{{ rank.dns | dimless }}</td>
+                <td>{{ rank.inos | dimless }}</td>
               </tr>
             </tbody>
           </table>
@@ -61,11 +61,11 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let pool of content_data.filesystem.pools">
-                <td>{{pool.pool}}</td>
-                <td>{{pool.type}}</td>
-                <td>{{pool.used | dimlessBinary}}</td>
-                <td>{{pool.avail | dimlessBinary}}</td>
+              <tr *ngFor="let pool of contentData.filesystem.pools">
+                <td>{{ pool.pool }}</td>
+                <td>{{ pool.type }}</td>
+                <td>{{ pool.used | dimlessBinary }}</td>
+                <td>{{ pool.avail | dimlessBinary }}</td>
                 <td>
                   <div class="progress"
                        style="width: 100px; height: 20px;">
@@ -88,16 +88,16 @@
     <div class="box-body">
       <table>
         <thead>
-          <tr [hidden]="content_data.standbys === 0">
+          <tr [hidden]="contentData.standbys === 0">
             <th>Daemon</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let standby of content_data.standbys">
-            <td>{{standby.name}}</td>
+          <tr *ngFor="let standby of contentData.standbys">
+            <td>{{ standby.name }}</td>
           </tr>
           <tr class="ceph-none-found"
-              [hidden]="content_data.standbys.length !== 0">
+              [hidden]="contentData.standbys.length !== 0">
             <td>None found</td>
           </tr>
         </tbody>

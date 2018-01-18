@@ -20,7 +20,7 @@ export class OsdPerfHistogramComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges() {
-    console.log("# ngOnChanges:");
+    console.log('# ngOnChanges:');
     console.log(this.histogram);
     this.render();
   }
@@ -29,27 +29,27 @@ export class OsdPerfHistogramComponent implements OnInit, OnChanges {
   hexdigits(v) {
     const i = Math.floor(v * 255);
     if (Math.floor(i) < 0x10) {
-      return "0" + Math.floor(i).toString(16);
+      return '0' + Math.floor(i).toString(16);
     } else {
       return Math.floor(i).toString(16);
     }
   }
 
   hexcolor(r, g, b) {
-    return "#" + this.hexdigits(r) + this.hexdigits(g) + this.hexdigits(b);
+    return '#' + this.hexdigits(r) + this.hexdigits(g) + this.hexdigits(b);
   }
 
   render() {
-    // var data = content_data.osd_histogram.osd[counter];
+    // var data = contentData.osd_histogram.osd[counter];
     // var hist_table = $(element);
     // hist_table.empty();
 
-    var sum = 0.0;
-    var max = 0.0;
+    let sum = 0.0;
+    let max = 0.0;
 
     _.each(this.histogram.values, (row, i) => {
       _.each(row, (col, j) => {
-        var val;
+        let val;
         if (!this.last) {
           val = col;
         } else {
@@ -65,25 +65,25 @@ export class OsdPerfHistogramComponent implements OnInit, OnChanges {
     _.each(this.histogram.values, (row, i) => {
       values[i] = new Array(row.length);
       _.each(row, (col, j) => {
-        var val;
+        let val;
         if (!this.last) {
           val = col;
         } else {
           val = col - this.last[i][j];
         }
-        var g;
+        let g;
         if (max) {
           g = (val / max);
         } else {
           g = 0.0;
         }
-        var r = 1.0 - g;
-        var b = 0.0;
+        const r = 1.0 - g;
+        const b = 0.0;
         values[i][j] = {backgroundColor: this.hexcolor(r, g, b)};
       });
     });
 
     this.valuesStyle = values;
     this.last = this.histogram.values;
-  };
+  }
 }

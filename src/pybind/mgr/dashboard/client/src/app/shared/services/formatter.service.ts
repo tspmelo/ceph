@@ -4,20 +4,20 @@ import { Injectable } from '@angular/core';
 export class FormatterService {
   constructor() {}
 
-  truncate(n, max_width) {
+  truncate(n, maxWidth) {
     const stringized = n.toString();
     const parts = stringized.split('.');
     if (parts.length === 1) {
       // Just an int
       return stringized;
     } else {
-      const fractional_digits = max_width - parts[0].length - 1;
-      if (fractional_digits <= 0) {
+      const fractionalDigits = maxWidth - parts[0].length - 1;
+      if (fractionalDigits <= 0) {
         // No width available for the fractional part, drop
         // it and the decimal point
         return parts[0];
       } else {
-        return stringized.substring(0, max_width);
+        return stringized.substring(0, maxWidth);
       }
     }
   }
@@ -36,16 +36,16 @@ export class FormatterService {
       unit = unit + 1;
     }
 
-    let truncated_float;
+    let truncatedFloat;
     if (unit > 0) {
-      truncated_float = this.truncate(
+      truncatedFloat = this.truncate(
         (n / Math.pow(divisor, unit)).toString(),
         width
       );
     } else {
-      truncated_float = this.truncate(n, width);
+      truncatedFloat = this.truncate(n, width);
     }
 
-    return truncated_float + units[unit];
+    return truncatedFloat + units[unit];
   }
 }

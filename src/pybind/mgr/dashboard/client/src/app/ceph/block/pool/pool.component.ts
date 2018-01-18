@@ -8,16 +8,16 @@ import { ActivatedRoute } from '@angular/router';
   styleUrls: ['./pool.component.scss']
 })
 export class PoolComponent implements OnInit {
-  content_data: any;
+  contentData: any;
   wj: any = window;
-  pool_name: any;
+  poolName: any;
 
   constructor(private http: HttpClient, private route: ActivatedRoute) {
-    this.content_data = {};
+    this.contentData = {};
   }
 
   ngOnInit() {
-    this.pool_name = +this.route.snapshot.paramMap.get('id');
+    this.poolName = this.route.snapshot.paramMap.get('name');
     this.refresh();
 
     this.wj.$('#images').DataTable({
@@ -33,9 +33,9 @@ export class PoolComponent implements OnInit {
 
   refresh() {
     this.http
-      .get('/rbd_pool_data/' + this.pool_name + '/')
+      .get('/rbd_pool_data/' + this.poolName + '/')
       .subscribe(data => {
-        this.content_data.images = data;
+        this.contentData.images = data;
         setTimeout(() => {
           this.refresh();
         }, 10000);

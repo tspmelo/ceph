@@ -7,7 +7,7 @@ import { HttpClient } from '@angular/common/http';
   styleUrls: ['./rgw.component.scss']
 })
 export class RgwComponent implements OnInit {
-  content_data: any = {
+  contentData: any = {
     rgw: {}
   };
 
@@ -19,7 +19,7 @@ export class RgwComponent implements OnInit {
 
   refresh() {
     this.http.get('/rgw/rgw_daemons_data').subscribe(data => {
-      this.content_data = data;
+      this.contentData = data;
       setTimeout(() => {
         this.refresh();
       }, 5000);

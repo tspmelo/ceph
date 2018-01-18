@@ -8,18 +8,18 @@ import { ActivatedRoute } from '@angular/router';
   styleUrls: ['./rgw-detail.component.scss']
 })
 export class RgwDetailComponent implements OnInit {
-  content_data: any;
-  rgw_id: number;
+  contentData: any;
+  rgwId: number;
   constructor(private http: HttpClient, private route: ActivatedRoute) {}
 
   ngOnInit() {
-    this.rgw_id = +this.route.snapshot.paramMap.get('id');
+    this.rgwId = +this.route.snapshot.paramMap.get('id');
     this.refresh();
   }
 
   refresh() {
-    this.http.get('/rgw/rgw_data/' + this.rgw_id + '/').subscribe(data => {
-      this.content_data = data;
+    this.http.get('/rgw/rgw_data/' + this.rgwId + '/').subscribe(data => {
+      this.contentData = data;
       setTimeout(() => {
         this.refresh();
       }, 5000);

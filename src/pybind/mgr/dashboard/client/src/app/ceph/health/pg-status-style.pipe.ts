@@ -5,11 +5,11 @@ import * as _ from 'underscore';
   name: 'pgStatusStyle'
 })
 export class PgStatusStylePipe implements PipeTransform {
-  transform(pg_status: any, args?: any): any {
+  transform(pgStatus: any, args?: any): any {
     let warning = false;
     let error = false;
 
-    _.each(pg_status, function(value, state) {
+    _.each(pgStatus, function(value, state) {
       if (
         state.includes('inconsistent') ||
         state.includes('incomplete') ||

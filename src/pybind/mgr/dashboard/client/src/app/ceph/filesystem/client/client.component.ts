@@ -8,9 +8,9 @@ import { ActivatedRoute } from '@angular/router';
   styleUrls: ['./client.component.scss']
 })
 export class ClientComponent implements OnInit {
-  content_data: any = {};
+  contentData: any = {};
   fscid: number;
-  fs_name: string;
+  fsName: string;
 
   constructor(private http: HttpClient, private route: ActivatedRoute) {}
 
@@ -20,7 +20,7 @@ export class ClientComponent implements OnInit {
     this.http
       .get('/clients_main_data/' + this.fscid + '/')
       .subscribe((data: any) => {
-        this.fs_name = data.fs_name;
+        this.fsName = data.fs_name;
       });
 
     this.refresh();
@@ -30,7 +30,7 @@ export class ClientComponent implements OnInit {
     this.http
       .get('/clients_data/' + this.fscid + '/')
       .subscribe(data => {
-        this.content_data.clients = data;
+        this.contentData.clients = data;
         setTimeout(() => {
           this.refresh();
         }, 5000);

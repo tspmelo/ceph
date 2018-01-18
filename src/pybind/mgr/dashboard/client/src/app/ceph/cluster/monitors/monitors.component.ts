@@ -8,7 +8,7 @@ import * as _ from 'underscore';
   styleUrls: ['./monitors.component.scss']
 })
 export class MonitorsComponent implements OnInit {
-  content_data: any;
+  contentData: any;
   wj: any = window;
 
   constructor(private http: HttpClient) {}
@@ -21,7 +21,7 @@ export class MonitorsComponent implements OnInit {
 
   refresh() {
     this.http.get('/monitors_data').subscribe(data => {
-      this.content_data = data;
+      this.contentData = data;
       setTimeout(() => {
         this.wj.$('.inlinesparkline').sparkline();
       },  0);

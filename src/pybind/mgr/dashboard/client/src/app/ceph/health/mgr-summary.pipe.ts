@@ -4,11 +4,11 @@ import { Pipe, PipeTransform } from '@angular/core';
   name: 'mgrSummary'
 })
 export class MgrSummaryPipe implements PipeTransform {
-  transform(mgr_map: any, args?: any): any {
+  transform(mgrMap: any, args?: any): any {
     let result = '';
-    result += 'active: ' + mgr_map.active_name;
-    if (mgr_map.standbys.length) {
-      result += ', ' + mgr_map.standbys.length + ' standbys';
+    result += 'active: ' + mgrMap.active_name;
+    if (mgrMap.standbys.length) {
+      result += ', ' + mgrMap.standbys.length + ' standbys';
     }
 
     return result;

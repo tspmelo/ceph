@@ -8,16 +8,16 @@ import * as _ from 'underscore';
   styleUrls: ['./iscsi.component.scss']
 })
 export class IscsiComponent implements OnInit {
-  content_data: any;
+  contentData: any;
   wj: any = window;
 
   constructor(private http: HttpClient) {
-    this.content_data = {};
+    this.contentData = {};
   }
 
   refresh() {
     this.http.get('/rbd_iscsi_data').subscribe(data => {
-      _.extend(this.content_data, data);
+      _.extend(this.contentData, data);
       this.wj.$('.inlinesparkline').sparkline();
       setTimeout(() => {
         this.refresh();

@@ -24,7 +24,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let daemon of content_data.daemons">
+              <tr *ngFor="let daemon of contentData.daemons">
                 <td>{{daemon.instance_id}}</td>
                 <td>{{daemon.id}}</td>
                 <td>{{daemon.server_hostname}}</td>
@@ -58,7 +58,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let pool of content_data.pools">
+              <tr *ngFor="let pool of contentData.pools">
                 <td>{{pool.name}}</td>
                 <td>{{pool.mirror_mode}}</td>
                 <td>{{pool.leader_id}}</td>
@@ -109,7 +109,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let image of content_data.image_error">
+                <tr *ngFor="let image of contentData.image_error">
                   <td>{{image.pool_name}}</td>
                   <td>{{image.name}}</td>
                   <td>{{image.description}}</td>
@@ -133,7 +133,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let image of content_data.image_syncing">
+                <tr *ngFor="let image of contentData.image_syncing">
                   <td>{{image.pool_name}}</td>
                   <td>{{image.name}}</td>
                   <td>
@@ -165,7 +165,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let image of content_data.image_ready">
+                <tr *ngFor="let image of contentData.image_ready">
                   <td>{{image.pool_name}}</td>
                   <td>{{image.name}}</td>
                   <td>{{image.description}}</td>

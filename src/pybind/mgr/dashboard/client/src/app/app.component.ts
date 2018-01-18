@@ -8,11 +8,12 @@ import * as _ from 'underscore';
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent implements OnInit {
-  toplevel_data: any;
-  ceph_version: string;
+  toplevelData: any;
+  cephVersion: string;
+  rbdPools: any;
 
   constructor(private http: HttpClient) {
-    this.toplevel_data = {
+    this.toplevelData = {
       rbd_mirroring: {
         errors: 0
       },
@@ -27,10 +28,15 @@ export class AppComponent implements OnInit {
 
   refresh() {
     this.http.get('/toplevel_data').subscribe(data => {
-      _.extend(this.toplevel_data, data);
+      _.extend(this.toplevelData, data);
       setTimeout(() => {
         this.refresh();
       }, 5000);
+    });
+
+    // Temporary fix. toplevel_data was not returning the list of pools
+    this.http.get('/health_data').subscribe((data: any) => {
+      this.rbdPools = data.pools;
     });
   }
 }

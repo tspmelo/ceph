@@ -14,6 +14,8 @@ import { PoolComponent } from './pool/pool.component';
     CommonModule,
     SharedModule
   ],
-  declarations: [MirroringComponent, MirrorHealthColorPipe, SyncProgressBarPipe, IscsiComponent, RelativeDatePipe, SparklineDataPipe, PoolComponent]
+  declarations: [
+    MirroringComponent,
+    MirrorHealthColorPipe, SyncProgressBarPipe, IscsiComponent, RelativeDatePipe, SparklineDataPipe, PoolComponent]
 })
 export class BlockModule { }

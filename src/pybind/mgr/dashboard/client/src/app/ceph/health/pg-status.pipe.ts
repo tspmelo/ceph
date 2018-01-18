@@ -5,9 +5,9 @@ import * as _ from 'underscore';
   name: 'pgStatus'
 })
 export class PgStatusPipe implements PipeTransform {
-  transform(pg_status: any, args?: any): any {
+  transform(pgStatus: any, args?: any): any {
     const strings = [];
-    _.each(pg_status, function(count, state) {
+    _.each(pgStatus, function(count, state) {
       strings.push(count + ' ' + state);
     });
 

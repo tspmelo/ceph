@@ -21,7 +21,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let daemon of content_data.daemons">
+          <tr *ngFor="let daemon of contentData.daemons">
             <td>{{daemon.server_hostname}}</td>
             <td>{{daemon.optimized_paths}}</td>
             <td>{{daemon.non_optimized_paths}}</td>
@@ -53,7 +53,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let image of content_data.images">
+          <tr *ngFor="let image of contentData.images">
             <td>{{image.pool_name}}</td>
             <td>{{image.name}}</td>
             <td>{{image.optimized_paths}}</td>

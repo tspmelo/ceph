@@ -22,7 +22,6 @@ export class OsdComponent implements OnInit {
     this.http.get('/osd/list_data').subscribe((data: Array<any>) => {
       // TODO limit max size??
       _.extend(this.osdsByServer, data);
-      console.log(this.wj.$('.inlinesparkline'));
       setTimeout(() => {
         // TODO set values by argument e.g. [10,8,5,7,4,4,1]
         this.wj.$('.inlinesparkline').sparkline();
