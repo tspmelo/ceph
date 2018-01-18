@@ -906,9 +906,9 @@ class Module(MgrModule):
             def health_data(self):
                 return self._health()
 
-            @cherrypy.expose
-            def index(self):
-                return self.health()
+            # @cherrypy.expose
+            # def index(self):
+            #     return self.health()
 
             @cherrypy.expose
             @cherrypy.tools.json_out()
@@ -1026,10 +1026,16 @@ class Module(MgrModule):
         ))
 
         static_dir = os.path.join(current_dir, 'static')
+        oa_dir = os.path.join(current_dir, 'client/dist')
         conf = {
             "/static": {
                 "tools.staticdir.on": True,
                 'tools.staticdir.dir': static_dir
+            },
+            "/": {
+                "tools.staticdir.on": True,
+                'tools.staticdir.dir': oa_dir,
+                'tools.staticdir.index': "index.html"
             }
         }
         log.info("Serving static from {0}".format(static_dir))
@@ -1253,8 +1259,8 @@ class Module(MgrModule):
 	        return self._rgw(rgw_id)
 
         cherrypy.tree.mount(Root(), get_prefixed_url("/"), conf)
-        cherrypy.tree.mount(OSDEndpoint(), get_prefixed_url("/osd"), conf)
-        cherrypy.tree.mount(RGWEndpoint(), get_prefixed_url("/rgw"), conf)
+        cherrypy.tree.mount(OSDEndpoint(), get_prefixed_url("/osd"))
+        cherrypy.tree.mount(RGWEndpoint(), get_prefixed_url("/rgw"))
 
         log.info("Starting engine on {0}:{1}...".format(
             server_addr, server_port))
