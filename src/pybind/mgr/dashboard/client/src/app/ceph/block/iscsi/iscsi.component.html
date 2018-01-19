@@ -1,0 +1,77 @@
+<section class="content-header">
+  <h1>
+    Block iSCSI
+  </h1>
+</section>
+
+<section class="content">
+  <div class="box">
+    <div class="box-header">
+      <h3 class="box-title">Daemons</h3>
+    </div>
+    <div class="box-body">
+      <table id="daemons"
+             class="table table-condensed">
+        <thead>
+          <tr>
+            <th>Hostname</th>
+            <th># Active/Optimized</th>
+            <th># Active/Non-Optimized</th>
+            <th>Version</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let daemon of contentData.daemons">
+            <td>{{daemon.server_hostname}}</td>
+            <td>{{daemon.optimized_paths}}</td>
+            <td>{{daemon.non_optimized_paths}}</td>
+            <td>{{daemon.version | shortVersion}}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="box-header">
+      <h3 class="box-title">Images</h3>
+    </div>
+    <div class="box-body">
+      <table id="images"
+             class="table table-condensed">
+        <thead>
+          <tr>
+            <th>Pool</th>
+            <th>Image</th>
+            <th>Active/Optimized</th>
+            <th>Active/Non-Optimized</th>
+            <th>Read Bytes</th>
+            <th>Write Bytes</th>
+            <th>Read Ops</th>
+            <th>Write Ops</th>
+            <th>A/O Since</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let image of contentData.images">
+            <td>{{image.pool_name}}</td>
+            <td>{{image.name}}</td>
+            <td>{{image.optimized_paths}}</td>
+            <td>{{image.non_optimized_paths}}</td>
+            <td>{{image.stats.rd_bytes | dimlessBinary}}/s
+              <span class="inlinesparkline"
+                    rv-html="image.stats_history.rd_bytes | sparkline_data"></span>
+            </td>
+            <td>{{image.stats.wr_bytes | dimlessBinary}}/s
+              <span class="inlinesparkline"
+                    rv-html="image.stats_history.wr_bytes | sparkline_data"></span>
+            </td>
+            <td>{{image.stats.rd | dimless}}/s</td>
+            <td>{{image.stats.wr | dimless}}/s</td>
+            <td>{{image.optimized_since | relativeDate}}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

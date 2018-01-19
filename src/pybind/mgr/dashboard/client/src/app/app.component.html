@@ -1,0 +1,192 @@
+<div style="display:none;"
+     id="mon-conn-banner"
+     class="alert alert-danger"
+     [hidden]="toplevelData.have_mon_connection">
+  No monitor connection from manager daemon {{toplevelData.mgr_id}}: data may be stale
+</div>
+
+<div style="display:none;"
+     id="mgr-load-banner"
+     class="alert alert-warning">
+  Failed to load data from server
+  <a href="javascript:window.location.reload(true)">Reload</a>
+</div>
+
+<div class="wrapper">
+  <!-- Main Header -->
+  <header class="main-header">
+    <!-- Logo -->
+    <a href="/"
+       class="logo">
+      <span class="logo-lg">
+        <img src="/assets/Ceph_Logo_Standard_RGB_White_120411_fa.png"
+             width="123px"
+             height="34px" />
+      </span>
+      <span class="logo-mini">
+        <img src="/assets/logo-mini.png"
+             width="34px"
+             height="34px" />
+      </span>
+    </a>
+
+    <!-- Header Navbar -->
+    <nav class="navbar navbar-static-top"
+         role="navigation">
+      <!-- Sidebar toggle button-->
+      <a href="#"
+         class="sidebar-toggle"
+         data-toggle="offcanvas"
+         role="button">
+        <span class="sr-only">Toggle navigation</span>
+      </a>
+
+      <!-- Navbar Right Menu -->
+      <div class="navbar-custom-menu">
+        <ul class="nav navbar-nav">
+
+        </ul>
+      </div>
+    </nav>
+  </header>
+  <!-- Left side column. contains the logo and sidebar -->
+  <aside class="main-sidebar skin-blue">
+
+    <!-- sidebar: style can be found in sidebar.less -->
+    <section class="sidebar">
+      <!-- Sidebar Menu -->
+      <ul class="sidebar-menu">
+        <!-- Optionally, you can add icons to the links -->
+        <li routerLinkActive="active">
+          <a routerLink="/health">
+            <i class="fa fa-heartbeat"
+               [ngStyle]="toplevelData.health_status | healthColor"></i>
+            <span>Cluster health</span>
+          </a>
+        </li>
+        <li routerLinkActive="active">
+          <a href="#">
+            <i class="fa fa-server"></i>
+            <span>Cluster</span>
+            <span class="pull-right-container">
+              <i class="fa fa-angle-left pull-right"></i>
+            </span>
+          </a>
+          <ul class="treeview-menu menu-open">
+            <li>
+              <a routerLink="/servers">Servers</a>
+            </li>
+            <li>
+              <a routerLink="/osd">OSDs</a>
+            </li>
+            <li>
+              <a routerLink="/monitors">Monitors</a>
+            </li>
+          </ul>
+        </li>
+        <li routerLinkActive="active">
+          <a href="#">
+            <i class="fa fa-hdd-o"
+               [ngStyle]="toplevelData.rbd_mirroring | blockHealthColor"></i>
+            <span>Block</span>
+            <span class="pull-right-container">
+              <i class="fa fa-angle-left pull-right"></i>
+            </span>
+          </a>
+          <ul class="treeview-menu menu-open">
+            <li>
+              <a routerLink="/rbd_mirroring">
+                <i class="fa fa-exchange"></i> Mirroring
+                <span class="pull-right-container">
+                  <small *ngIf="toplevelData.rbd_mirroring.warnings !== 0"
+                         class="label pull-right bg-yellow">{{toplevelData.rbd_mirroring.warnings}}</small>
+                  <small *ngIf="toplevelData.rbd_mirroring.errors !== 0"
+                         class="label pull-right bg-red">{{toplevelData.rbd_mirroring.errors}}</small>
+                </span>
+              </a>
+            </li>
+            <li>
+              <a routerLink="/rbd_iscsi">
+                <i class="fa fa-upload"></i> iSCSI
+                <span class="pull-right-container"></span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <i class="fa fa-dot-circle-o"></i>
+                <span>Pools</span>
+                <span class="pull-right-container">
+                  <i class="fa fa-angle-left pull-right"></i>
+                </span>
+              </a>
+              <ul class="treeview-menu">
+                <li *ngFor="let pool of rbdPools">
+                  <a routerLink="rbd_pool/{{pool.pool_name}}">
+                    <i class="fa fa-circle-o"></i> {{pool.pool_name}}</a>
+                </li>
+                <li class="ceph-none-found"
+                    [hidden]="toplevelData.rbd_pools.length === 0">None found</li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+        <li routerLinkActive="active">
+          <a href="#">
+            <i class="fa fa-folder"></i>
+            <span>Filesystems</span>
+            <span class="pull-right-container">
+              <i class="fa fa-angle-left pull-right"></i>
+            </span>
+          </a>
+          <ul class="treeview-menu menu-open">
+            <li *ngFor="let filesystem of toplevelData.filesystems">
+              <a routerLink="{{filesystem.url}}">{{filesystem.name}}</a>
+            </li>
+            <li class="ceph-none-found"
+                [hidden]="toplevelData.filesystems.length !== 0">None found</li>
+          </ul>
+        </li>
+
+        <li routerLinkActive="active">
+          <a routerLink="/rgw">
+            <i class="fa fa-cloud-download"
+               aria-hidden="true"></i>
+            <span>RGW</span>
+          </a>
+        </li>
+
+      </ul>
+      <!-- /.sidebar-menu -->
+    </section>
+    <!-- /.sidebar -->
+  </aside>
+
+  <div id="content"
+       class="content-wrapper">
+
+    <router-outlet></router-outlet>
+
+  </div>
+  <!-- /.content-wrapper -->
+
+  <!-- Main Footer -->
+  <footer class="main-footer">
+    <!-- To the right -->
+    <div class="pull-right hidden-xs">
+      {{ toplevelData.ceph_version }}
+    </div>
+    <!-- Default to the left -->
+    <strong>Copyright &copy; 2016 by Ceph Contributors.</strong> Free software (LGPL 2.1)
+  </footer>
+
+</div>
+
+<!--
+<pre>
+{{ data }}
+</pre>
+-->
+
+<!-- Bootstrap 3.3.6 -->
+
+<!-- AdminLTE App -->

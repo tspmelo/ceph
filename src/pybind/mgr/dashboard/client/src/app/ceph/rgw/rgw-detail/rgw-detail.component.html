@@ -1,0 +1,49 @@
+<section class="content-header">
+  <h1>{{rgwId}}</h1>
+</section>
+
+<section class="content">
+  <div class="box"
+       [hidden]="contentData.rgw_status.length === 0">
+    <div class="box-header">
+      <h3 class="box-title">Status</h3>
+    </div>
+    <div class="box-body">
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let status_pair of contentData.rgw_status">
+            <td *ngFor="let item of status_pair"> {{item}} </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="box"
+       [hidden]="contentData.rgw_metadata.length === 0">
+    <div class="box-header">
+      <h3 class="box-title">Metadata</h3>
+    </div>
+    <div class="box-body">
+      <table class="table table-condensed">
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let meta_pair of contentData.rgw_metadata">
+            <td *ngFor="let item of meta_pair"> {{item}} </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

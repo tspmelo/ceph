@@ -1,0 +1,68 @@
+<section class="content-header">
+  <h1>
+    osd.{{ osd.osd }}
+  </h1>
+</section>
+
+<section class="content">
+  <table>
+    <tr>
+      <td>
+        <h3>Writes</h3>
+        <cd-osd-perf-histogram
+          [histogram]="opWLatencyInBytesHistogram"></cd-osd-perf-histogram>
+      </td>
+      <td>&nbsp;</td>
+      <td>
+        <h3>Reads</h3>
+        <cd-osd-perf-histogram
+          [histogram]="opRLatencyOutBytesHistogram"></cd-osd-perf-histogram>
+      </td>
+    </tr>
+  </table>
+
+  <div class="box">
+    <div class="box-header">
+      <h3 class="box-title">Attributes (OSD map)</h3>
+    </div>
+    <div class="box-body">
+      <table>
+        <thead>
+        <tr>
+          <th>Key</th>
+          <th>Value</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr *ngFor="let item of osdList">
+          <td>{{ item.key }}</td>
+          <td>{{ item.value }}</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="box-header">
+      <h3 class="box-title">Metadata</h3>
+    </div>
+    <div class="box-body">
+      <table>
+        <thead>
+        <tr>
+          <th>Key</th>
+          <th>Value</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr *ngFor="let meta_item of osdMetadataList">
+          <td>{{ meta_item.key }}</td>
+          <td>{{ meta_item.value }}</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</section>

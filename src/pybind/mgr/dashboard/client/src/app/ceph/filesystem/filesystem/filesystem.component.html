@@ -1,0 +1,113 @@
+<section class="content-header">
+  <h1>
+    Filesystem {{ contentData.filesystem.name }}
+  </h1>
+</section>
+
+<section class="content"
+         *ngIf="ready">
+  <p style="font-size: 1.3em;">
+    <i class="fa fa-desktop"></i>&nbsp;&nbsp;Clients:
+    <span style="font-weight:bold;">{{ contentData.filesystem.client_count }}</span>
+    <a routerLink="/clients/{{contentData.filesystem.id}}">Detail...</a>
+  </p>
+
+  <div class="row">
+    <div class="col-sm-6">
+      <div class="box">
+        <div class="box-header">
+          <h3 class="box-title">Ranks</h3>
+        </div>
+        <div class="box-body">
+          <table class="table table-condensed">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>State</th>
+                <th>Daemon</th>
+                <th>Activity</th>
+                <th>Dentries</th>
+                <th>Inodes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let rank of contentData.filesystem.ranks">
+                <td>{{ rank.rank }}</td>
+                <td>{{ rank.state }}</td>
+                <td>{{ rank.mds }}</td>
+                <td>{{ rank.activity }}</td>
+                <td>{{ rank.dns | dimless }}</td>
+                <td>{{ rank.inos | dimless }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6">
+      <div class="box">
+        <div class="box-header">
+          <h3 class="box-title">Pools</h3>
+        </div>
+        <div class="box-body">
+          <table class="table table-condensed">
+            <thead>
+              <tr>
+                <th>Pool</th>
+                <th>Type</th>
+                <th>Used</th>
+                <th>Avail</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let pool of contentData.filesystem.pools">
+                <td>{{ pool.pool }}</td>
+                <td>{{ pool.type }}</td>
+                <td>{{ pool.used | dimlessBinary }}</td>
+                <td>{{ pool.avail | dimlessBinary }}</td>
+                <td>
+                  <div class="progress"
+                       style="width: 100px; height: 20px;">
+                    <div class="progress-bar progress-bar-red"
+                         [ngStyle]="pool | poolSizeBar"></div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="box">
+    <div class="box-header">
+      <h3 class="box-title">Standby daemons</h3>
+    </div>
+    <div class="box-body">
+      <table>
+        <thead>
+          <tr [hidden]="contentData.standbys === 0">
+            <th>Daemon</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let standby of contentData.standbys">
+            <td>{{ standby.name }}</td>
+          </tr>
+          <tr class="ceph-none-found"
+              [hidden]="contentData.standbys.length !== 0">
+            <td>None found</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="mds_charts"
+       style="color: #ddd;">
+  </div>
+
+</section>
+<!-- /.content -->

@@ -145,7 +145,7 @@ class Module(MgrModule):
         # Stateful instances of CephFSClients, hold cached results.  Key to
         # dict is FSCID
         self.cephfs_clients = {}
-         
+
         # Stateful instance of RGW
         self.rgw_daemons = RGWDaemons(self)
 
@@ -532,7 +532,8 @@ class Module(MgrModule):
                     'health_status': self._health_data()['status'],
                     'filesystems': filesystems,
                     'mgr_id': global_instance().get_mgr_id(),
-                    'have_mon_connection': global_instance().have_mon_connection()
+                    'have_mon_connection': global_instance().have_mon_connection(),
+                    'ceph_version': global_instance().version
                 }
 
         class Root(EndPoint):
@@ -641,6 +642,29 @@ class Module(MgrModule):
                     toplevel_data=json.dumps(self._toplevel_data(), indent=2),
                     content_data=json.dumps(content_data, indent=2)
                 )
+
+            @cherrypy.expose
+            @cherrypy.tools.json_out()
+            def clients_main_data(self, fs_id):
+                try:
+                    fs_id = int(fs_id)
+                except ValueError:
+                    raise cherrypy.HTTPError(400,
+                        "Invalid filesystem id {0}".format(fs_id))
+
+                try:
+                    fs_name = FsMap(global_instance().get(
+                        "fs_map")).get_filesystem(fs_id)['mdsmap']['fs_name']
+                except NotFound:
+                    log.warning("Missing FSCID, dumping fsmap:\n{0}".format(
+                        json.dumps(global_instance().get("fs_map"), indent=2)
+                    ))
+                    raise cherrypy.HTTPError(404,
+                                             "No filesystem with id {0}".format(fs_id))
+
+                return {
+                    'fs_name': fs_name
+                }
 
             @cherrypy.expose
             @cherrypy.tools.json_out()
@@ -788,7 +812,7 @@ class Module(MgrModule):
             @cherrypy.expose
             @cherrypy.tools.json_out()
             def monitors_data(self):
-                return self._monitors
+                return self._monitors()
 
             def _monitors(self):
                 in_quorum, out_quorum = [], []
@@ -802,20 +826,20 @@ class Module(MgrModule):
                     for counter in counters:
                         data = global_instance().get_counter("mon", mon["name"], counter)
                         if data is not None:
-                            mon["stats"][counter.split(".")[1]] = data[counter] 
+                            mon["stats"][counter.split(".")[1]] = data[counter]
                         else:
                             mon["stats"][counter.split(".")[1]] = []
                     if mon["rank"] in mon_status["quorum"]:
                         in_quorum.append(mon)
                     else:
                         out_quorum.append(mon)
-                    
+
                 return {
                     'mon_status': mon_status,
                     'in_quorum' : in_quorum,
-                    'out_quorum': out_quorum,                
+                    'out_quorum': out_quorum,
                 }
-            
+
             def _servers(self):
                 return {
                     'servers': global_instance().list_servers()
@@ -882,9 +906,9 @@ class Module(MgrModule):
             def health_data(self):
                 return self._health()
 
-            @cherrypy.expose
-            def index(self):
-                return self.health()
+            # @cherrypy.expose
+            # def index(self):
+            #     return self.health()
 
             @cherrypy.expose
             @cherrypy.tools.json_out()
@@ -1002,10 +1026,16 @@ class Module(MgrModule):
         ))
 
         static_dir = os.path.join(current_dir, 'static')
+        oa_dir = os.path.join(current_dir, 'client/dist')
         conf = {
             "/static": {
                 "tools.staticdir.on": True,
                 'tools.staticdir.dir': static_dir
+            },
+            "/": {
+                "tools.staticdir.on": True,
+                'tools.staticdir.dir': oa_dir,
+                'tools.staticdir.index': "index.html"
             }
         }
         log.info("Serving static from {0}".format(static_dir))
@@ -1192,7 +1222,7 @@ class Module(MgrModule):
 			toplevel_data=json.dumps(toplevel_data, indent=2),
 			content_data=json.dumps(content_data, indent=2)
 		    )
-            
+
             def _rgw_daemons(self):
                 status, data = global_instance().rgw_daemons.get()
                 if data is None:
@@ -1204,7 +1234,7 @@ class Module(MgrModule):
             @cherrypy.tools.json_out()
             def rgw_daemons_data(self):
                 return self._rgw_daemons()
-           
+
             def _rgw(self, rgw_id):
                 daemons = self.rgw_daemons_data()
                 rgw_metadata = {}
@@ -1213,7 +1243,7 @@ class Module(MgrModule):
                 for daemon in daemons["daemons"]:
                     if daemon["id"] != rgw_id:
                         continue
-                    
+
                     rgw_metadata = daemon["metadata"]
                     rgw_status = daemon["status"]
 
@@ -1222,15 +1252,15 @@ class Module(MgrModule):
                     "rgw_metadata": to_sorted_array(rgw_metadata),
                     "rgw_status": to_sorted_array(rgw_status),
                 }
-              
+
             @cherrypy.expose
             @cherrypy.tools.json_out()
             def rgw_data(self, rgw_id):
 	        return self._rgw(rgw_id)
 
         cherrypy.tree.mount(Root(), get_prefixed_url("/"), conf)
-        cherrypy.tree.mount(OSDEndpoint(), get_prefixed_url("/osd"), conf)
-        cherrypy.tree.mount(RGWEndpoint(), get_prefixed_url("/rgw"), conf)
+        cherrypy.tree.mount(OSDEndpoint(), get_prefixed_url("/osd"))
+        cherrypy.tree.mount(RGWEndpoint(), get_prefixed_url("/rgw"))
 
         log.info("Starting engine on {0}:{1}...".format(
             server_addr, server_port))
