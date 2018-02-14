@@ -16,6 +16,7 @@ import { DatatableComponent } from '@swimlane/ngx-datatable';
 import * as _ from 'lodash';
 
 import { CdTableColumn } from '../../models/cd-table-column';
+import { CdTableFilter } from '../../models/cd-table-filter';
 import { TableDetailsDirective } from '../table-details.directive';
 
 @Component({
@@ -50,7 +51,8 @@ export class TableComponent implements AfterContentChecked, OnInit, OnChanges {
   // The current selection is passed as function argument. To do not display
   // the details page, return false.
   @Input() beforeShowDetails: Function;
-
+  // List of filters
+  @Input() filters: CdTableFilter[] = [];
   // Should be the function that will update the input data.
   @Output() fetchData = new EventEmitter();
 
@@ -83,10 +85,12 @@ export class TableComponent implements AfterContentChecked, OnInit, OnChanges {
       }
       return column;
     });
-    this.reloadData();
+
     if (this.detailsComponent) {
       this.selectionType = 'multi';
     }
+
+    this.reloadData();
   }
 
   ngAfterContentChecked() {
@@ -102,14 +106,14 @@ export class TableComponent implements AfterContentChecked, OnInit, OnChanges {
     }
   }
 
-  _addTemplates () {
+  _addTemplates() {
     this.cellTemplates.bold = this.tableCellBoldTpl;
     this.cellTemplates.sparkline = this.sparklineTpl;
     this.cellTemplates.routerLink = this.routerLinkTpl;
   }
 
   ngOnChanges(changes) {
-    this.useData();
+    this.updateFilter();
   }
 
   setLimit(e) {
@@ -159,27 +163,59 @@ export class TableComponent implements AfterContentChecked, OnInit, OnChanges {
   }
 
   updateFilter(event?) {
+    if (this.data.length === 0) {
+      return;
+    }
+
+    this.loadingIndicator = true;
+
     if (!event) {
       this.search = '';
     }
+
+    let temp = [...this.data];
+
+    // Apply filters
+    this.filters.forEach(filter => {
+      if (!filter.value) {
+        return;
+      }
+
+      if (filter.applyFilter) {
+        temp = filter.applyFilter(temp, filter.value);
+      } else {
+        temp = this.data.filter(row => {
+          return row[filter.prop] === filter.value;
+        });
+      }
+    });
+
+    // Apply search
     const val = this.search.toLowerCase();
     const columns = this.columns;
-    // update the rows
-    this.rows = this.data.filter(function (d) {
-      return columns.filter((c) => {
-        return (typeof d[c.prop] === 'string' || typeof d[c.prop] === 'number')
-          && (d[c.prop] + '').toLowerCase().indexOf(val) !== -1;
-      }).length > 0;
+    temp = temp.filter(function(d) {
+      return (
+        columns.filter(c => {
+          return (
+            (typeof d[c.prop] === 'string' || typeof d[c.prop] === 'number') &&
+            (d[c.prop] + '').toLowerCase().indexOf(val) !== -1
+          );
+        }).length > 0
+      );
     });
+
+    this.rows = [...temp];
     // Whenever the filter changes, always go back to the first page
     this.table.offset = 0;
+
+    this.loadingIndicator = false;
   }
 
   getRowClass() {
     // Return the function used to populate a row's CSS classes.
     return () => {
       return {
-        'clickable': !_.isUndefined(this.detailsComponent)
+        clickable: !_.isUndefined(this.detailsComponent)
       };
     };
   }

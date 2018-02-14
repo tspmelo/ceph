@@ -2,6 +2,10 @@
 
 .dataTables_wrapper {
   margin-bottom: 25px;
+  .filter{
+    padding-left: 10px;
+  }
+
   .separator {
     height: 30px;
     border-left: 1px solid rgba(0,0,0,.09);

@@ -1,5 +1,5 @@
 <div class="dataTables_wrapper">
-  <div class="dataTables_header clearfix"
+  <div class="dataTables_header clearfix form-inline"
        *ngIf="toolHeader">
     <!-- actions -->
     <div class="oadatatableactions">
@@ -25,6 +25,18 @@
       </span>
     </div>
     <!-- end search -->
+
+    <!-- filters -->
+    <div class="form-group pull-right filter"
+         *ngFor="let filter of filters">
+      <label>{{ filter.label }}: </label>
+      <select class="form-control input-sm"
+              [(ngModel)]="filter.value"
+              (ngModelChange)="updateFilter($event)">
+        <option *ngFor="let opt of filter.options">{{ opt }}</option>
+      </select>
+    </div>
+    <!-- end filters -->
 
     <!-- pagination limit -->
     <div class="input-group dataTables_paginate">
