@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 
+import { IscsiComponent } from './ceph/block/iscsi/iscsi.component';
 import { PoolDetailComponent } from './ceph/block/pool-detail/pool-detail.component';
 import { HostsComponent } from './ceph/cluster/hosts/hosts.component';
 import { MonitorComponent } from './ceph/cluster/monitor/monitor.component';
@@ -24,6 +25,7 @@ const routes: Routes = [
     component: RgwDaemonListComponent,
     canActivate: [AuthGuardService]
   },
+  { path: 'block/iscsi', component: IscsiComponent, canActivate: [AuthGuardService] },
   { path: 'block/pool/:name', component: PoolDetailComponent, canActivate: [AuthGuardService] },
   {
     path: 'perf_counters/:type/:id',
