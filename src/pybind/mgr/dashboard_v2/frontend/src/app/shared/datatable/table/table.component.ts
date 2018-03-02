@@ -16,6 +16,7 @@ import {
 import { DatatableComponent, SortDirection, SortPropDir } from '@swimlane/ngx-datatable';
 
 import * as _ from 'lodash';
+import 'rxjs/add/observable/timer';
 import { Observable } from 'rxjs/Observable';
 
 import { CdTableColumn } from '../../models/cd-table-column';
