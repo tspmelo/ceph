@@ -15,6 +15,7 @@ import { DashboardComponent } from './ceph/dashboard/dashboard/dashboard.compone
 import {
   PerformanceCounterComponent
 } from './ceph/performance-counter/performance-counter/performance-counter.component';
+import { PoolFormComponent } from './ceph/pool/pool-form/pool-form.component';
 import { PoolListComponent } from './ceph/pool/pool-list/pool-list.component';
 import { Rgw501Component } from './ceph/rgw/rgw-501/rgw-501.component';
 import { RgwBucketFormComponent } from './ceph/rgw/rgw-bucket-form/rgw-bucket-form.component';
@@ -86,6 +87,7 @@ const routes: Routes = [
   { path: 'rbd/add', component: RbdFormComponent, canActivate: [AuthGuardService] },
   { path: 'rbd/edit/:pool/:name', component: RbdFormComponent, canActivate: [AuthGuardService] },
   { path: 'pool', component: PoolListComponent, canActivate: [AuthGuardService] },
+  { path: 'pool/add', component: PoolFormComponent, canActivate: [AuthGuardService] },
   {
     path: 'rbd/clone/:pool/:name/:snap',
     component: RbdFormComponent,

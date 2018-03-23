@@ -3,6 +3,7 @@ import { Component } from '@angular/core';
 import { PoolService } from '../../../shared/api/pool.service';
 import { CdTableColumn } from '../../../shared/models/cd-table-column';
 import { CdTableSelection } from '../../../shared/models/cd-table-selection';
+import { Pool } from '../pool';
 
 @Component({
   selector: 'cd-pool-list',
@@ -10,7 +11,7 @@ import { CdTableSelection } from '../../../shared/models/cd-table-selection';
   styleUrls: ['./pool-list.component.scss']
 })
 export class PoolListComponent {
-  pools = [];
+  pools: Pool[] = [];
   columns: CdTableColumn[];
   selection = new CdTableSelection();
 
@@ -69,9 +70,12 @@ export class PoolListComponent {
   }
 
   getPoolList() {
-    this.poolService.getList().subscribe((pools: any[]) => {
+    this.poolService.getList().subscribe((pools: Pool[]) => {
       this.pools = pools;
     });
   }
 
+  deletePoolModal() {
+    console.log('dummy');
+  }
 }

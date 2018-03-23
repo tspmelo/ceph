@@ -1,0 +1,563 @@
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item">
+      <a routerLink="/block/pool">Pools</a>
+    </li>
+    <li class="breadcrumb-item active">Create pool</li>
+  </ol>
+</nav>
+
+<div class="col-sm-12 col-lg-6">
+  <h1 *ngIf="!(info && ecProfiles)"
+      class="jumbotron">
+    <i class="fa fa-lg fa-pulse fa-spinner text-primary"></i>
+    Loading...
+  </h1>
+  <form name="poolForm"
+        *ngIf="info && ecProfiles"
+        class="form-horizontal"
+        #formDir="ngForm"
+        (ngSubmit)="submit()"
+        [formGroup]="poolForm"
+        novalidate>
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">
+          <span i18n>Ceph pool: </span>{{ name }}
+        </h3>
+      </div>
+
+      <div class="panel-body">
+        <!-- Name -->
+        <div class="form-group"
+             [ngClass]="{'has-error': (formDir.submitted || formGet('name').dirty) && formGet('name').invalid}">
+          <label i18n
+                 class="control-label col-sm-3"
+                 for="name">
+            Name
+            <span class="required"></span>
+          </label>
+          <div class="col-sm-9">
+            <input id="name"
+                   name="name"
+                   type="text"
+                   class="form-control"
+                   placeholder="Name..."
+                   formControlName="name"
+                   autofocus>
+            <span i18n
+                  class="help-block"
+                  *ngIf="(formDir.submitted || formGet('name').dirty) && formGet('name').hasError('required')">
+              This field is required!
+            </span>
+            <span i18n
+                  class="help-block"
+                  *ngIf="formGet('name').hasError('uniqueName')">
+              The chosen Ceph pool name is already in use.
+            </span>
+          </div>
+        </div>
+
+        <!-- Pool type selection -->
+        <div class="form-group"
+             [ngClass]="{'has-error': (formDir.submitted || formGet('poolType').dirty) &&
+                       formGet('poolType').invalid}">
+          <label i18n
+                 class="control-label col-sm-3"
+                 for="poolType">
+            Pool type
+            <span class="required"></span>
+          </label>
+          <div class="col-sm-9">
+            <select class="form-control"
+                    id="poolType"
+                    formControlName="poolType"
+                    name="poolType">
+              <option ngValue=""
+                      i18n>
+                -- Select a pool type --
+              </option>
+              <option *ngFor="let poolType of data.poolTypes"
+                      [value]="poolType">
+                {{ poolType }}
+              </option>
+            </select>
+            <span i18n
+                  class="help-block"
+                  *ngIf="(formDir.submitted || formGet('poolType').dirty) && formGet('poolType').hasError('required')">
+              This field is required!
+            </span>
+          </div>
+        </div>
+
+        <div *ngIf="isSet('poolType')">
+          <!-- Pg number -->
+          <div class="form-group"
+               [ngClass]="{'has-error': (formDir.submitted || formGet('pgNum').dirty)
+                                        && formGet('pgNum').invalid}">
+            <label i18n
+                   class="control-label col-sm-3"
+                   for="pgNum">
+              Placement groups
+              <span class="required"></span>
+            </label>
+            <div class="col-sm-9">
+              <input class="form-control"
+                     id="pgNum"
+                     name="pgNum"
+                     formControlName="pgNum"
+                     min="1"
+                     type="number"
+                     (keyup)="pgKeyUp($event)"
+                     required>
+              <span i18n
+                    class="help-block"
+                    *ngIf="(formDir.submitted || formGet('pgNum').dirty)
+                           && formGet('pgNum').hasError('required')">
+                This field is required!
+              </span>
+              <span class="help-block">
+              <a i18n
+                 target="_blank"
+                 href="http://ceph.com/pgcalc">Calculation help</a>
+            </span>
+            </div>
+          </div>
+
+          <!-- Crush ruleset selection -->
+          <div class="form-group"
+               [ngClass]="{'has-error': (formDir.submitted || formGet('crushRule').dirty) &&
+                           formGet('crushRule').invalid}"
+               *ngIf="isSet('poolType') && current.rules.length > 0">
+            <label class="control-label col-sm-3"
+                   for="crushSet"
+                   i18n>
+              Crush ruleset
+            </label>
+            <div class="col-sm-9">
+              <select class="form-control"
+                      id="crushSet"
+                      formControlName="crushRule"
+                      name="crushSet">
+                <option i18n
+                        [ngValue]="null">
+                  -- Select a crush rule --
+                </option>
+                <option *ngFor="let rule of current.rules"
+                        [ngValue]="rule">
+                  {{ rule.rule_name }}
+                </option>
+              </select>
+              <span class="help-block"
+                    *ngIf="isSet('crushRule')">
+                Steps
+                <ol>
+                  <li *ngFor="let step of formGet('crushRule').value.steps">
+                    {{ describeCrushStep(step) }}
+                  </li>
+                </ol>
+              </span>
+              <span class="help-block"
+                    i18n
+                    *ngIf="formGet('crushRule').hasError('toFewOsds')">
+                The rule can't be used in the current cluster as it has to few OSDs to meet the
+                minimum required OSD by this rule.
+              </span>
+            </div>
+          </div>
+
+          <!-- Replica Size -->
+          <div class="form-group"
+               [ngClass]="{'has-error': (formDir.submitted || formGet('size').dirty)
+                                      && formGet('size').invalid}"
+               *ngIf="formGet('poolType').value === 'replicated'">
+            <label i18n
+                   class="control-label col-sm-3"
+                   for="size">
+              Replicated size
+            </label>
+            <div class="col-sm-9">
+              <input class="form-control"
+                     id="size"
+                     [max]="getMaxSize()"
+                     [min]="getMinSize()"
+                     name="size"
+                     type="number"
+                     formControlName="size">
+              <span class="help-block"
+                    *ngIf="!formGet('size').invalid">
+                <ul class="list-inline">
+                  <li i18n>
+                    Minimum: {{ getMinSize() }}
+                  </li>
+                  <li i18n>
+                    Maximum: {{ getMaxSize() }}
+                  </li>
+                </ul>
+              </span>
+              <span class="help-block"
+                    i18n
+                    *ngIf="formGet('size').invalid">
+                The size specified is out of range.
+                A value from {{ getMinSize() }} to {{ getMaxSize() }} is valid.
+              </span>
+            </div>
+          </div>
+
+          <!-- Erasure Profile select -->
+          <div class="form-group"
+               *ngIf="formGet('poolType').value === 'erasure'">
+            <label i18n
+                   class="control-label col-sm-3"
+                   for="erasureProfile">
+              Erasure code profile
+            </label>
+            <div class="col-sm-9">
+              <!-- <div class="input-group"> -->
+              <div>
+                <select class="form-control"
+                        id="erasureProfile"
+                        name="erasureProfile"
+                        formControlName="erasureProfile">
+                  <option *ngIf="!ecProfiles"
+                          ngValue=""
+                          i18n>
+                    Loading...
+                  </option>
+                  <option *ngIf="ecProfiles && ecProfiles.length === 0"
+                          i18n
+                          [ngValue]="null">
+                    -- No erasure code profile available --
+                  </option>
+                  <option *ngIf="ecProfiles && ecProfiles.length > 0"
+                          i18n
+                          [ngValue]="null">
+                    -- Select an erasure code profile --
+                  </option>
+                  <option *ngFor="let ecp of ecProfiles"
+                          [ngValue]="ecp">
+                    {{ ecp.name }}
+                  </option>
+                </select>
+                <!-- Not implemented yet - coming soon -->
+                <span class="input-group-btn" *ngIf="false">
+                  <button class="btn btn-default"
+                          type="button"
+                          (click)="addErasureCodeProfile()">
+                    <i class="fa fa-plus"
+                       aria-hidden="true"></i>
+                  </button>
+                  <button class="btn btn-default"
+                          type="button"
+                          (click)="deleteErasureCodeProfile()">
+                    <i class="fa fa-trash-o"
+                       aria-hidden="true"></i>
+                  </button>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Flags -->
+          <div class="form-group"
+               *ngIf="info.is_all_bluestore && formGet('poolType').value === 'erasure'">
+            <label i18n
+                   class="control-label col-sm-3">
+              Flags
+            </label>
+            <div class="col-sm-9">
+              <div class="input-group">
+                <div class="checkbox checkbox-primary">
+                  <input id="ec-overwrites"
+                         type="checkbox"
+                         formControlName="ecOverwrites">
+                  <label i18n
+                         for="ec-overwrites">
+                    EC Overwrites
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Compression -->
+          <div *ngIf="info.is_all_bluestore" formGroupName="compression">
+            <legend i18n>Compression</legend>
+
+            <!-- Compression Mode -->
+            <div class="form-group">
+              <label i18n
+                     class="control-label col-sm-3"
+                     for="mode">
+                Mode
+              </label>
+              <div class="col-sm-9">
+                <select class="form-control"
+                        id="mode"
+                        name="mode"
+                        formControlName="mode">
+                  <option i18n
+                          ngValue="">
+                    -- Select a compression mode --
+                  </option>
+                  <option *ngFor="let mode of info.compression_modes"
+                          [value]="mode">
+                    {{ mode }}
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div *ngIf="activatedCompression()">
+              <!-- Compression algorithm selection -->
+              <div class="form-group"
+                   [ngClass]="{'has-error': (formDir.submitted || formGet('algorithm').dirty)
+                              && formGet('algorithm').invalid}">
+                <label i18n
+                       class="control-label col-sm-3"
+                       for="algorithm">
+                  Algorithm
+                </label>
+                <div class="col-sm-9">
+                  <select class="form-control"
+                          id="algorithm"
+                          name="algorithm"
+                          formControlName="algorithm">
+                    <option *ngIf="!info.compression_algorithms"
+                            ngValue=""
+                            i18n>
+                      Loading...
+                    </option>
+                    <option *ngIf="info.compression_algorithms && info.compression_algorithms.length === 0"
+                            i18n
+                            ngValue="">
+                      -- No erasure compression algorithm available --
+                    </option>
+                    <option *ngIf="info.compression_algorithms && info.compression_algorithms.length > 0"
+                            i18n
+                            ngValue="">
+                      -- Select a compression algorithm --
+                    </option>
+                    <option *ngFor="let algorithm of info.compression_algorithms"
+                            [value]="algorithm">
+                      {{ algorithm }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Compression min blob size -->
+              <div class="form-group"
+                   [ngClass]="{'has-error': (formDir.submitted || formGet('minBlobSize').dirty) &&
+                              formGet('minBlobSize').invalid}">
+                <label i18n
+                       class="control-label col-sm-3"
+                       for="minBlobSize">
+                  Minimum blob size
+                </label>
+                <div class="col-sm-9">
+                  <input id="minBlobSize"
+                         name="minBlobSize"
+                         formControlName="minBlobSize"
+                         type="text"
+                         min="0"
+                         class="form-control"
+                         ì18n-placeholder
+                         placeholder="e.g., 128KiB"
+                         defaultUnit="KiB"
+                         cdDimlessBinary>
+                  <span i18n
+                        class="help-block"
+                        *ngIf="formGet('minBlobSize').hasError('min')">
+                    Value should be greater or equal to 0
+                  </span>
+                </div>
+              </div>
+
+              <!-- Compression max blob size -->
+              <div class="form-group"
+                   [ngClass]="{'has-error': (formDir.submitted || formGet('maxBlobSize').dirty) &&
+                              formGet('maxBlobSize').invalid}">
+                <label i18n
+                       class="control-label col-sm-3"
+                       for="maxBlobSize">
+                  Maximum blob size
+                </label>
+                <div class="col-sm-9">
+                  <input id="maxBlobSize"
+                         type="text"
+                         min="0"
+                         formControlName="maxBlobSize"
+                         class="form-control"
+                         ì18n-placeholder
+                         placeholder="e.g., 512KiB"
+                         defaultUnit="KiB"
+                         cdDimlessBinary>
+                  <span i18n
+                        class="help-block"
+                        *ngIf="formGet('maxBlobSize').hasError('min')">
+                    Value should be greater or equal to 0
+                  </span>
+                </div>
+              </div>
+
+              <!-- Compression ratio -->
+              <div class="form-group"
+                   [ngClass]="{'has-error': (formDir.submitted || formGet('ratio').dirty) &&
+                              formGet('ratio').invalid}">
+                <label i18n
+                       class="control-label col-sm-3"
+                       for="ratio">
+                   Ratio
+                </label>
+                <div class="col-sm-9">
+                  <input id="ratio"
+                         name="ratio"
+                         formControlName="ratio"
+                         type="number"
+                         min="0"
+                         max="1"
+                         step="0.1"
+                         class="form-control"
+                         placeholder="Compression ratio">
+                  <span i18n
+                        class="help-block"
+                        *ngIf="formGet('ratio').hasError('min') ||
+                                 formGet('ratio').hasError('max')">
+                    Value should be between 0.0 and 1.0
+                  </span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Applications -->
+          <legend i18n>Applications</legend>
+
+          <!-- Application selection -->
+          <div formGroupName="app">
+            <div class="form-group">
+              <label i18n
+                     class="col-sm-3 control-label"
+                     for="appSelection">
+                Add applications
+              </label>
+              <div class="col-sm-9">
+                <div class="input-group">
+                  <select class="form-control"
+                          id="appSelection"
+                          name="appSelection"
+                          formControlName="appSelection">
+                    <option i18n
+                            ngValue="">
+                      - Select an application to use -
+                    </option>
+                    <option *ngFor="let app of getAvailApps()"
+                            [value]="app">
+                      {{ app }}
+                    </option>
+                    <option i18n
+                            ngValue="">
+                      Custom app
+                    </option>
+                  </select>
+                  <span class="input-group-btn">
+                <button class="btn btn-default"
+                        type="button"
+                        tooltip="Add application"
+                        [disabled]="data.apps.length > 3"
+                        (click)="addApp()">
+                  <i class="fa fa-plus"
+                     aria-hidden="true"></i>
+                </button>
+              </span>
+                </div>
+                <span i18n
+                      class="help-block"
+                      *ngIf="data.apps.length > 3">
+                You can use up to four application per pool.
+              </span>
+              </div>
+            </div>
+
+            <!-- Show selected applications  -->
+            <div class="form-group"
+                 [ngClass]="{'has-error': formDir.submitted && data.apps.length > 3}">
+              <label i18n
+                     class="col-sm-3 control-label">
+                Applications
+              </label>
+              <div class="col-sm-9">
+              <div *ngFor="let appName of data.apps; first as first; index as index"
+                   [ngClass]="{'has-error': first && appName === '' && !formGet('customApp').valid}">
+                <div class="input-group">
+                  <!-- Use custom application  -->
+                  <input type="text"
+                         *ngIf="first && appName === ''"
+                         class="form-control"
+                         name="customApp"
+                         formControlName="customApp">
+
+                  <!-- Show selected application  -->
+                  <input type="text"
+                         *ngIf="appName !== ''"
+                         class="form-control"
+                         [name]="appName"
+                         [value]="appName"
+                         disabled>
+
+                  <span class="input-group-btn">
+                    <button class="btn btn-default"
+                            type="button"
+                            tooltip="Remove application"
+                            (click)="removeAppByIndex(index)">
+                      <i class="fa fa-trash-o"></i>
+                    </button>
+                  </span>
+                </div>
+                <span i18n
+                      class="help-block"
+                      *ngIf="first &&  appName === '' && formGet('customApp').hasError('maxlength')">
+                  The application needs to have a name that is at max 128 characters long.
+                </span>
+                <span i18n
+                      class="help-block"
+                      *ngIf="first &&  appName === '' && formGet('customApp').hasError('pattern')">
+                  The following characters are valid: _ a-z A-Z 0-9
+                </span>
+                <br>
+              </div>
+                <span i18n
+                      *ngIf="data.apps.length === 0"
+                      class="form-control no-border text-muted">
+                No application added
+              </span>
+                <span i18n
+                      class="help-block"
+                      *ngIf="formDir.submitted && data.apps.length > 3">
+                  You can't use more than four application per pool.
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+          </div>
+
+      <div class="panel-footer">
+        <div class="button-group text-right">
+          <cd-submit-button [form]="poolForm"
+                            type="button"
+                            (submitAction)="submit()">
+            <span i18n>Create pool</span>
+          </cd-submit-button>
+          <button i18n
+                  type="button"
+                  class="btn btn-sm btn-default"
+                  routerLink="/pool">
+            Back
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
