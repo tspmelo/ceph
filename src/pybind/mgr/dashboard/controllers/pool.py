@@ -3,10 +3,14 @@ from __future__ import absolute_import
 
 import cherrypy
 
-from . import ApiController, RESTController, AuthRequired
+from . import ApiController, RESTController, AuthRequired, Task
 from .. import mgr
 from ..services.ceph_service import CephService
 from ..services.exception import handle_send_command_error
+
+
+def pool_task(name, metadata, wait_for=2.0):
+    return Task("pool/{}".format(name), metadata, wait_for)
 
 
 @ApiController('pool')
@@ -55,18 +59,23 @@ class Pool(RESTController):
         return [self._serialize_pool(pool, attrs) for pool in pools]
 
     def get(self, pool_name, attrs=None, stats=False):
+        # type: (str, str, bool) -> dict
         pools = self.list(attrs, stats)
-        pool = [pool for pool in pools if pool['pool_name'] == pool_name]
-        if not pool:
-            return cherrypy.NotFound('No such pool')
-        return pool[0]
+        try:
+            return [pool for pool in pools if pool['pool_name'] == pool_name][0]
+        except IndexError:
+            raise cherrypy.NotFound(pool_name)
 
-    @handle_send_command_error('pool')
+    @pool_task('delete', ['{pool_name}'])
     def delete(self, pool_name):
         return CephService.send_command('mon', 'osd pool delete', pool=pool_name, pool2=pool_name,
                                         sure='--yes-i-really-really-mean-it')
 
-    @handle_send_command_error('pool')
+    @pool_task('set', ['{pool_name}'])
+    def set(self, pool_name, flags=None, application_metadata=None, **kwargs):
+        self._set_pool_values(pool_name, application_metadata, flags, True, kwargs)
+
+    @pool_task('create', ['{pool}'])
     def create(self, pool, pg_num, pool_type, erasure_code_profile=None, flags=None,
                application_metadata=None, rule_name=None, **kwargs):
         ecp = erasure_code_profile if erasure_code_profile else None
@@ -74,13 +83,27 @@ class Pool(RESTController):
                                  pgp_num=int(pg_num), pool_type=pool_type, erasure_code_profile=ecp,
                                  rule=rule_name)
 
+        self._set_pool_values(pool, application_metadata, flags, False, kwargs)
+
+    def _set_pool_values(self, pool, application_metadata, flags, update_existing, kwargs):
         if flags and 'ec_overwrites' in flags:
             CephService.send_command('mon', 'osd pool set', pool=pool, var='allow_ec_overwrites',
                                      val='true')
-
         if application_metadata:
-            for app in application_metadata.split(','):
-                CephService.send_command('mon', 'osd pool application enable', pool=pool, app=app)
+            def set_app(what, app):
+                CephService.send_command('mon', 'osd pool application ' + what, pool=pool, app=app,
+                                         force='--yes-i-really-mean-it')
+
+            if update_existing:
+                original_app_metadata = set(
+                    self.get(pool, 'application_metadata')['application_metadata'])
+            else:
+                original_app_metadata = set()
+
+            for app in original_app_metadata - set(application_metadata):
+                set_app('disable', app)
+            for app in set(application_metadata) - original_app_metadata:
+                set_app('enable', app)
 
         for key, value in kwargs.items():
             CephService.send_command('mon', 'osd pool set', pool=pool, var=key, val=value)
