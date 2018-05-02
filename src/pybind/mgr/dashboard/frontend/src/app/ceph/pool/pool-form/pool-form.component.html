@@ -1,9 +1,10 @@
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
     <li class="breadcrumb-item">
-      <a routerLink="/block/pool">Pools</a>
+      <a routerLink="/pool">Pools</a>
     </li>
-    <li class="breadcrumb-item active">Create pool</li>
+    <li class="breadcrumb-item active"
+        i18n>{{ editing ? 'Edit' : 'Create' }} pool</li>
   </ol>
 </nav>
 
@@ -23,14 +24,16 @@
     <div class="panel panel-default">
       <div class="panel-heading">
         <h3 class="panel-title">
-          <span i18n>Ceph pool: </span>{{ name }}
+          <span i18n>{{ editing ? 'Edit' : 'Create' }} pool: </span>
+          <span *ngIf="isSet('name')">{{ isSet('name') }}</span>
         </h3>
       </div>
 
       <div class="panel-body">
         <!-- Name -->
         <div class="form-group"
-             [ngClass]="{'has-error': (formDir.submitted || formGet('name').dirty) && formGet('name').invalid}">
+             [ngClass]="{'has-error': (formDir.submitted || formGet('name').dirty) &&
+                                      formGet('name').invalid}">
           <label i18n
                  class="control-label col-sm-3"
                  for="name">
@@ -47,7 +50,8 @@
                    autofocus>
             <span i18n
                   class="help-block"
-                  *ngIf="(formDir.submitted || formGet('name').dirty) && formGet('name').hasError('required')">
+                  *ngIf="(formDir.submitted || formGet('name').dirty) &&
+                         formGet('name').hasError('required')">
               This field is required!
             </span>
             <span i18n
@@ -84,7 +88,8 @@
             </select>
             <span i18n
                   class="help-block"
-                  *ngIf="(formDir.submitted || formGet('poolType').dirty) && formGet('poolType').hasError('required')">
+                  *ngIf="(formDir.submitted || formGet('poolType').dirty) &&
+                         formGet('poolType').hasError('required')">
               This field is required!
             </span>
           </div>
@@ -93,8 +98,8 @@
         <div *ngIf="isSet('poolType')">
           <!-- Pg number -->
           <div class="form-group"
-               [ngClass]="{'has-error': (formDir.submitted || formGet('pgNum').dirty)
-                                        && formGet('pgNum').invalid}">
+               [ngClass]="{'has-error': (formDir.submitted || formGet('pgNum').dirty) &&
+                                        formGet('pgNum').invalid}">
             <label i18n
                    class="control-label col-sm-3"
                    for="pgNum">
@@ -112,15 +117,28 @@
                      required>
               <span i18n
                     class="help-block"
-                    *ngIf="(formDir.submitted || formGet('pgNum').dirty)
-                           && formGet('pgNum').hasError('required')">
+                    *ngIf="(formDir.submitted || formGet('pgNum').dirty) &&
+                           formGet('pgNum').hasError('required')">
                 This field is required!
               </span>
+              <span i18n
+                    class="help-block"
+                    *ngIf="(formDir.submitted || formGet('pgNum').dirty) &&
+                           formGet('pgNum').hasError('min')">
+                At least one placement group is needed!
+              </span>
+              <span i18n
+                    class="help-block"
+                    *ngIf="(formDir.submitted || formGet('pgNum').dirty) &&
+                           formGet('pgNum').hasError('noDecrease')">
+                You can only increase the number of PGs of an existing pool.
+                Currently your pool has {{ data.pool.pg_num }} PGs.
+              </span>
               <span class="help-block">
-              <a i18n
-                 target="_blank"
-                 href="http://ceph.com/pgcalc">Calculation help</a>
-            </span>
+                <a i18n
+                   target="_blank"
+                   href="http://ceph.com/pgcalc">Calculation help</a>
+              </span>
             </div>
           </div>
 
@@ -168,8 +186,8 @@
 
           <!-- Replica Size -->
           <div class="form-group"
-               [ngClass]="{'has-error': (formDir.submitted || formGet('size').dirty)
-                                      && formGet('size').invalid}"
+               [ngClass]="{'has-error': (formDir.submitted || formGet('size').dirty) &&
+                                        formGet('size').invalid}"
                *ngIf="formGet('poolType').value === 'replicated'">
             <label i18n
                    class="control-label col-sm-3"
@@ -310,8 +328,8 @@
             <div *ngIf="activatedCompression()">
               <!-- Compression algorithm selection -->
               <div class="form-group"
-                   [ngClass]="{'has-error': (formDir.submitted || formGet('algorithm').dirty)
-                              && formGet('algorithm').invalid}">
+                   [ngClass]="{'has-error': (formDir.submitted || formGet('algorithm').dirty) &&
+                                            formGet('algorithm').invalid}">
                 <label i18n
                        class="control-label col-sm-3"
                        for="algorithm">
@@ -327,12 +345,14 @@
                             i18n>
                       Loading...
                     </option>
-                    <option *ngIf="info.compression_algorithms && info.compression_algorithms.length === 0"
+                    <option *ngIf="info.compression_algorithms &&
+                                   info.compression_algorithms.length === 0"
                             i18n
                             ngValue="">
                       -- No erasure compression algorithm available --
                     </option>
-                    <option *ngIf="info.compression_algorithms && info.compression_algorithms.length > 0"
+                    <option *ngIf="info.compression_algorithms &&
+                                   info.compression_algorithms.length > 0"
                             i18n
                             ngValue="">
                       -- Select a compression algorithm --
@@ -348,7 +368,7 @@
               <!-- Compression min blob size -->
               <div class="form-group"
                    [ngClass]="{'has-error': (formDir.submitted || formGet('minBlobSize').dirty) &&
-                              formGet('minBlobSize').invalid}">
+                                            formGet('minBlobSize').invalid}">
                 <label i18n
                        class="control-label col-sm-3"
                        for="minBlobSize">
@@ -376,7 +396,7 @@
               <!-- Compression max blob size -->
               <div class="form-group"
                    [ngClass]="{'has-error': (formDir.submitted || formGet('maxBlobSize').dirty) &&
-                              formGet('maxBlobSize').invalid}">
+                                            formGet('maxBlobSize').invalid}">
                 <label i18n
                        class="control-label col-sm-3"
                        for="maxBlobSize">
@@ -403,7 +423,7 @@
               <!-- Compression ratio -->
               <div class="form-group"
                    [ngClass]="{'has-error': (formDir.submitted || formGet('ratio').dirty) &&
-                              formGet('ratio').invalid}">
+                                            formGet('ratio').invalid}">
                 <label i18n
                        class="control-label col-sm-3"
                        for="ratio">
@@ -422,7 +442,7 @@
                   <span i18n
                         class="help-block"
                         *ngIf="formGet('ratio').hasError('min') ||
-                                 formGet('ratio').hasError('max')">
+                               formGet('ratio').hasError('max')">
                     Value should be between 0.0 and 1.0
                   </span>
                 </div>
@@ -489,7 +509,8 @@
               </label>
               <div class="col-sm-9">
               <div *ngFor="let appName of data.apps; first as first; index as index"
-                   [ngClass]="{'has-error': first && appName === '' && !formGet('customApp').valid}">
+                   [ngClass]="{'has-error': first && appName === '' &&
+                                            !formGet('customApp').valid}">
                 <div class="input-group">
                   <!-- Use custom application  -->
                   <input type="text"
@@ -517,7 +538,8 @@
                 </div>
                 <span i18n
                       class="help-block"
-                      *ngIf="first &&  appName === '' && formGet('customApp').hasError('maxlength')">
+                      *ngIf="first &&  appName === '' &&
+                             formGet('customApp').hasError('maxlength')">
                   The application needs to have a name that is at max 128 characters long.
                 </span>
                 <span i18n
@@ -548,7 +570,7 @@
           <cd-submit-button [form]="poolForm"
                             type="button"
                             (submitAction)="submit()">
-            <span i18n>Create pool</span>
+            <span i18n>{{ editing ? 'Edit' : 'Create' }} pool</span>
           </cd-submit-button>
           <button i18n
                   type="button"

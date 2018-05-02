@@ -9,7 +9,8 @@
           selectionType="single"
           (updateSelection)="updateSelection($event)">
   <div class="table-actions">
-    <div class="btn-group" dropdown>
+    <div class="btn-group"
+         dropdown>
       <button type="button"
               class="btn btn-sm btn-primary"
               *ngIf="!selection.hasSingleSelection"
@@ -19,8 +20,8 @@
       <button type="button"
               class="btn btn-sm btn-primary"
               *ngIf="selection.hasSingleSelection"
-              [ngClass]="{'disabled': selection.first().executing}"
-              routerLink="/pool/edit/{{ selection.first()?.name }}">
+              [ngClass]="{'disabled': selection.first()?.executing}"
+              routerLink="/pool/edit/{{ selection.first()?.pool_name }}">
         <i class="fa fa-fw fa-pencil"></i><span i18n>Edit</span>
       </button>
       <button type="button"
@@ -37,13 +38,13 @@
           </a>
         </li>
         <li role="menuitem"
-            [ngClass]="{'disabled': !selection.hasSingleSelection || selection.first().executing}">
+            [ngClass]="{'disabled': !selection.hasSingleSelection || selection.first()?.executing}">
           <a class="dropdown-item"
-             routerLink="/pool/edit/{{ selection.first()?.name }}">
+             routerLink="/pool/edit/{{ selection.first()?.pool_name }}">
             <i class="fa fa-fw fa-pencil"></i><span i18n>Edit</span></a>
         </li>
         <li role="menuitem"
-            [ngClass]="{'disabled': !selection.hasSingleSelection || selection.first().executing}">
+            [ngClass]="{'disabled': !selection.hasSingleSelection || selection.first()?.executing}">
           <a class="dropdown-item"
              (click)="deletePoolModal()">
             <i class="fa fa-fw fa-trash-o"></i><span i18n>Delete</span>

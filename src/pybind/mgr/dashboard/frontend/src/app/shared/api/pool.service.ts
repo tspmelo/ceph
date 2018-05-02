@@ -10,6 +10,16 @@ export class PoolService {
     return this.http.post('api/pool', pool, { observe: 'response' });
   }
 
+  update(pool) {
+    const name = pool.pool;
+    delete pool.pool;
+    return this.http.put('api/pool/' + name, pool, { observe: 'response' });
+  }
+
+  get(poolName) {
+    return this.http.get(`api/pool/${poolName}`);
+  }
+
   getList () {
     return this.http.get('api/pool');
   }

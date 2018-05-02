@@ -1,11 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { AbstractControl, FormControl, FormGroup, ValidatorFn, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import * as _ from 'lodash';
 
+import { Observable } from 'rxjs/Observable';
 import { PoolService } from '../../../shared/api/pool.service';
 import { NotificationType } from '../../../shared/enum/notification-type.enum';
+import { CrushRule } from '../../../shared/models/crush-rule';
 import { CrushStep } from '../../../shared/models/crush-step';
 import { FinishedTask } from '../../../shared/models/finished-task';
 import { DimlessBinaryPipe } from '../../../shared/pipes/dimless-binary.pipe';
@@ -15,6 +17,8 @@ import { TaskManagerMessageService } from '../../../shared/services/task-manager
 import { TaskManagerService } from '../../../shared/services/task-manager.service';
 import { ErasureCodeProfile } from '../erasure-code-profile/erasure-code-profile';
 import { ErasureCodeProfileService } from '../erasure-code-profile/erasure-code-profile.service';
+import { Pool } from '../pool';
+import { PoolFormData } from './pool-form-data';
 import { PoolFormInfo } from './pool-form-info';
 
 @Component({
@@ -28,16 +32,15 @@ export class PoolFormComponent implements OnInit {
   appForm: FormGroup;
   ecProfiles: ErasureCodeProfile[];
   info: PoolFormInfo;
-  data = {
-    poolTypes: ['erasure', 'replicated'],
-    apps: [],
-    pgs: 1
-  };
+  routeParamsSubscribe: any;
+  editing = false;
+  data = new PoolFormData;
   current = {
     rules: []
   };
 
   constructor(private dimlessBinaryPipe: DimlessBinaryPipe,
+              private route: ActivatedRoute,
               private router: Router,
               private poolService: PoolService,
               private formatter: FormatterService,
@@ -46,7 +49,6 @@ export class PoolFormComponent implements OnInit {
               private taskManagerMessageService: TaskManagerMessageService,
               private ecpService: ErasureCodeProfileService) {
     this.createForm();
-    this.listenToChanges();
   }
 
   createForm() {
@@ -122,27 +124,85 @@ export class PoolFormComponent implements OnInit {
     };
   }
 
+  formGet(name): AbstractControl {
+    return this.poolForm.get(name) ||
+      this.compressionForm.get(name) ||
+      this.appForm.get(name);
+  }
+
+  ngOnInit() {
+    Observable.forkJoin(
+      this.poolService.getInfo(),
+      this.ecpService.getList()
+    ).subscribe((data: [PoolFormInfo, ErasureCodeProfile[]]) => {
+      this.initInfo(data[0]);
+      this.initEcp(data[1]);
+      if (this.router.url.startsWith('/pool/edit')) {
+        this.initEditMode();
+      }
+      this.listenToChanges();
+      this.enableComplexValidators();
+    });
+  }
+
+  initInfo(info: PoolFormInfo) {
+    info.compression_algorithms = info.compression_algorithms.filter(m => m.length > 0);
+    this.info = info;
+  }
+
+  initEcp(ecProfiles: ErasureCodeProfile[]) {
+    if (ecProfiles.length === 1) {
+      const control = this.formGet('erasureProfile');
+      control.setValue(ecProfiles[0]);
+      control.disable();
+    }
+    this.ecProfiles = ecProfiles;
+  }
+
+  initEditMode() {
+    this.editing = true;
+    this.disableForEdit();
+    this.routeParamsSubscribe = this.route.params.subscribe((param: {name: string}) =>
+      this.poolService.get(param.name).subscribe((pool: Pool) => {
+        this.data.pool = pool;
+        this.initEditFormData(pool);
+      })
+    );
+  }
+
+  disableForEdit() {
+    [
+      'name', 'poolType', 'crushRule', 'size', 'erasureProfile', 'ecOverwrites'
+    ].forEach(controlName => this.formGet(controlName).disable());
+  }
+
+  initEditFormData(pool: Pool) {
+    const transform = {
+      'name': 'pool_name',
+      'poolType': 'type',
+      'crushRule': (p) => this.info['crush_rules_' + p.type].find((rule: CrushRule) =>
+        rule.rule_name === p.crush_rule),
+      'size': 'size',
+      'erasureProfile': (p) => this.ecProfiles.find(ecp => ecp.name === p.erasure_code_profile),
+      'pgNum': 'pg_num',
+      'ecOverwrites': (p) => p.flags_names.includes('ec_overwrites'),
+      'mode': 'options.compression_mode',
+      'algorithm': 'options.compression_algorithm',
+      'minBlobSize': (p) => this.dimlessBinaryPipe.transform(p.options.compression_min_blob_size),
+      'maxBlobSize': (p) => this.dimlessBinaryPipe.transform(p.options.compression_max_blob_size),
+      'ratio': 'options.compression_required_ratio'
+    };
+    Object.keys(transform).forEach(key => {
+      const attrib = transform[key];
+      const value = _.isFunction(attrib) ? attrib(pool) : _.get(pool, attrib);
+      if (!_.isUndefined(value) && value !== '') {
+        this.silentSetValue(key, value);
+      }
+    });
+    this.data.apps = pool.application_metadata;
+  }
+
   listenToChanges() {
-    this.formGet('poolType').valueChanges.subscribe((poolType) => {
-      this.formGet('size').updateValueAndValidity();
-      this.rulesChange();
-      if (poolType === 'replicated') {
-        this.replicatedRuleChange();
-      }
-      this.pgCalc();
-    });
-    this.formGet('crushRule').valueChanges.subscribe(() => {
-      if (this.isSet('poolType') === 'replicated') {
-        this.replicatedRuleChange();
-      }
-      this.pgCalc();
-    });
-    this.formGet('size').valueChanges.subscribe(() => {
-      this.pgCalc();
-    });
-    this.formGet('erasureProfile').valueChanges.subscribe(() => {
-      this.pgCalc();
-    });
     this.formGet('pgNum').valueChanges.subscribe(pgs => {
       if (pgs !== this.data.pgs) {
         this.pgUpdate(pgs);
@@ -155,31 +215,41 @@ export class PoolFormComponent implements OnInit {
         this.addApp(value);
       }
     });
-    this.formGet('mode').valueChanges.subscribe(() => {
-      ['minBlobSize', 'maxBlobSize', 'ratio'].forEach(name =>
-        this.formGet(name).updateValueAndValidity());
-    });
+    if (!this.editing) {
+      this.formGet('poolType').valueChanges.subscribe((poolType) => {
+        this.formGet('size').updateValueAndValidity();
+        this.rulesChange();
+        if (poolType === 'replicated') {
+          this.replicatedRuleChange();
+        }
+        this.pgCalc();
+      });
+      this.formGet('crushRule').valueChanges.subscribe(() => {
+        if (this.isSet('poolType') === 'replicated') {
+          this.replicatedRuleChange();
+        }
+        this.pgCalc();
+      });
+      this.formGet('size').valueChanges.subscribe(() => {
+        this.pgCalc();
+      });
+      this.formGet('erasureProfile').valueChanges.subscribe(() => {
+        this.pgCalc();
+      });
+      this.formGet('mode').valueChanges.subscribe(() => {
+        ['minBlobSize', 'maxBlobSize', 'ratio'].forEach(name =>
+          this.formGet(name).updateValueAndValidity());
+      });
+    }
   }
 
-  formGet(name): AbstractControl {
-    return this.poolForm.get(name) ||
-      this.compressionForm.get(name) ||
-      this.appForm.get(name);
-  }
-
-  ngOnInit() {
-    this.poolService.getInfo().subscribe((data: any) => {
-      this.info = data;
-      this.info.compression_algorithms = this.info.compression_algorithms.filter(m => m.length > 0);
-    });
-    this.ecpService.getList().subscribe((ecProfiles: ErasureCodeProfile[]) => {
-      if (ecProfiles.length === 1) {
-        const control = this.formGet('erasureProfile');
-        control.setValue(ecProfiles[0]);
-        control.disable();
-      }
-      this.ecProfiles = ecProfiles;
-    });
+  enableComplexValidators() {
+    if (this.editing) {
+      this.formGet('pgNum').setValidators(this.genericValidator(
+        'noDecrease', (pgs) => this.data.pool && pgs < this.data.pool.pg_num
+      ));
+      return;
+    }
     this.validatingIf('size',
       () => this.formGet('poolType').value === 'replicated',
       [
@@ -374,68 +444,67 @@ export class PoolFormComponent implements OnInit {
   }
 
   submit() {
-    if (this.poolForm.invalid) {
-      // this.formService.focusInvalid(this.el); <- not here yet
-      console.log(this.poolForm, 'you shall not pass!');
-      return;
-    }
     this.removeApp('');
-    const pool = {
-      pool: this.formGet('name').value,
-      pool_type: this.formGet('poolType').value,
-      pg_num: this.formGet('pgNum').value
-    };
-    const extendPool = (controlName, apiName, attrPath?, value?) => {
-      if (!this.isSet(controlName)) {
-        return;
-      }
-      if (!value) {
-        value = this.formGet(controlName).value;
-        if (attrPath) {
-          value = _.get(value, attrPath);
-        }
-      }
-      pool[apiName] = value;
-    };
-    const extendPoolByBytes = (controlName, apiName) => {
-      const value = this.isSet(controlName);
-      if (!value) {
-        return;
-      }
-      extendPool(controlName, apiName, undefined, this.formatter.toBytes(value));
-    };
-    if (pool.pool_type === 'replicated') {
-      extendPool('size', 'size');
-    } else {
-      extendPool('erasureProfile', 'erasure_code_profile', 'name');
-    }
-    extendPool('crushRule', 'rule_name', 'rule_name');
+    const pool = {};
+    this._extendByItemsForSubmit(pool, [
+      {api: 'pool', name: 'name', edit: true},
+      {api: 'pool_type', name: 'poolType'},
+      {api: 'pg_num', name: 'pgNum', edit: true},
+      this.isSet('poolType') === 'replicated'
+        ? {api: 'size', name: 'size'}
+        : {api: 'erasure_code_profile', name: 'erasureProfile', attr: 'name'},
+      {api: 'rule_name', name: 'crushRule', attr: 'rule_name'}
+    ]);
     if (this.info.is_all_bluestore) {
-      extendPool('ecOverwrites', 'flags', undefined, ['ec_overwrites']);
+      this._extendByItemForSubmit(pool,
+        {api: 'flags', name: 'ecOverwrites', fn: () => ['ec_overwrites']}
+      );
       if (this.isSet('mode')) {
-        extendPool('mode', 'compression_mode');
-        extendPool('algorithm', 'compression_algorithm');
-        extendPoolByBytes('minBlobSize', 'compression_min_blob_size');
-        extendPoolByBytes('maxBlobSize', 'compression_max_blob_size');
-        extendPool('ratio', 'compression_required_ratio');
+        this._extendByItemsForSubmit(pool, [
+          {api: 'compression_mode', name: 'mode', edit: true},
+          {api: 'compression_algorithm', name: 'algorithm', edit: true},
+          {api: 'compression_min_blob_size', name: 'minBlobSize', fn: this.formatter.toBytes,
+            edit: true},
+          {api: 'compression_max_blob_size', name: 'maxBlobSize', fn: this.formatter.toBytes,
+            edit: true},
+          {api: 'compression_required_ratio', name: 'ratio', edit: true},
+        ]);
       }
     }
-    if (this.data.apps.length > 0) {
+    if (this.data.apps.length > 0 || this.editing) {
       pool['application_metadata'] = this.data.apps;
     }
     this.createAction(pool);
   }
 
+  _extendByItemsForSubmit (pool, items: any[]) {
+    items.forEach(item => this._extendByItemForSubmit(pool, item));
+  }
+
+  _extendByItemForSubmit (pool, {api, name, attr, fn, edit}:
+      {api: string, name: string, attr?: string, fn?: Function, edit?: boolean}) {
+    if (this.editing && !edit) {
+      return;
+    }
+    let value = this.isSet(name);
+    if (!value && value !== 0) {
+      return;
+    }
+    if (fn) {
+      value = fn(value);
+    }
+    pool[api] = fn ? fn(value) : (attr ? _.get(value, attr) : value);
+  }
+
   createAction(pool) {
     const finishedTask = new FinishedTask();
-    finishedTask.name = 'pool/create';
-    finishedTask.metadata = {'pool_name': pool.pool};
-    this.poolService.create(pool).toPromise().then((resp) => {
+    finishedTask.name = 'pool/' + this.editing ? 'update' : 'create' + ' ' + pool.pool;
+    this.poolService[this.editing ? 'update' : 'create'](pool).toPromise().then((resp) => {
       if (resp.status === 202) {
         this.notificationService.show(NotificationType.info,
-          `Pool creation in progress...`,
+          'Pool ' + this.editing ? 'updating' : 'creation' + ' in progress...',
           this.taskManagerMessageService.getDescription(finishedTask));
-        this.taskManagerService.subscribe(finishedTask.name, finishedTask.metadata,
+        this.taskManagerService.subscribe(finishedTask.name, undefined,
           (asyncFinishedTask: FinishedTask) => {
             this.notificationService.notifyTask(asyncFinishedTask);
           });

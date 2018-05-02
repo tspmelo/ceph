@@ -1,22 +1,33 @@
 import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AbstractControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 
-import { ToastModule } from 'ng2-toastr';
-
 import * as _ from 'lodash';
+import { ToastModule } from 'ng2-toastr';
+import { Observable } from 'rxjs/Observable';
+
+import { PoolService } from '../../../shared/api/pool.service';
+import { CrushRule } from '../../../shared/models/crush-rule';
 import { SharedModule } from '../../../shared/shared.module';
-import { ErasureCodeProfileService } from '../erasure-code-profile/erasure-code-profile.service';
-import { PoolFormComponent } from './pool-form.component';
 import { UnitTestHelper } from '../../../shared/unit-test-helper';
+import { ErasureCodeProfileService } from '../erasure-code-profile/erasure-code-profile.service';
+import { Pool } from '../pool';
+import { PoolFormComponent } from './pool-form.component';
 
 describe('PoolFormComponent', () => {
   let component: PoolFormComponent;
   let fixture: ComponentFixture<PoolFormComponent>;
   const unitTestHelper = new UnitTestHelper();
+  let poolService: PoolService;
 
-  const setValue = (controlName, value, valid?) => {
+  const allControlNames = [
+    'name', 'poolType', 'crushRule', 'size', 'erasureProfile', 'pgNum', 'ecOverwrites',
+    'mode', 'algorithm', 'minBlobSize', 'maxBlobSize', 'ratio', 'appSelection', 'customApp'
+  ];
+
+  const setValue = (controlName: string, value: any, valid?: any): AbstractControl => {
     const control = component.formGet(controlName);
     control.setValue(value);
     if (!_.isUndefined(valid)) {
@@ -27,6 +38,41 @@ describe('PoolFormComponent', () => {
       }
       control.updateValueAndValidity();
     }
+    return control;
+  };
+
+  const createRule = ({id = 0, name = 'somePoolName', min = 1, max = 10, type= 'replicated'}:
+      {max?: number, min?: number, id?: number, name?: string, type?: string}) => {
+    const typeNumber = type === 'erasure' ? 3 : 1;
+    const rule = new CrushRule;
+    rule.max_size = max;
+    rule.min_size = min;
+    rule.rule_id = id;
+    rule.ruleset = typeNumber;
+    rule.rule_name = name;
+    rule.steps = [
+      {
+        item_name: 'default',
+        item: -1,
+        op: 'take'
+      }, {
+        num: 0,
+        type: 'osd',
+        op: 'choose_firstn'
+      }, {
+        op: 'emit'
+      }
+    ];
+    component.info['crush_rules_' + type].push(rule);
+    return rule;
+  };
+
+  const hasError = (control: AbstractControl, error: string) => {
+    expect(control.hasError(error)).toBeTruthy();
+  };
+
+  const isValid = (control: AbstractControl) => {
+    expect(control.valid).toBeTruthy();
   };
 
   unitTestHelper.staticTestBed({
@@ -39,7 +85,10 @@ describe('PoolFormComponent', () => {
       ToastModule.forRoot(),
       FormsModule
     ],
-    providers: [ErasureCodeProfileService]
+    providers: [
+      ErasureCodeProfileService,
+      {provide: ActivatedRoute, useValue: {params: Observable.of({name: 'somePoolName'})}}
+    ]
   });
 
   beforeEach(() => {
@@ -55,6 +104,10 @@ describe('PoolFormComponent', () => {
       crush_rules_erasure: []
     };
     component.ecProfiles = [];
+    poolService = TestBed.get(PoolService);
+    spyOn(poolService, 'getInfo').and.callFake(() => [component.info]);
+    const ecpService = TestBed.get(ErasureCodeProfileService);
+    spyOn(ecpService, 'getList').and.callFake(() => [component.ecProfiles]);
   });
 
   it('should create', () => {
@@ -64,91 +117,90 @@ describe('PoolFormComponent', () => {
     expect(component.appForm).toBeTruthy();
   });
 
+  it('should call all needed functions during init', () => {
+    spyOn(component, 'initInfo').and.callThrough();
+    spyOn(component, 'initEcp').and.callThrough();
+    spyOn(component, 'listenToChanges').and.callThrough();
+    spyOn(component, 'enableComplexValidators').and.callThrough();
+
+    expect(component.editing).toBeFalsy();
+    expect(component.initInfo).not.toHaveBeenCalled();
+    expect(component.initEcp).not.toHaveBeenCalled();
+    expect(component.listenToChanges).not.toHaveBeenCalled();
+    expect(component.enableComplexValidators).not.toHaveBeenCalled();
+
+    component.ngOnInit();
+    expect(component.editing).toBeFalsy();
+    expect(component.initInfo).toHaveBeenCalled();
+    expect(component.initEcp).toHaveBeenCalled();
+    expect(component.listenToChanges).toHaveBeenCalled();
+    expect(component.enableComplexValidators).toHaveBeenCalled();
+  });
+
   describe('pool form validation', () => {
-    const changeValue = (name: string, value: any) => {
-      const control = component.formGet(name);
-      control.setValue(value);
-      return control;
-    };
-
-    const hasError = (name: string, error: string) => {
-      expect(component.formGet(name).hasError(error)).toBeTruthy();
-    };
-
-    const isValid = (name: string) => {
-      expect(component.formGet(name).valid).toBeTruthy();
-    };
-
     beforeEach(() => {
       component.ngOnInit();
     });
 
     it('should be invalid at the beginning all sub forms should be valid however', () => {
       expect(component.poolForm.valid).toBeFalsy();
-      ['name', 'poolType', 'pgNum'].forEach((name) => hasError(name, 'required'));
-      ['crushRule', 'size', 'erasureProfile', 'ecOverwrites'].forEach(isValid);
+      ['name', 'poolType', 'pgNum'].forEach((name) =>
+        hasError(component.formGet(name), 'required'));
+      ['crushRule', 'size', 'erasureProfile', 'ecOverwrites'].forEach(name =>
+        isValid(component.formGet(name)));
       expect(component.compressionForm.valid).toBeTruthy();
       expect(component.appForm.valid).toBeTruthy();
     });
 
     it('should test name validation', () => {
-      hasError('name', 'required');
-      changeValue('name', 'some-name');
-      isValid('name');
+      hasError(component.formGet('name'), 'required');
+      isValid(setValue('name', 'some-name'));
       component.info.pool_names.push('someExistingPoolName');
-      changeValue('name', 'someExistingPoolName');
-      hasError('name', 'uniqueName');
-      changeValue('name', 'wrong format with spaces');
-      hasError('name', 'pattern');
+      hasError(setValue('name', 'someExistingPoolName'), 'uniqueName');
+      hasError(setValue('name', 'wrong format with spaces'), 'pattern');
     });
 
     it('should test poolType validation', () => {
-      hasError('poolType', 'required');
-      changeValue('poolType', 'erasure');
-      isValid('poolType');
-      changeValue('poolType', 'replicated');
-      isValid('poolType');
+      hasError(component.formGet('poolType'), 'required');
+      isValid(setValue('poolType', 'erasure'));
+      isValid(setValue('poolType', 'replicated'));
     });
 
     it('should test pgNum validation', () => {
-      hasError('pgNum', 'required');
-      const control = changeValue('pgNum', '-28');
+      hasError(component.formGet('pgNum'), 'required');
+      const control = setValue('pgNum', '-28');
       expect(control.value).toBe(1);
-      isValid('pgNum');
+      isValid(control);
     });
 
     it('is valid if pgNum, poolType and name are valid', () => {
-      changeValue('name', 'some-name');
-      changeValue('poolType', 'erasure');
-      changeValue('pgNum', 1);
+      setValue('name', 'some-name');
+      setValue('poolType', 'erasure');
+      setValue('pgNum', 1);
       expect(component.poolForm.valid).toBeTruthy();
     });
 
     it('should test crushRule validation', () => {
-      isValid('crushRule');
-      changeValue('crushRule', {min_size: 20});
-      hasError('crushRule', 'toFewOsds');
+      isValid(component.formGet('crushRule'));
+      hasError(setValue('crushRule', {min_size: 20}), 'toFewOsds');
     });
 
     it('should test size validation', () => {
-      changeValue('poolType', 'replicated');
-      isValid('size');
-      changeValue('crushRule', {
+      setValue('poolType', 'replicated');
+      isValid(component.formGet('size'));
+      setValue('crushRule', {
         min_size: 2,
         max_size: 6
       });
-      changeValue('size', 1);
-      hasError('size', 'min');
-      changeValue('size', 8);
-      hasError('size', 'max');
-      changeValue('size', 6);
-      isValid('size');
+      hasError(setValue('size', 1), 'min');
+      hasError(setValue('size', 8), 'max');
+      isValid(setValue('size', 6));
     });
 
     describe('compression form validation', () => {
       beforeEach(() => {
-        changeValue('poolType', 'replicated');
-        changeValue('mode', 'passive');
+        setValue('poolType', 'replicated');
+        setValue('mode', 'passive');
       });
 
       it('should be valid', () => {
@@ -156,33 +208,27 @@ describe('PoolFormComponent', () => {
       });
 
       it('should minBlobSize can be a number below 0', () => {
-        changeValue('minBlobSize', -1);
-        hasError('minBlobSize', 'min');
-        const control = changeValue('minBlobSize', '1');
+        hasError(setValue('minBlobSize', -1), 'min');
+        const control = setValue('minBlobSize', '1');
         fixture.detectChanges();
-        isValid('minBlobSize');
+        isValid(control);
         expect(control.value).toBe('1KiB');
       });
 
       it('should maxBlobSize can be a number below 0', () => {
-        changeValue('maxBlobSize', -1);
-        hasError('maxBlobSize', 'min');
-        const control = changeValue('maxBlobSize', '1');
+        hasError(setValue('maxBlobSize', -1), 'min');
+        const control = setValue('maxBlobSize', '1');
         fixture.detectChanges();
-        isValid('maxBlobSize');
+        isValid(control);
         expect(control.value).toBe('1KiB');
       });
 
       it('should validate ratio to be only valid between 0 and 1', () => {
-        isValid('ratio');
-        changeValue('ratio', -0.1);
-        hasError('ratio', 'min');
-        changeValue('ratio', 0);
-        isValid('ratio');
-        changeValue('ratio', 1);
-        isValid('ratio');
-        changeValue('ratio', 1.1);
-        hasError('ratio', 'max');
+        isValid(component.formGet('ratio'));
+        hasError(setValue('ratio', -0.1), 'min');
+        isValid(setValue('ratio', 0));
+        isValid(setValue('ratio', 1));
+        hasError(setValue('ratio', 1.1), 'max');
       });
     });
 
@@ -192,13 +238,10 @@ describe('PoolFormComponent', () => {
       });
 
       it('validates customApp', () => {
-        isValid('customApp');
-        changeValue('customApp', '?');
-        hasError('customApp', 'pattern');
-        changeValue('customApp', 'Ab3_');
-        isValid('customApp');
-        changeValue('customApp', 'a'.repeat(129));
-        hasError('customApp', 'maxlength');
+        isValid(component.formGet('customApp'));
+        hasError(setValue('customApp', '?'), 'pattern');
+        isValid(setValue('customApp', 'Ab3_'));
+        hasError(setValue('customApp', 'a'.repeat(129)), 'maxlength');
       });
     });
   });
@@ -209,29 +252,6 @@ describe('PoolFormComponent', () => {
       setValue('poolType', type);
     };
 
-    const createRule = ({id, name, min, max, type}) => {
-      const typeNumber = type === 'erasure' ? 3 : 1;
-      return {
-        min_size: min,
-        rule_name: name,
-        steps: [{
-          item_name: 'default',
-          item: -1,
-          op: 'take'
-        }, {
-          num: 0,
-          type: 'osd',
-          op: 'choose_firstn'
-        }, {
-          op: 'emit'
-        }],
-        ruleset: id,
-        type: typeNumber,
-        rule_id: id,
-        max_size: max
-      };
-    };
-
     beforeEach(() => {
       component.info.crush_rules_replicated = [
         createRule({id: 0, min: 2, max: 4, name: 'rep1', type: 'replicated' }),
@@ -240,6 +260,7 @@ describe('PoolFormComponent', () => {
       component.info.crush_rules_erasure = [
         createRule({id: 3, min: 1, max: 1, name: 'ep1', type: 'erasure' })
       ];
+      component.ngOnInit();
     });
 
     describe('replicatedRuleChange', () => {
@@ -358,7 +379,7 @@ describe('PoolFormComponent', () => {
       expect(component.getMinSize()).toBe(10);
       const control = component.formGet('crushRule');
       expect(control.invalid).toBe(true);
-      expect(control.hasError('toFewOsds')).toBe(true);
+      hasError(control, 'toFewOsds');
     });
   });
 
@@ -391,7 +412,7 @@ describe('PoolFormComponent', () => {
     });
 
     it('should remove empty apps on adding', () => {
-      const apps = setCurrentApps([ '', 'b', 'a']);
+      setCurrentApps([ '', 'b', 'a']);
       testAddApp('c', ['c', 'b', 'a']);
     });
 
@@ -425,6 +446,11 @@ describe('PoolFormComponent', () => {
 
   describe('pg changes', () => {
     beforeEach(() => {
+      setValue('crushRule', {
+        min_size: 1,
+        max_size: 20
+      });
+      component.ngOnInit();
       // triggers pgUpdate
       setValue('pgNum', 256);
     });
@@ -457,6 +483,11 @@ describe('PoolFormComponent', () => {
         }
         expect(component.isSet('pgNum')).toBe(expected);
       };
+
+      beforeEach(() => {
+        // Prevent an error through calculations
+        spyOn(component, 'getMaxSize').and.returnValue(200);
+      });
 
       it('should not change anything if not type is selected', () => {
         const test = getValidCase();
@@ -568,6 +599,179 @@ describe('PoolFormComponent', () => {
         testPgKeyUp('ArrowDown', 64);
         testPgKeyUp('-', 32);
         testPgKeyUp('-', 16);
+      });
+    });
+  });
+  describe('submit', () => {
+    const setMultipleValues = (settings: {}) => {
+      Object.keys(settings).forEach(name => {
+        setValue(name, settings[name]);
+      });
+    };
+
+    beforeEach(() => {
+      createRule({name: 'replicatedRule'});
+      createRule({name: 'erasureRule', type: 'erasure', id: 1});
+      spyOn(component, 'createAction');
+    });
+
+    it('should test minimum requirements for a erasure code pool', () => {
+      setMultipleValues({
+        name: 'minECPool',
+        poolType: 'erasure',
+        pgNum: 4
+      });
+      component.submit();
+      expect(component.createAction).toHaveBeenCalledWith(
+        { pool: 'minECPool', pool_type: 'erasure', pg_num: 4}
+      );
+    });
+
+    it('should test minimum requirements for a replicated pool', () => {
+      const ecp = {name: 'ecpMinimalMock'};
+      setMultipleValues({
+        name: 'minRepPool',
+        poolType: 'replicated',
+        size: 2,
+        erasureProfile: ecp, // Will be ignored
+        pgNum: 8
+      });
+      component.submit();
+      expect(component.createAction).toHaveBeenCalledWith(
+        { pool: 'minRepPool', pool_type: 'replicated', pg_num: 8, size: 2}
+      );
+    });
+
+    it('should test a erasure code pool with erasure coded profile', () => {
+      const ecp = {name: 'ecpMinimalMock'};
+      setMultipleValues({
+        name: 'ecpPool',
+        poolType: 'erasure',
+        pgNum: 16,
+        size: 2, // Will be ignored
+        erasureProfile: ecp
+      });
+      component.submit();
+      expect(component.createAction).toHaveBeenCalledWith(
+        { pool: 'ecpPool', pool_type: 'erasure', pg_num: 16, erasure_code_profile: ecp.name}
+      );
+    });
+
+    it('should test ec_overwrite flag with erasure code pool', () => {
+      setMultipleValues({
+        name: 'ecOverwrites',
+        poolType: 'erasure',
+        pgNum: 32,
+        ecOverwrites: true
+      });
+      component.submit();
+      expect(component.createAction).toHaveBeenCalledWith(
+        { pool: 'ecOverwrites', pool_type: 'erasure', pg_num: 32, flags: ['ec_overwrites']}
+      );
+    });
+    it('should test pool compression', () => {
+      setMultipleValues({
+        name: 'compression',
+        poolType: 'erasure',
+        pgNum: 64,
+        mode: 'passive',
+        algorithm: 'lz4',
+        minBlobSize: '4 K',
+        maxBlobSize: '4 M',
+        ratio: 0.7,
+      });
+      component.submit();
+      expect(component.createAction).toHaveBeenCalledWith({
+        pool: 'compression', pool_type: 'erasure', pg_num: 64, compression_mode: 'passive',
+        compression_algorithm: 'lz4', compression_min_blob_size: 4096,
+        compression_max_blob_size: 4194304, compression_required_ratio: 0.7
+      });
+    });
+  });
+
+  describe('edit mode', () => {
+    let url;
+    let pool: Pool;
+    beforeEach(() => {
+      pool = new Pool;
+      pool.pool_name = 'somePoolName';
+      pool.type = 'replicated';
+      pool.size = 3;
+      pool.crush_rule = 'someRule';
+      pool.pg_num = 32;
+      pool.options = {};
+      pool.options.compression_mode = 'passive';
+      pool.options.compression_algorithm = 'lz4';
+      pool.options.compression_min_blob_size = 1024 * 512;
+      pool.options.compression_max_blob_size = 1024 * 1024;
+      pool.options.compression_required_ratio = 0.8;
+      pool.flags_names = 'someFlag1,someFlag2';
+      pool.application_metadata = ['rbd', 'rgw'];
+      createRule({name: 'someRule'});
+      const router = TestBed.get(Router);
+      spyOnProperty(router, 'url', 'get').and.callFake(() => url);
+      spyOn(component, 'initEditMode').and.callThrough();
+      spyOn(poolService, 'get').and.callFake(() => Observable.of(pool));
+    });
+
+    it('should not call initEditMode if edit is not included in url', () => {
+      url = '/pool/add';
+      expect(component.initEditMode).not.toHaveBeenCalled();
+      component.ngOnInit();
+      expect(component.initEditMode).not.toHaveBeenCalled();
+    });
+
+    it('should call initEditMode if edit is included in url', () => {
+      url = '/pool/edit/somePoolName';
+      expect(component.initEditMode).not.toHaveBeenCalled();
+      component.ngOnInit();
+      expect(component.initEditMode).toHaveBeenCalled();
+    });
+
+    describe('after ngOnInit', () => {
+      beforeEach(() => {
+        spyOn(component, 'disableForEdit').and.callThrough();
+        spyOn(component, 'initEditFormData').and.callThrough();
+        spyOn(component, 'enableComplexValidators').and.callThrough();
+        url = '/pool/edit/somePoolName';
+        component.ngOnInit();
+      });
+
+      it('should set editing to true if initEditMode is called', () => {
+        expect(component.editing).toBeTruthy();
+      });
+
+      it('should disable inputs', () => {
+        expect(component.disableForEdit).toHaveBeenCalled();
+        const disabled = ['name', 'poolType', 'crushRule', 'size', 'erasureProfile',
+          'ecOverwrites'];
+        const enabled = _.difference(allControlNames, disabled);
+        disabled.forEach(controlName => {
+          return expect(component.formGet(controlName).disabled).toBeTruthy(controlName);
+        });
+        enabled.forEach(controlName => {
+          return expect(component.formGet(controlName).enabled).toBeTruthy(controlName);
+        });
+      });
+
+      it('should set control values', () => {
+        expect(component.initEditFormData).toHaveBeenCalled();
+        expect(component.isSet('name')).toBe(pool.pool_name);
+        expect(component.isSet('poolType')).toBe(pool.type);
+        expect(component.isSet('crushRule')).toEqual(component.info.crush_rules_replicated[0]);
+        expect(component.isSet('size')).toBe(pool.size);
+        expect(component.isSet('pgNum')).toBe(pool.pg_num);
+        expect(component.isSet('mode')).toBe(pool.options.compression_mode);
+        expect(component.isSet('algorithm')).toBe(pool.options.compression_algorithm);
+        expect(component.isSet('minBlobSize')).toBe('512KiB');
+        expect(component.isSet('maxBlobSize')).toBe('1MiB');
+        expect(component.isSet('ratio')).toBe(pool.options.compression_required_ratio);
+      });
+
+      it('should only be possible to use the same or more pgs like before', () => {
+        expect(component.enableComplexValidators).toHaveBeenCalled();
+        isValid(setValue('pgNum', 64));
+        hasError(setValue('pgNum', 4), 'noDecrease');
       });
     });
   });

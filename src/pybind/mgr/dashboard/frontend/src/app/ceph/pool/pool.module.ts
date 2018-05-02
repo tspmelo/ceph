@@ -5,6 +5,7 @@ import { RouterModule } from '@angular/router';
 
 import { TabsModule } from 'ngx-bootstrap/tabs';
 
+import { BsDropdownModule } from 'ngx-bootstrap';
 import { ServicesModule } from '../../shared/services/services.module';
 import { SharedModule } from '../../shared/shared.module';
 import {
@@ -22,6 +23,7 @@ import { PoolListComponent } from './pool-list/pool-list.component';
     FormsModule,
     RouterModule,
     ReactiveFormsModule,
+    BsDropdownModule,
     ServicesModule
   ],
   exports: [
