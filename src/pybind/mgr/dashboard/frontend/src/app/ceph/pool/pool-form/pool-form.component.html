@@ -388,7 +388,12 @@
                   <span i18n
                         class="help-block"
                         *ngIf="formGet('minBlobSize').hasError('min')">
-                    Value should be greater or equal to 0
+                    Value should be greater than 0
+                  </span>
+                  <span i18n
+                        class="help-block"
+                        *ngIf="formGet('minBlobSize').hasError('maximum')">
+                    Value should be greater than the maximum blob size
                   </span>
                 </div>
               </div>
@@ -415,7 +420,12 @@
                   <span i18n
                         class="help-block"
                         *ngIf="formGet('maxBlobSize').hasError('min')">
-                    Value should be greater or equal to 0
+                    Value should be greater than 0
+                  </span>
+                  <span i18n
+                        class="help-block"
+                        *ngIf="formGet('maxBlobSize').hasError('minimum')">
+                    Value should be greater than the minimum blob size
                   </span>
                 </div>
               </div>

@@ -248,20 +248,32 @@ export class PoolFormComponent implements OnInit {
       this.formGet('pgNum').setValidators(this.genericValidator(
         'noDecrease', (pgs) => this.data.pool && pgs < this.data.pool.pg_num
       ));
-      return;
+    } else {
+      this.validatingIf('size',
+        () => this.formGet('poolType').value === 'replicated',
+        [
+          this.genericValidator('min', value => this.isSet('size') && value < this.getMinSize()),
+          this.genericValidator('max', value => this.isSet('size') && this.getMaxSize() < value)
+        ]
+      );
     }
-    this.validatingIf('size',
-      () => this.formGet('poolType').value === 'replicated',
-      [
-        this.genericValidator('min', value => this.isSet('size') && value < this.getMinSize()),
-        this.genericValidator('max', value => this.isSet('size') && this.getMaxSize() < value)
-      ]
-    );
     this.validatingIf('minBlobSize', this.activatedCompression, [
       Validators.min(0),
+      this.genericValidator(
+        'maximum', (size) => {
+          const maxSize = this.isSet('maxBlobSize');
+          return maxSize && this.formatter.toBytes(size) >= this.formatter.toBytes(maxSize);
+        }
+      )
     ]);
     this.validatingIf('maxBlobSize', this.activatedCompression, [
       Validators.min(0),
+      this.genericValidator(
+        'minimum', (size) => {
+          const minSize = this.isSet('minBlobSize');
+          return minSize && this.formatter.toBytes(size) <= this.formatter.toBytes(minSize);
+        }
+      )
     ]);
     this.validatingIf('ratio', this.activatedCompression, [
       Validators.min(0),

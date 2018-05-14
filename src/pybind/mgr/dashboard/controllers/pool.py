@@ -106,7 +106,12 @@ class Pool(RESTController):
                 set_app('enable', app)
 
         for key, value in kwargs.items():
-            CephService.send_command('mon', 'osd pool set', pool=pool, var=key, val=value)
+            def set_key(key):
+                CephService.send_command('mon', 'osd pool set', pool=pool, var=key, val=str(value))
+
+            set_key(key)
+            if key == 'pg_num':
+                set_key('pgp_num')
 
     @cherrypy.tools.json_out()
     @cherrypy.expose

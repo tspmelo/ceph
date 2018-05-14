@@ -168,9 +168,18 @@ describe('PoolFormComponent', () => {
 
     it('should test pgNum validation', () => {
       hasError(component.formGet('pgNum'), 'required');
-      const control = setValue('pgNum', '-28');
-      expect(control.value).toBe(1);
-      isValid(control);
+      isValid(setValue('pgNum', '-28'));
+      expect(component.isSet('pgNum')).toBe(1);
+      isValid(setValue('pgNum', '15'));
+      expect(component.isSet('pgNum')).toBe(16);
+    });
+
+    it('should test pgNum validation in edit mode', () => {
+      component.data.pool = new Pool;
+      component.data.pool.pg_num = 16;
+      component.editing = true;
+      component.enableComplexValidators();
+      hasError(setValue('pgNum', '8'), 'noDecrease');
     });
 
     it('is valid if pgNum, poolType and name are valid', () => {
@@ -207,20 +216,24 @@ describe('PoolFormComponent', () => {
         expect(component.compressionForm.valid).toBeTruthy();
       });
 
-      it('should minBlobSize can be a number below 0', () => {
+      it('should validate minBlobSize', () => {
+        setValue('maxBlobSize', '2KiB');
         hasError(setValue('minBlobSize', -1), 'min');
         const control = setValue('minBlobSize', '1');
         fixture.detectChanges();
         isValid(control);
         expect(control.value).toBe('1KiB');
+        hasError(setValue('minBlobSize', '3KiB'), 'maximum');
       });
 
-      it('should maxBlobSize can be a number below 0', () => {
+      it('should validate maxBlobSize', () => {
         hasError(setValue('maxBlobSize', -1), 'min');
-        const control = setValue('maxBlobSize', '1');
+        setValue('minBlobSize', '1');
+        const control = setValue('maxBlobSize', '2');
         fixture.detectChanges();
         isValid(control);
-        expect(control.value).toBe('1KiB');
+        expect(control.value).toBe('2KiB');
+        hasError(setValue('maxBlobSize', '0.5KiB'), 'minimum');
       });
 
       it('should validate ratio to be only valid between 0 and 1', () => {
