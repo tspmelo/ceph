@@ -9,15 +9,15 @@ import * as _ from 'lodash';
 import { Observable } from 'rxjs/Observable';
 
 import { PoolService } from '../../../shared/api/pool.service';
+import { DimlessBinaryDirective } from '../../../shared/directives/dimless-binary.directive';
 import { CrushRule } from '../../../shared/models/crush-rule';
 import { DimlessBinaryPipe } from '../../../shared/pipes/dimless-binary.pipe';
 import { FormatterService } from '../../../shared/services/formatter.service';
+import { TaskWrapperService } from '../../../shared/services/task-wrapper.service';
 import { SharedModule } from '../../../shared/shared.module';
 import { ErasureCodeProfileService } from '../erasure-code-profile/erasure-code-profile.service';
 import { Pool } from '../pool';
 import { PoolFormComponent } from './pool-form.component';
-import { TaskWrapperService } from '../../../shared/services/task-wrapper.service';
-import { NotificationService } from '../../../shared/services/notification.service';
 
 describe('PoolFormComponent', () => {
   let component: PoolFormComponent;
@@ -112,7 +112,7 @@ describe('PoolFormComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [PoolFormComponent, DimlessBinaryPipe],
+      declarations: [PoolFormComponent, DimlessBinaryDirective],
       imports: [ReactiveFormsModule, HttpClientTestingModule, RouterTestingModule, FormsModule],
       providers: [
         ErasureCodeProfileService,
@@ -268,588 +268,579 @@ describe('PoolFormComponent', () => {
         hasError(setValue('minBlobSize', '3KiB'), 'maximum');
       });
 
-      //     it('should validate maxBlobSize', () => {
-      //       hasError(setValue('maxBlobSize', -1), 'min');
-      //       setValue('minBlobSize', '1');
-      //       const control = setValue('maxBlobSize', '2');
-      //       fixture.detectChanges();
-      //       isValid(control);
-      //       expect(control.value).toBe('2KiB');
-      //       hasError(setValue('maxBlobSize', '0.5KiB'), 'minimum');
-      //     });
+      it('should validate maxBlobSize', () => {
+        hasError(setValue('maxBlobSize', -1), 'min');
+        setValue('minBlobSize', '1');
+        const control = setValue('maxBlobSize', '2');
+        fixture.detectChanges();
+        isValid(control);
+        expect(control.value).toBe('2KiB');
+        hasError(setValue('maxBlobSize', '0.5KiB'), 'minimum');
+      });
 
-      //     it('should validate ratio to be only valid between 0 and 1', () => {
-      //       isValid(component.formGet('ratio'));
-      //       hasError(setValue('ratio', -0.1), 'min');
-      //       isValid(setValue('ratio', 0));
-      //       isValid(setValue('ratio', 1));
-      //       hasError(setValue('ratio', 1.1), 'max');
-      //     });
+      it('should validate ratio to be only valid between 0 and 1', () => {
+        isValid(component.formGet('ratio'));
+        hasError(setValue('ratio', -0.1), 'min');
+        isValid(setValue('ratio', 0));
+        isValid(setValue('ratio', 1));
+        hasError(setValue('ratio', 1.1), 'max');
+      });
     });
 
-    //   describe('application form validation', () => {
-    //     it('should be valid', () => {
-    //       expect(component.appForm.valid).toBeTruthy();
-    //     });
+    describe('application form validation', () => {
+      it('should be valid', () => {
+        expect(component.appForm.valid).toBeTruthy();
+      });
 
-    //     it('validates customApp', () => {
-    //       isValid(component.formGet('customApp'));
-    //       hasError(setValue('customApp', '?'), 'pattern');
-    //       isValid(setValue('customApp', 'Ab3_'));
-    //       hasError(setValue('customApp', 'a'.repeat(129)), 'maxlength');
-    //     });
-    //   });
+      it('validates customApp', () => {
+        isValid(component.formGet('customApp'));
+        hasError(setValue('customApp', '?'), 'pattern');
+        isValid(setValue('customApp', 'Ab3_'));
+        hasError(setValue('customApp', 'a'.repeat(129)), 'maxlength');
+      });
+    });
   });
 
-  // describe('pool type changes', () => {
-  //   // triggers rulesChange & pcCalc & replicatedRuleChange if replicated
-  //   const changePoolType = (type: string) => {
-  //     setValue('poolType', type);
-  //   };
+  describe('pool type changes', () => {
+    // triggers rulesChange & pcCalc & replicatedRuleChange if replicated
+    const changePoolType = (type: string) => {
+      setValue('poolType', type);
+    };
 
-  //   beforeEach(() => {
-  //     component.info.crush_rules_replicated = [
-  //       createRule({ id: 0, min: 2, max: 4, name: 'rep1', type: 'replicated' }),
-  //       createRule({ id: 1, min: 3, max: 18, name: 'rep2', type: 'replicated' })
-  //     ];
-  //     component.info.crush_rules_erasure = [
-  //       createRule({ id: 3, min: 1, max: 1, name: 'ep1', type: 'erasure' })
-  //     ];
-  //     component.ngOnInit();
-  //   });
+    beforeEach(() => {
+      component.info.crush_rules_replicated = [
+        createRule({ id: 0, min: 2, max: 4, name: 'rep1', type: 'replicated' }),
+        createRule({ id: 1, min: 3, max: 18, name: 'rep2', type: 'replicated' })
+      ];
+      component.info.crush_rules_erasure = [
+        createRule({ id: 3, min: 1, max: 1, name: 'ep1', type: 'erasure' })
+      ];
+      component.ngOnInit();
+    });
 
-  //   describe('replicatedRuleChange', () => {
-  //     beforeEach(() => {
-  //       changePoolType('replicated');
-  //       setValue('crushRule', component.info.crush_rules_replicated[0]);
-  //       setValue('size', 199);
-  //     });
+    describe('replicatedRuleChange', () => {
+      beforeEach(() => {
+        changePoolType('replicated');
+        setValue('crushRule', component.info.crush_rules_replicated[0]);
+        setValue('size', 199);
+      });
+      it('should not set size if crushRule or not a replicated pool is not set', () => {
+        changePoolType('erasure');
+        expect(component.isSet('size')).toBe(199);
+        changePoolType('replicated');
+        setValue('crushRule', null);
+        expect(component.isSet('size')).toBe(199);
+      });
+      it('should set size to maximum is size exceeds maximum', () => {
+        component.replicatedRuleChange();
+        expect(component.isSet('size')).toBe(4);
+      });
+      it('should set size to minimum if size is lower than minimum', () => {
+        setValue('size', 1);
+        component.replicatedRuleChange();
+        expect(component.isSet('size')).toBe(2);
+      });
+    });
+    describe('rulesChange', () => {
+      it('should do nothing if info is not there', () => {
+        delete component.info;
+        changePoolType('replicated');
+        expect(component.current.rules).toEqual([]);
+      });
+      it('should do nothing if pool type is not there', () => {
+        component.rulesChange();
+        expect(component.current.rules).toEqual([]);
+      });
+      it('should show all replicated rules when the type is replicated', () => {
+        changePoolType('replicated');
+        expect(component.current.rules).toEqual(component.info.crush_rules_replicated);
+      });
+      it('should show all erasure rules when the type is erasure', () => {
+        changePoolType('erasure');
+        expect(component.current.rules).toEqual(component.info.crush_rules_erasure);
+      });
+      it('should select the first rule if only one is there and disable the rule field', () => {
+        changePoolType('erasure');
+        const control = component.formGet('crushRule');
+        expect(control.value).toEqual(component.info.crush_rules_erasure[0]);
+        expect(control.disabled).toBe(true);
+      });
+      it('should not select the first rule if more than one are there', () => {
+        changePoolType('replicated');
+        const control = component.formGet('crushRule');
+        expect(control.value).toEqual(null);
+        expect(control.disabled).toBe(false);
+      });
+      it('should be able to change between both types without any side effects', () => {
+        changePoolType('erasure');
+        changePoolType('replicated');
+        const control = component.formGet('crushRule');
+        expect(control.value).toEqual(null);
+        expect(control.disabled).toBe(false);
+        changePoolType('erasure');
+        expect(control.value).toEqual(component.info.crush_rules_erasure[0]);
+        expect(control.disabled).toBe(true);
+      });
+    });
+  });
 
-  //     it('should not set size if crushRule or not a replicated pool is not set', () => {
-  //       changePoolType('erasure');
-  //       expect(component.isSet('size')).toBe(199);
-  //       changePoolType('replicated');
-  //       setValue('crushRule', null);
-  //       expect(component.isSet('size')).toBe(199);
-  //     });
+  describe('getMaxSize and getMinSize', () => {
+    const setCrushRule = ({ min, max }: { min?: number; max?: number }) => {
+      setValue('crushRule', {
+        min_size: min || 2,
+        max_size: max || 10
+      });
+    };
 
-  //     it('should set size to maximum is size exceeds maximum', () => {
-  //       component.replicatedRuleChange();
-  //       expect(component.isSet('size')).toBe(4);
-  //     });
+    it('should return nothing if info is not there or the osd count is 0', () => {
+      setCrushRule({});
+      component.info.osd_count = 0;
+      expect(component.getMinSize()).toBe(undefined);
+      expect(component.getMaxSize()).toBe(undefined);
+      delete component.info;
+      expect(component.getMinSize()).toBe(undefined);
+      expect(component.getMaxSize()).toBe(undefined);
+    });
 
-  //     it('should set size to minimum if size is lower than minimum', () => {
-  //       setValue('size', 1);
-  //       component.replicatedRuleChange();
-  //       expect(component.isSet('size')).toBe(2);
-  //     });
-  //   });
+    it('should return minimum and maximum of rule', () => {
+      setCrushRule({ max: 6 });
+      expect(component.getMinSize()).toBe(2);
+      expect(component.getMaxSize()).toBe(6);
+    });
 
-  //   describe('rulesChange', () => {
-  //     it('should do nothing if info is not there', () => {
-  //       delete component.info;
-  //       changePoolType('replicated');
-  //       expect(component.current.rules).toEqual([]);
-  //     });
+    it('should return 1 and osd count if no crush rule is available', () => {
+      setValue('crushRule', null);
+      expect(component.getMinSize()).toBe(1);
+      expect(component.getMaxSize()).toBe(8);
+    });
 
-  //     it('should do nothing if pool type is not there', () => {
-  //       component.rulesChange();
-  //       expect(component.current.rules).toEqual([]);
-  //     });
+    it('should return the osd count as maximum if the rule maximum exceeds it', () => {
+      setCrushRule({ max: 100 });
+      expect(component.getMaxSize()).toBe(8);
+    });
 
-  //     it('should show all replicated rules when the type is replicated', () => {
-  //       changePoolType('replicated');
-  //       expect(component.current.rules).toEqual(component.info.crush_rules_replicated);
-  //     });
+    it('should return the osd count as minimum if its lower the the rule minimum', () => {
+      setCrushRule({ min: 10 });
+      expect(component.getMinSize()).toBe(10);
+      const control = component.formGet('crushRule');
+      expect(control.invalid).toBe(true);
+      hasError(control, 'toFewOsds');
+    });
+  });
 
-  //     it('should show all erasure rules when the type is erasure', () => {
-  //       changePoolType('erasure');
-  //       expect(component.current.rules).toEqual(component.info.crush_rules_erasure);
-  //     });
+  describe('app changes', () => {
+    const testAddApp = (app?: string, result?: string[]) => {
+      component.addApp(app);
+      expect(component.data.apps).toEqual(result);
+    };
 
-  //     it('should select the first rule if only one is there and disable the rule field', () => {
-  //       changePoolType('erasure');
-  //       const control = component.formGet('crushRule');
-  //       expect(control.value).toEqual(component.info.crush_rules_erasure[0]);
-  //       expect(control.disabled).toBe(true);
-  //     });
+    const testRemoveApp = (app: string, result: string[]) => {
+      component.removeApp(app);
+      expect(component.data.apps).toEqual(result);
+    };
 
-  //     it('should not select the first rule if more than one are there', () => {
-  //       changePoolType('replicated');
-  //       const control = component.formGet('crushRule');
-  //       expect(control.value).toEqual(null);
-  //       expect(control.disabled).toBe(false);
-  //     });
+    const setCurrentApps = (apps: string[]) => {
+      component.data.apps = apps;
+      return apps;
+    };
 
-  //     it('should be able to change between both types without any side effects', () => {
-  //       changePoolType('erasure');
-  //       changePoolType('replicated');
-  //       const control = component.formGet('crushRule');
-  //       expect(control.value).toEqual(null);
-  //       expect(control.disabled).toBe(false);
-  //       changePoolType('erasure');
-  //       expect(control.value).toEqual(component.info.crush_rules_erasure[0]);
-  //       expect(control.disabled).toBe(true);
-  //     });
-  //   });
-  // });
+    it('should add app to the list of apps', () => {
+      testAddApp('a', ['a']);
+      testAddApp('b', ['b', 'a']);
+    });
 
-  // describe('getMaxSize and getMinSize', () => {
-  //   const setCrushRule = ({ min, max }: { min?: number; max?: number }) => {
-  //     setValue('crushRule', {
-  //       min_size: min || 2,
-  //       max_size: max || 10
-  //     });
-  //   };
+    it('should add app from appSelection value', () => {
+      setValue('appSelection', 'a');
+      testAddApp(undefined, ['a']);
+      setValue('appSelection', 'b');
+      testAddApp(undefined, ['b', 'a']);
+    });
 
-  //   it('should return nothing if info is not there or the osd count is 0', () => {
-  //     setCrushRule({});
-  //     component.info.osd_count = 0;
-  //     expect(component.getMinSize()).toBe(undefined);
-  //     expect(component.getMaxSize()).toBe(undefined);
-  //     delete component.info;
-  //     expect(component.getMinSize()).toBe(undefined);
-  //     expect(component.getMaxSize()).toBe(undefined);
-  //   });
+    it('should remove empty apps on adding', () => {
+      setCurrentApps(['', 'b', 'a']);
+      testAddApp('c', ['c', 'b', 'a']);
+    });
 
-  //   it('should return minimum and maximum of rule', () => {
-  //     setCrushRule({ max: 6 });
-  //     expect(component.getMinSize()).toBe(2);
-  //     expect(component.getMaxSize()).toBe(6);
-  //   });
+    it('should not add apps if the maximum of possible apps is reached (4)', () => {
+      const apps = setCurrentApps(['d', 'c', 'b', 'a']);
+      testAddApp('e', apps);
+    });
 
-  //   it('should return 1 and osd count if no crush rule is available', () => {
-  //     setValue('crushRule', null);
-  //     expect(component.getMinSize()).toBe(1);
-  //     expect(component.getMaxSize()).toBe(8);
-  //   });
+    it('should remove apps', () => {
+      const apps = setCurrentApps(['d', 'c', 'b', 'a']);
+      testRemoveApp('c', ['d', 'b', 'a']);
+      testRemoveApp('a', ['d', 'b']);
+      testRemoveApp('d', ['b']);
+      testRemoveApp('b', []);
+    });
 
-  //   it('should return the osd count as maximum if the rule maximum exceeds it', () => {
-  //     setCrushRule({ max: 100 });
-  //     expect(component.getMaxSize()).toBe(8);
-  //   });
+    it('should not remove any app that is not in apps', () => {
+      const apps = setCurrentApps(['d', 'c', 'b', 'a']);
+      testRemoveApp('e', ['d', 'c', 'b', 'a']);
+      testRemoveApp('0', ['d', 'c', 'b', 'a']);
+    });
 
-  //   it('should return the osd count as minimum if its lower the the rule minimum', () => {
-  //     setCrushRule({ min: 10 });
-  //     expect(component.getMinSize()).toBe(10);
-  //     const control = component.formGet('crushRule');
-  //     expect(control.invalid).toBe(true);
-  //     hasError(control, 'toFewOsds');
-  //   });
-  // });
+    it('should filter out already seted apps in getAvailApps', () => {
+      expect(component.getAvailApps()).toEqual(['cephfs', 'rbd', 'rgw']);
+      setCurrentApps(['cephfs', 'rbd']);
+      expect(component.getAvailApps()).toEqual(['rgw']);
+      setCurrentApps(['rbd']);
+      expect(component.getAvailApps()).toEqual(['cephfs', 'rgw']);
+    });
+  });
 
-  // describe('app changes', () => {
-  //   const testAddApp = (app?: string, result?: string[]) => {
-  //     component.addApp(app);
-  //     expect(component.data.apps).toEqual(result);
-  //   };
+  describe('pg changes', () => {
+    beforeEach(() => {
+      setValue('crushRule', {
+        min_size: 1,
+        max_size: 20
+      });
+      component.ngOnInit();
+      // triggers pgUpdate
+      setValue('pgNum', 256);
+    });
 
-  //   const testRemoveApp = (app: string, result: string[]) => {
-  //     component.removeApp(app);
-  //     expect(component.data.apps).toEqual(result);
-  //   };
+    describe('pgCalc', () => {
+      const getValidCase = () => ({
+        type: 'replicated',
+        osds: 8,
+        size: {
+          value: 4,
+          valid: true
+        },
+        ecp: {
+          value: {
+            k: 2,
+            m: 2
+          },
+          valid: true
+        },
+        expected: 256
+      });
 
-  //   const setCurrentApps = (apps: string[]) => {
-  //     component.data.apps = apps;
-  //     return apps;
-  //   };
+      const testPgCalc = ({ type, osds, size, ecp, expected }) => {
+        component.info.osd_count = osds;
+        setValue('poolType', type);
+        if (type === 'replicated') {
+          setValue('size', size.value, size.valid);
+        } else {
+          setValue('erasureProfile', ecp.value, ecp.valid);
+        }
+        expect(component.isSet('pgNum')).toBe(expected);
+      };
 
-  //   it('should add app to the list of apps', () => {
-  //     testAddApp('a', ['a']);
-  //     testAddApp('b', ['b', 'a']);
-  //   });
+      beforeEach(() => {
+        // Prevent an error through calculations
+        spyOn(component, 'getMaxSize').and.returnValue(200);
+      });
 
-  //   it('should add app from appSelection value', () => {
-  //     setValue('appSelection', 'a');
-  //     testAddApp(undefined, ['a']);
-  //     setValue('appSelection', 'b');
-  //     testAddApp(undefined, ['b', 'a']);
-  //   });
+      it('should not change anything if not type is selected', () => {
+        const test = getValidCase();
+        test.type = '';
+        testPgCalc(test);
+      });
 
-  //   it('should remove empty apps on adding', () => {
-  //     setCurrentApps(['', 'b', 'a']);
-  //     testAddApp('c', ['c', 'b', 'a']);
-  //   });
+      it('should not change anything if size is not valid', () => {
+        let test = getValidCase();
+        test.size.value = 0;
+        testPgCalc(test);
+        test = getValidCase();
+        test.size.valid = false;
+        testPgCalc(test);
+      });
 
-  //   it('should not add apps if the maximum of possible apps is reached (4)', () => {
-  //     const apps = setCurrentApps(['d', 'c', 'b', 'a']);
-  //     testAddApp('e', apps);
-  //   });
+      it('should not change anything if ecp is not valid', () => {
+        const test = getValidCase();
+        test.type = 'erasure';
+        test.ecp.valid = false;
+        testPgCalc(test);
+        test.ecp.valid = true;
+        test.ecp.value = null;
+        testPgCalc(test);
+      });
 
-  //   it('should remove apps', () => {
-  //     const apps = setCurrentApps(['d', 'c', 'b', 'a']);
-  //     testRemoveApp('c', ['d', 'b', 'a']);
-  //     testRemoveApp('a', ['d', 'b']);
-  //     testRemoveApp('d', ['b']);
-  //     testRemoveApp('b', []);
-  //   });
+      it('should calculate some replicated values', () => {
+        const test = getValidCase();
+        testPgCalc(test);
+        test.osds = 16;
+        test.expected = 512;
+        testPgCalc(test);
+        test.osds = 8;
+        test.size.value = 12;
+        test.expected = 64;
+        testPgCalc(test);
+      });
 
-  //   it('should not remove any app that is not in apps', () => {
-  //     const apps = setCurrentApps(['d', 'c', 'b', 'a']);
-  //     testRemoveApp('e', ['d', 'c', 'b', 'a']);
-  //     testRemoveApp('0', ['d', 'c', 'b', 'a']);
-  //   });
+      it('should calculate some erasure code values', () => {
+        const test = getValidCase();
+        test.type = 'erasure';
+        testPgCalc(test);
+        test.osds = 16;
+        test.ecp.value.m = 5;
+        test.expected = 256;
+        testPgCalc(test);
+        test.ecp.value.k = 5;
+        test.expected = 128;
+        testPgCalc(test);
+      });
+    });
 
-  //   it('should filter out already seted apps in getAvailApps', () => {
-  //     expect(component.getAvailApps()).toEqual(['cephfs', 'rbd', 'rgw']);
-  //     setCurrentApps(['cephfs', 'rbd']);
-  //     expect(component.getAvailApps()).toEqual(['rgw']);
-  //     setCurrentApps(['rbd']);
-  //     expect(component.getAvailApps()).toEqual(['cephfs', 'rgw']);
-  //   });
-  // });
+    describe('pgUpdate', () => {
+      const testPgUpdate = (pgs, jump, returnValue) => {
+        component.pgUpdate(pgs, jump);
+        expect(component.isSet('pgNum')).toBe(returnValue);
+      };
 
-  // describe('pg changes', () => {
-  //   beforeEach(() => {
-  //     setValue('crushRule', {
-  //       min_size: 1,
-  //       max_size: 20
-  //     });
-  //     component.ngOnInit();
-  //     // triggers pgUpdate
-  //     setValue('pgNum', 256);
-  //   });
+      it('should use only value parameter', () => {
+        testPgUpdate(10, undefined, 8);
+        testPgUpdate(22, undefined, 16);
+        testPgUpdate(26, undefined, 32);
+      });
 
-  //   describe('pgCalc', () => {
-  //     const getValidCase = () => ({
-  //       type: 'replicated',
-  //       osds: 8,
-  //       size: {
-  //         value: 4,
-  //         valid: true
-  //       },
-  //       ecp: {
-  //         value: {
-  //           k: 2,
-  //           m: 2
-  //         },
-  //         valid: true
-  //       },
-  //       expected: 256
-  //     });
+      it('should use only jump parameter', () => {
+        testPgUpdate(undefined, 1, 512);
+        testPgUpdate(undefined, -1, 256);
+        testPgUpdate(undefined, -2, 64);
+        testPgUpdate(undefined, -10, 1);
+      });
 
-  //     const testPgCalc = ({ type, osds, size, ecp, expected }) => {
-  //       component.info.osd_count = osds;
-  //       setValue('poolType', type);
-  //       if (type === 'replicated') {
-  //         setValue('size', size.value, size.valid);
-  //       } else {
-  //         setValue('erasureProfile', ecp.value, ecp.valid);
-  //       }
-  //       expect(component.isSet('pgNum')).toBe(expected);
-  //     };
+      it('should return minimum for false numbers', () => {
+        testPgUpdate(-26, undefined, 1);
+        testPgUpdate(0, undefined, 1);
+        testPgUpdate(undefined, -20, 1);
+      });
 
-  //     beforeEach(() => {
-  //       // Prevent an error through calculations
-  //       spyOn(component, 'getMaxSize').and.returnValue(200);
-  //     });
+      it('should use all parameters', () => {
+        testPgUpdate(330, 0, 256);
+        testPgUpdate(230, 2, 1024);
+        testPgUpdate(230, 3, 2048);
+      });
+    });
 
-  //     it('should not change anything if not type is selected', () => {
-  //       const test = getValidCase();
-  //       test.type = '';
-  //       testPgCalc(test);
-  //     });
+    describe('pgKeyUp', () => {
+      const testPgKeyUp = (keyName, returnValue) => {
+        component.pgKeyUp({ key: keyName });
+        expect(component.isSet('pgNum')).toBe(returnValue);
+      };
 
-  //     it('should not change anything if size is not valid', () => {
-  //       let test = getValidCase();
-  //       test.size.value = 0;
-  //       testPgCalc(test);
-  //       test = getValidCase();
-  //       test.size.valid = false;
-  //       testPgCalc(test);
-  //     });
+      it('should do nothing with unrelated keys', () => {
+        testPgKeyUp('0', 256);
+        testPgKeyUp(',', 256);
+        testPgKeyUp('a', 256);
+        testPgKeyUp('Space', 256);
+        testPgKeyUp('ArrowLeft', 256);
+        testPgKeyUp('ArrowRight', 256);
+      });
 
-  //     it('should not change anything if ecp is not valid', () => {
-  //       const test = getValidCase();
-  //       test.type = 'erasure';
-  //       test.ecp.valid = false;
-  //       testPgCalc(test);
-  //       test.ecp.valid = true;
-  //       test.ecp.value = null;
-  //       testPgCalc(test);
-  //     });
+      it('should increment with plus or ArrowUp', () => {
+        testPgKeyUp('ArrowUp', 512);
+        testPgKeyUp('ArrowUp', 1024);
+        testPgKeyUp('+', 2048);
+        testPgKeyUp('+', 4096);
+      });
 
-  //     it('should calculate some replicated values', () => {
-  //       const test = getValidCase();
-  //       testPgCalc(test);
-  //       test.osds = 16;
-  //       test.expected = 512;
-  //       testPgCalc(test);
-  //       test.osds = 8;
-  //       test.size.value = 12;
-  //       test.expected = 64;
-  //       testPgCalc(test);
-  //     });
+      it('should decrement with minus or ArrowDown', () => {
+        testPgKeyUp('ArrowDown', 128);
+        testPgKeyUp('ArrowDown', 64);
+        testPgKeyUp('-', 32);
+        testPgKeyUp('-', 16);
+      });
+    });
+  });
 
-  //     it('should calculate some erasure code values', () => {
-  //       const test = getValidCase();
-  //       test.type = 'erasure';
-  //       testPgCalc(test);
-  //       test.osds = 16;
-  //       test.ecp.value.m = 5;
-  //       test.expected = 256;
-  //       testPgCalc(test);
-  //       test.ecp.value.k = 5;
-  //       test.expected = 128;
-  //       testPgCalc(test);
-  //     });
-  //   });
+  describe('submit', () => {
+    const setMultipleValues = (settings: {}) => {
+      Object.keys(settings).forEach((name) => {
+        setValue(name, settings[name]);
+      });
+    };
 
-  //   describe('pgUpdate', () => {
-  //     const testPgUpdate = (pgs, jump, returnValue) => {
-  //       component.pgUpdate(pgs, jump);
-  //       expect(component.isSet('pgNum')).toBe(returnValue);
-  //     };
+    beforeEach(() => {
+      createRule({ name: 'replicatedRule' });
+      createRule({ name: 'erasureRule', type: 'erasure', id: 1 });
+      spyOn(component, 'createAction');
+    });
 
-  //     it('should use only value parameter', () => {
-  //       testPgUpdate(10, undefined, 8);
-  //       testPgUpdate(22, undefined, 16);
-  //       testPgUpdate(26, undefined, 32);
-  //     });
+    it('should test minimum requirements for a erasure code pool', () => {
+      setMultipleValues({
+        name: 'minECPool',
+        poolType: 'erasure',
+        pgNum: 4
+      });
+      component.submit();
+      expect(component.createAction).toHaveBeenCalledWith({
+        pool: 'minECPool',
+        pool_type: 'erasure',
+        pg_num: 4
+      });
+    });
 
-  //     it('should use only jump parameter', () => {
-  //       testPgUpdate(undefined, 1, 512);
-  //       testPgUpdate(undefined, -1, 256);
-  //       testPgUpdate(undefined, -2, 64);
-  //       testPgUpdate(undefined, -10, 1);
-  //     });
+    it('should test minimum requirements for a replicated pool', () => {
+      const ecp = { name: 'ecpMinimalMock' };
+      setMultipleValues({
+        name: 'minRepPool',
+        poolType: 'replicated',
+        size: 2,
+        erasureProfile: ecp, // Will be ignored
+        pgNum: 8
+      });
+      component.submit();
+      expect(component.createAction).toHaveBeenCalledWith({
+        pool: 'minRepPool',
+        pool_type: 'replicated',
+        pg_num: 8,
+        size: 2
+      });
+    });
 
-  //     it('should return minimum for false numbers', () => {
-  //       testPgUpdate(-26, undefined, 1);
-  //       testPgUpdate(0, undefined, 1);
-  //       testPgUpdate(undefined, -20, 1);
-  //     });
+    it('should test a erasure code pool with erasure coded profile', () => {
+      const ecp = { name: 'ecpMinimalMock' };
+      setMultipleValues({
+        name: 'ecpPool',
+        poolType: 'erasure',
+        pgNum: 16,
+        size: 2, // Will be ignored
+        erasureProfile: ecp
+      });
+      component.submit();
+      expect(component.createAction).toHaveBeenCalledWith({
+        pool: 'ecpPool',
+        pool_type: 'erasure',
+        pg_num: 16,
+        erasure_code_profile: ecp.name
+      });
+    });
 
-  //     it('should use all parameters', () => {
-  //       testPgUpdate(330, 0, 256);
-  //       testPgUpdate(230, 2, 1024);
-  //       testPgUpdate(230, 3, 2048);
-  //     });
-  //   });
+    it('should test ec_overwrite flag with erasure code pool', () => {
+      setMultipleValues({
+        name: 'ecOverwrites',
+        poolType: 'erasure',
+        pgNum: 32,
+        ecOverwrites: true
+      });
+      component.submit();
+      expect(component.createAction).toHaveBeenCalledWith({
+        pool: 'ecOverwrites',
+        pool_type: 'erasure',
+        pg_num: 32,
+        flags: ['ec_overwrites']
+      });
+    });
+    it('should test pool compression', () => {
+      setMultipleValues({
+        name: 'compression',
+        poolType: 'erasure',
+        pgNum: 64,
+        mode: 'passive',
+        algorithm: 'lz4',
+        minBlobSize: '4 K',
+        maxBlobSize: '4 M',
+        ratio: 0.7
+      });
+      component.submit();
+      expect(component.createAction).toHaveBeenCalledWith({
+        pool: 'compression',
+        pool_type: 'erasure',
+        pg_num: 64,
+        compression_mode: 'passive',
+        compression_algorithm: 'lz4',
+        compression_min_blob_size: 4096,
+        compression_max_blob_size: 4194304,
+        compression_required_ratio: 0.7
+      });
+    });
+  });
 
-  //   describe('pgKeyUp', () => {
-  //     const testPgKeyUp = (keyName, returnValue) => {
-  //       component.pgKeyUp({ key: keyName });
-  //       expect(component.isSet('pgNum')).toBe(returnValue);
-  //     };
+  describe('edit mode', () => {
+    let url;
+    let pool: Pool;
+    beforeEach(() => {
+      pool = new Pool();
+      pool.pool_name = 'somePoolName';
+      pool.type = 'replicated';
+      pool.size = 3;
+      pool.crush_rule = 'someRule';
+      pool.pg_num = 32;
+      pool.options = {};
+      pool.options.compression_mode = 'passive';
+      pool.options.compression_algorithm = 'lz4';
+      pool.options.compression_min_blob_size = 1024 * 512;
+      pool.options.compression_max_blob_size = 1024 * 1024;
+      pool.options.compression_required_ratio = 0.8;
+      pool.flags_names = 'someFlag1,someFlag2';
+      pool.application_metadata = ['rbd', 'rgw'];
+      createRule({ name: 'someRule' });
+      const router = TestBed.get(Router);
+      Object.defineProperty(router, 'url', { get: () => url });
+      spyOn(component, 'initEditMode').and.callThrough();
+      spyOn(poolService, 'get').and.callFake(() => Observable.of(pool));
+    });
 
-  //     it('should do nothing with unrelated keys', () => {
-  //       testPgKeyUp('0', 256);
-  //       testPgKeyUp(',', 256);
-  //       testPgKeyUp('a', 256);
-  //       testPgKeyUp('Space', 256);
-  //       testPgKeyUp('ArrowLeft', 256);
-  //       testPgKeyUp('ArrowRight', 256);
-  //     });
+    it('should not call initEditMode if edit is not included in url', () => {
+      url = '/pool/add';
 
-  //     it('should increment with plus or ArrowUp', () => {
-  //       testPgKeyUp('ArrowUp', 512);
-  //       testPgKeyUp('ArrowUp', 1024);
-  //       testPgKeyUp('+', 2048);
-  //       testPgKeyUp('+', 4096);
-  //     });
+      expect(component.initEditMode).not.toHaveBeenCalled();
+      component.ngOnInit();
+      expect(component.initEditMode).not.toHaveBeenCalled();
+    });
 
-  //     it('should decrement with minus or ArrowDown', () => {
-  //       testPgKeyUp('ArrowDown', 128);
-  //       testPgKeyUp('ArrowDown', 64);
-  //       testPgKeyUp('-', 32);
-  //       testPgKeyUp('-', 16);
-  //     });
-  //   });
-  // });
-  // describe('submit', () => {
-  //   const setMultipleValues = (settings: {}) => {
-  //     Object.keys(settings).forEach((name) => {
-  //       setValue(name, settings[name]);
-  //     });
-  //   };
+    it('should call initEditMode if edit is included in url', () => {
+      url = '/pool/edit/somePoolName';
+      expect(component.initEditMode).not.toHaveBeenCalled();
+      component.ngOnInit();
+      expect(component.initEditMode).toHaveBeenCalled();
+    });
 
-  //   beforeEach(() => {
-  //     createRule({ name: 'replicatedRule' });
-  //     createRule({ name: 'erasureRule', type: 'erasure', id: 1 });
-  //     spyOn(component, 'createAction');
-  //   });
+    describe('after ngOnInit', () => {
+      beforeEach(() => {
+        spyOn(component, 'disableForEdit').and.callThrough();
+        spyOn(component, 'initEditFormData').and.callThrough();
+        spyOn(component, 'enableComplexValidators').and.callThrough();
+        url = '/pool/edit/somePoolName';
+        component.ngOnInit();
+      });
+      it('should set editing to true if initEditMode is called', () => {
+        expect(component.editing).toBeTruthy();
+      });
 
-  //   it('should test minimum requirements for a erasure code pool', () => {
-  //     setMultipleValues({
-  //       name: 'minECPool',
-  //       poolType: 'erasure',
-  //       pgNum: 4
-  //     });
-  //     component.submit();
-  //     expect(component.createAction).toHaveBeenCalledWith({
-  //       pool: 'minECPool',
-  //       pool_type: 'erasure',
-  //       pg_num: 4
-  //     });
-  //   });
+      it('should disable inputs', () => {
+        expect(component.disableForEdit).toHaveBeenCalled();
+        const disabled = [
+          'name',
+          'poolType',
+          'crushRule',
+          'size',
+          'erasureProfile',
+          'ecOverwrites'
+        ];
+        const enabled = _.difference(allControlNames, disabled);
+        disabled.forEach((controlName) => {
+          return expect(component.formGet(controlName).disabled).toBeTruthy();
+        });
+        enabled.forEach((controlName) => {
+          return expect(component.formGet(controlName).enabled).toBeTruthy();
+        });
+      });
 
-  //   it('should test minimum requirements for a replicated pool', () => {
-  //     const ecp = { name: 'ecpMinimalMock' };
-  //     setMultipleValues({
-  //       name: 'minRepPool',
-  //       poolType: 'replicated',
-  //       size: 2,
-  //       erasureProfile: ecp, // Will be ignored
-  //       pgNum: 8
-  //     });
-  //     component.submit();
-  //     expect(component.createAction).toHaveBeenCalledWith({
-  //       pool: 'minRepPool',
-  //       pool_type: 'replicated',
-  //       pg_num: 8,
-  //       size: 2
-  //     });
-  //   });
+      it('should set control values', () => {
+        expect(component.initEditFormData).toHaveBeenCalled();
+        expect(component.isSet('name')).toBe(pool.pool_name);
+        expect(component.isSet('poolType')).toBe(pool.type);
+        expect(component.isSet('crushRule')).toEqual(component.info.crush_rules_replicated[0]);
+        expect(component.isSet('size')).toBe(pool.size);
+        expect(component.isSet('pgNum')).toBe(pool.pg_num);
+        expect(component.isSet('mode')).toBe(pool.options.compression_mode);
+        expect(component.isSet('algorithm')).toBe(pool.options.compression_algorithm);
+        expect(component.isSet('minBlobSize')).toBe('512KiB');
+        expect(component.isSet('maxBlobSize')).toBe('1MiB');
+        expect(component.isSet('ratio')).toBe(pool.options.compression_required_ratio);
+      });
 
-  //   it('should test a erasure code pool with erasure coded profile', () => {
-  //     const ecp = { name: 'ecpMinimalMock' };
-  //     setMultipleValues({
-  //       name: 'ecpPool',
-  //       poolType: 'erasure',
-  //       pgNum: 16,
-  //       size: 2, // Will be ignored
-  //       erasureProfile: ecp
-  //     });
-  //     component.submit();
-  //     expect(component.createAction).toHaveBeenCalledWith({
-  //       pool: 'ecpPool',
-  //       pool_type: 'erasure',
-  //       pg_num: 16,
-  //       erasure_code_profile: ecp.name
-  //     });
-  //   });
-
-  //   it('should test ec_overwrite flag with erasure code pool', () => {
-  //     setMultipleValues({
-  //       name: 'ecOverwrites',
-  //       poolType: 'erasure',
-  //       pgNum: 32,
-  //       ecOverwrites: true
-  //     });
-  //     component.submit();
-  //     expect(component.createAction).toHaveBeenCalledWith({
-  //       pool: 'ecOverwrites',
-  //       pool_type: 'erasure',
-  //       pg_num: 32,
-  //       flags: ['ec_overwrites']
-  //     });
-  //   });
-  //   it('should test pool compression', () => {
-  //     setMultipleValues({
-  //       name: 'compression',
-  //       poolType: 'erasure',
-  //       pgNum: 64,
-  //       mode: 'passive',
-  //       algorithm: 'lz4',
-  //       minBlobSize: '4 K',
-  //       maxBlobSize: '4 M',
-  //       ratio: 0.7
-  //     });
-  //     component.submit();
-  //     expect(component.createAction).toHaveBeenCalledWith({
-  //       pool: 'compression',
-  //       pool_type: 'erasure',
-  //       pg_num: 64,
-  //       compression_mode: 'passive',
-  //       compression_algorithm: 'lz4',
-  //       compression_min_blob_size: 4096,
-  //       compression_max_blob_size: 4194304,
-  //       compression_required_ratio: 0.7
-  //     });
-  //   });
-  // });
-
-  // describe('edit mode', () => {
-  //   let url;
-  //   let pool: Pool;
-  //   beforeEach(() => {
-  //     pool = new Pool();
-  //     pool.pool_name = 'somePoolName';
-  //     pool.type = 'replicated';
-  //     pool.size = 3;
-  //     pool.crush_rule = 'someRule';
-  //     pool.pg_num = 32;
-  //     pool.options = {};
-  //     pool.options.compression_mode = 'passive';
-  //     pool.options.compression_algorithm = 'lz4';
-  //     pool.options.compression_min_blob_size = 1024 * 512;
-  //     pool.options.compression_max_blob_size = 1024 * 1024;
-  //     pool.options.compression_required_ratio = 0.8;
-  //     pool.flags_names = 'someFlag1,someFlag2';
-  //     pool.application_metadata = ['rbd', 'rgw'];
-  //     createRule({ name: 'someRule' });
-  //     const router = TestBed.get(Router);
-  //     spyOnProperty(router, 'url', 'get').and.callFake(() => url);
-  //     spyOn(component, 'initEditMode').and.callThrough();
-  //     spyOn(poolService, 'get').and.callFake(() => Observable.of(pool));
-  //   });
-
-  //   it('should not call initEditMode if edit is not included in url', () => {
-  //     url = '/pool/add';
-  //     expect(component.initEditMode).not.toHaveBeenCalled();
-  //     component.ngOnInit();
-  //     expect(component.initEditMode).not.toHaveBeenCalled();
-  //   });
-
-  //   it('should call initEditMode if edit is included in url', () => {
-  //     url = '/pool/edit/somePoolName';
-  //     expect(component.initEditMode).not.toHaveBeenCalled();
-  //     component.ngOnInit();
-  //     expect(component.initEditMode).toHaveBeenCalled();
-  //   });
-
-  //   describe('after ngOnInit', () => {
-  //     beforeEach(() => {
-  //       spyOn(component, 'disableForEdit').and.callThrough();
-  //       spyOn(component, 'initEditFormData').and.callThrough();
-  //       spyOn(component, 'enableComplexValidators').and.callThrough();
-  //       url = '/pool/edit/somePoolName';
-  //       component.ngOnInit();
-  //     });
-
-  //     it('should set editing to true if initEditMode is called', () => {
-  //       expect(component.editing).toBeTruthy();
-  //     });
-
-  //     it('should disable inputs', () => {
-  //       expect(component.disableForEdit).toHaveBeenCalled();
-  //       const disabled = [
-  //         'name',
-  //         'poolType',
-  //         'crushRule',
-  //         'size',
-  //         'erasureProfile',
-  //         'ecOverwrites'
-  //       ];
-  //       const enabled = _.difference(allControlNames, disabled);
-  //       disabled.forEach((controlName) => {
-  //         return expect(component.formGet(controlName).disabled).toBeTruthy(controlName);
-  //       });
-  //       enabled.forEach((controlName) => {
-  //         return expect(component.formGet(controlName).enabled).toBeTruthy(controlName);
-  //       });
-  //     });
-
-  //     it('should set control values', () => {
-  //       expect(component.initEditFormData).toHaveBeenCalled();
-  //       expect(component.isSet('name')).toBe(pool.pool_name);
-  //       expect(component.isSet('poolType')).toBe(pool.type);
-  //       expect(component.isSet('crushRule')).toEqual(component.info.crush_rules_replicated[0]);
-  //       expect(component.isSet('size')).toBe(pool.size);
-  //       expect(component.isSet('pgNum')).toBe(pool.pg_num);
-  //       expect(component.isSet('mode')).toBe(pool.options.compression_mode);
-  //       expect(component.isSet('algorithm')).toBe(pool.options.compression_algorithm);
-  //       expect(component.isSet('minBlobSize')).toBe('512KiB');
-  //       expect(component.isSet('maxBlobSize')).toBe('1MiB');
-  //       expect(component.isSet('ratio')).toBe(pool.options.compression_required_ratio);
-  //     });
-
-  //     it('should only be possible to use the same or more pgs like before', () => {
-  //       expect(component.enableComplexValidators).toHaveBeenCalled();
-  //       isValid(setValue('pgNum', 64));
-  //       hasError(setValue('pgNum', 4), 'noDecrease');
-  //     });
-  //   });
-  // });
+      it('should only be possible to use the same or more pgs like before', () => {
+        expect(component.enableComplexValidators).toHaveBeenCalled();
+        isValid(setValue('pgNum', 64));
+        hasError(setValue('pgNum', 4), 'noDecrease');
+      });
+    });
+  });
 });
