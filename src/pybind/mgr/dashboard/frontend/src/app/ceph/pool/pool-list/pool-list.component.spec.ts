@@ -3,6 +3,7 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 
 import { TabsModule } from 'ngx-bootstrap/tabs/tabs.module';
+import { ToastModule } from 'ng2-toastr';
 
 import { SharedModule } from '../../../shared/shared.module';
 import { PoolListComponent } from './pool-list.component';
@@ -16,6 +17,7 @@ describe('PoolListComponent', () => {
       declarations: [ PoolListComponent ],
       imports: [
         SharedModule,
+        ToastModule.forRoot(),
         TabsModule.forRoot(),
         RouterTestingModule,
         HttpClientTestingModule

@@ -16,6 +16,10 @@ export class PoolService {
     return this.http.put('api/pool/' + name, pool, { observe: 'response' });
   }
 
+  delete(name) {
+    return this.http.delete('api/pool/' + name, { observe: 'response' });
+  }
+
   get(poolName) {
     return this.http.get(`api/pool/${poolName}`);
   }
