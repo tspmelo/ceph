@@ -1,10 +1,17 @@
 import { Component, OnInit } from '@angular/core';
-import { AbstractControl, FormControl, FormGroup, ValidatorFn, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormControl,
+  FormGroup,
+  ValidatorFn,
+  Validators
+} from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import * as _ from 'lodash';
-
 import { Observable } from 'rxjs/Observable';
+
+import { TaskWrapperService } from 'app/shared/services/task-wrapper.service';
 import { PoolService } from '../../../shared/api/pool.service';
 import { CrushRule } from '../../../shared/models/crush-rule';
 import { CrushStep } from '../../../shared/models/crush-step';
@@ -12,11 +19,12 @@ import { FinishedTask } from '../../../shared/models/finished-task';
 import { DimlessBinaryPipe } from '../../../shared/pipes/dimless-binary.pipe';
 import { FormatterService } from '../../../shared/services/formatter.service';
 import { ErasureCodeProfile } from '../erasure-code-profile/erasure-code-profile';
-import { ErasureCodeProfileService } from '../erasure-code-profile/erasure-code-profile.service';
+import {
+  ErasureCodeProfileService
+} from '../erasure-code-profile/erasure-code-profile.service';
 import { Pool } from '../pool';
 import { PoolFormData } from './pool-form-data';
 import { PoolFormInfo } from './pool-form-info';
-import { TaskWrapperService } from 'app/shared/services/task-wrapper.service';
 
 @Component({
   selector: 'cd-pool-form',
@@ -31,18 +39,20 @@ export class PoolFormComponent implements OnInit {
   info: PoolFormInfo;
   routeParamsSubscribe: any;
   editing = false;
-  data = new PoolFormData;
+  data = new PoolFormData();
   current = {
     rules: []
   };
 
-  constructor(private dimlessBinaryPipe: DimlessBinaryPipe,
-              private route: ActivatedRoute,
-              private router: Router,
-              private poolService: PoolService,
-              private formatter: FormatterService,
-              private taskWrapper: TaskWrapperService,
-              private ecpService: ErasureCodeProfileService) {
+  constructor(
+    private dimlessBinaryPipe: DimlessBinaryPipe,
+    private route: ActivatedRoute,
+    private router: Router,
+    private poolService: PoolService,
+    private formatter: FormatterService,
+    private taskWrapper: TaskWrapperService,
+    private ecpService: ErasureCodeProfileService
+  ) {
     this.createForm();
   }
 
@@ -68,61 +78,63 @@ export class PoolFormComponent implements OnInit {
           Validators.maxLength(128)
         ],
         updateOn: 'blur'
-      }),
+      })
     });
-    this.poolForm = new FormGroup({
-      name: new FormControl('', {
-        validators: [
-          Validators.pattern('[A-Za-z0-9_-]+'),
-          Validators.required,
-          this.genericValidator('uniqueName', (value) =>
-            this.info && this.info.pool_names.indexOf(value) !== -1)
-        ]
-      }),
-      poolType: new FormControl('', {
-        validators: [
-          Validators.required
-        ]
-      }),
-      crushRule: new FormControl(null, {
-        validators: [
-          this.genericValidator(
-            'toFewOsds',
-            (rule) => this.info && rule && this.info.osd_count < rule.min_size
-          )
-        ]
-      }),
-      size: new FormControl('', {
-        updateOn: 'blur'
-      }),
-      erasureProfile: new FormControl(null),
-      pgNum: new FormControl('', {
-        validators: [
-          Validators.required,
-          Validators.min(1),
-        ],
-        updateOn: 'blur'
-      }),
-      ecOverwrites: new FormControl(false),
-      compression: this.compressionForm,
-      app: this.appForm
-    }, this.genericValidator('poolForm', () => null));
+    this.poolForm = new FormGroup(
+      {
+        name: new FormControl('', {
+          validators: [
+            Validators.pattern('[A-Za-z0-9_-]+'),
+            Validators.required,
+            this.genericValidator(
+              'uniqueName',
+              value => this.info && this.info.pool_names.indexOf(value) !== -1
+            )
+          ]
+        }),
+        poolType: new FormControl('', {
+          validators: [Validators.required]
+        }),
+        crushRule: new FormControl(null, {
+          validators: [
+            this.genericValidator(
+              'toFewOsds',
+              rule => this.info && rule && this.info.osd_count < rule.min_size
+            )
+          ]
+        }),
+        size: new FormControl('', {
+          updateOn: 'blur'
+        }),
+        erasureProfile: new FormControl(null),
+        pgNum: new FormControl('', {
+          validators: [Validators.required, Validators.min(1)],
+          updateOn: 'blur'
+        }),
+        ecOverwrites: new FormControl(false),
+        compression: this.compressionForm,
+        app: this.appForm
+      },
+      this.genericValidator('poolForm', () => null)
+    );
   }
 
   genericValidator(name: string, fn: Function): ValidatorFn {
-    return (control: AbstractControl): ({[key: string]: any}) => {
+    return (control: AbstractControl): { [key: string]: any } => {
       const value = fn.call(this, control.value);
       if (value) {
-        return {[name]: value};
+        return { [name]: value };
       }
       return null;
     };
   }
 
   formGet(name): AbstractControl {
-    return this.poolForm.get(name) ||
+    return (
+      this.poolForm.get(name) ||
       this.compressionForm.get(name) ||
-      this.appForm.get(name);
+      this.appForm.get(name)
+    );
   }
 
   ngOnInit() {
@@ -141,7 +153,9 @@ export class PoolFormComponent implements OnInit {
   }
 
   initInfo(info: PoolFormInfo) {
-    info.compression_algorithms = info.compression_algorithms.filter(m => m.length > 0);
+    info.compression_algorithms = info.compression_algorithms.filter(
+      m => m.length > 0
+    );
     this.info = info;
   }
 
@@ -157,35 +171,46 @@ export class PoolFormComponent implements OnInit {
   initEditMode() {
     this.editing = true;
     this.disableForEdit();
-    this.routeParamsSubscribe = this.route.params.subscribe((param: {name: string}) =>
-      this.poolService.get(param.name).subscribe((pool: Pool) => {
-        this.data.pool = pool;
-        this.initEditFormData(pool);
-      })
+    this.routeParamsSubscribe = this.route.params.subscribe(
+      (param: { name: string }) =>
+        this.poolService.get(param.name).subscribe((pool: Pool) => {
+          this.data.pool = pool;
+          this.initEditFormData(pool);
+        })
     );
   }
 
   disableForEdit() {
     [
-      'name', 'poolType', 'crushRule', 'size', 'erasureProfile', 'ecOverwrites'
+      'name',
+      'poolType',
+      'crushRule',
+      'size',
+      'erasureProfile',
+      'ecOverwrites'
     ].forEach(controlName => this.formGet(controlName).disable());
   }
 
   initEditFormData(pool: Pool) {
     const transform = {
-      'name': 'pool_name',
-      'poolType': 'type',
-      'crushRule': (p) => this.info['crush_rules_' + p.type].find((rule: CrushRule) =>
-        rule.rule_name === p.crush_rule),
-      'size': 'size',
-      'erasureProfile': (p) => this.ecProfiles.find(ecp => ecp.name === p.erasure_code_profile),
-      'pgNum': 'pg_num',
-      'ecOverwrites': (p) => p.flags_names.includes('ec_overwrites'),
-      'mode': 'options.compression_mode',
-      'algorithm': 'options.compression_algorithm',
-      'minBlobSize': (p) => this.dimlessBinaryPipe.transform(p.options.compression_min_blob_size),
-      'maxBlobSize': (p) => this.dimlessBinaryPipe.transform(p.options.compression_max_blob_size),
-      'ratio': 'options.compression_required_ratio'
+      name: 'pool_name',
+      poolType: 'type',
+      crushRule: p =>
+        this.info['crush_rules_' + p.type].find(
+          (rule: CrushRule) => rule.rule_name === p.crush_rule
+        ),
+      size: 'size',
+      erasureProfile: p =>
+        this.ecProfiles.find(ecp => ecp.name === p.erasure_code_profile),
+      pgNum: 'pg_num',
+      ecOverwrites: p => p.flags_names.includes('ec_overwrites'),
+      mode: 'options.compression_mode',
+      algorithm: 'options.compression_algorithm',
+      minBlobSize: p =>
+        this.dimlessBinaryPipe.transform(p.options.compression_min_blob_size),
+      maxBlobSize: p =>
+        this.dimlessBinaryPipe.transform(p.options.compression_max_blob_size),
+      ratio: 'options.compression_required_ratio'
     };
     Object.keys(transform).forEach(key => {
       const attrib = transform[key];
@@ -211,7 +236,7 @@ export class PoolFormComponent implements OnInit {
       }
     });
     if (!this.editing) {
-      this.formGet('poolType').valueChanges.subscribe((poolType) => {
+      this.formGet('poolType').valueChanges.subscribe(poolType => {
         this.formGet('size').updateValueAndValidity();
         this.rulesChange();
         if (poolType === 'replicated') {
@@ -233,42 +258,55 @@ export class PoolFormComponent implements OnInit {
       });
       this.formGet('mode').valueChanges.subscribe(() => {
         ['minBlobSize', 'maxBlobSize', 'ratio'].forEach(name =>
-          this.formGet(name).updateValueAndValidity());
+          this.formGet(name).updateValueAndValidity()
+        );
       });
     }
   }
 
   enableComplexValidators() {
     if (this.editing) {
-      this.formGet('pgNum').setValidators(this.genericValidator(
-        'noDecrease', (pgs) => this.data.pool && pgs < this.data.pool.pg_num
-      ));
+      this.formGet('pgNum').setValidators(
+        this.genericValidator(
+          'noDecrease',
+          pgs => this.data.pool && pgs < this.data.pool.pg_num
+        )
+      );
     } else {
-      this.validatingIf('size',
+      this.validatingIf(
+        'size',
         () => this.formGet('poolType').value === 'replicated',
         [
-          this.genericValidator('min', value => this.isSet('size') && value < this.getMinSize()),
-          this.genericValidator('max', value => this.isSet('size') && this.getMaxSize() < value)
+          this.genericValidator(
+            'min',
+            value => this.isSet('size') && value < this.getMinSize()
+          ),
+          this.genericValidator(
+            'max',
+            value => this.isSet('size') && this.getMaxSize() < value
+          )
         ]
       );
     }
     this.validatingIf('minBlobSize', this.activatedCompression, [
       Validators.min(0),
-      this.genericValidator(
-        'maximum', (size) => {
-          const maxSize = this.isSet('maxBlobSize');
-          return maxSize && this.formatter.toBytes(size) >= this.formatter.toBytes(maxSize);
-        }
-      )
+      this.genericValidator('maximum', size => {
+        const maxSize = this.isSet('maxBlobSize');
+        return (
+          maxSize &&
+          this.formatter.toBytes(size) >= this.formatter.toBytes(maxSize)
+        );
+      })
     ]);
     this.validatingIf('maxBlobSize', this.activatedCompression, [
       Validators.min(0),
-      this.genericValidator(
-        'minimum', (size) => {
-          const minSize = this.isSet('minBlobSize');
-          return minSize && this.formatter.toBytes(size) <= this.formatter.toBytes(minSize);
-        }
-      )
+      this.genericValidator('minimum', size => {
+        const minSize = this.isSet('minBlobSize');
+        return (
+          minSize &&
+          this.formatter.toBytes(size) <= this.formatter.toBytes(minSize)
+        );
+      })
     ]);
     this.validatingIf('ratio', this.activatedCompression, [
       Validators.min(0),
@@ -277,7 +315,9 @@ export class PoolFormComponent implements OnInit {
   }
 
   validatingIf(name: string, condition: Function, validators: ValidatorFn[]) {
-    this.formGet(name).setValidators((control: AbstractControl): ({[key: string]: any}) => {
+    this.formGet(name).setValidators((control: AbstractControl): {
+      [key: string]: any;
+    } => {
       const value = condition.call(this);
       if (value) {
         return Validators.compose(validators)(control);
@@ -287,7 +327,9 @@ export class PoolFormComponent implements OnInit {
   }
 
   activatedCompression() {
-    return this.isSet('mode') && this.formGet('mode').value.toLowerCase() !== 'none';
+    return (
+      this.isSet('mode') && this.formGet('mode').value.toLowerCase() !== 'none'
+    );
   }
 
   isSet(name: string) {
@@ -304,7 +346,7 @@ export class PoolFormComponent implements OnInit {
   }
 
   silentSetValue(name: string, value: any) {
-    this.formGet(name).setValue(value, {emitEvent: false});
+    this.formGet(name).setValue(value, { emitEvent: false });
   }
 
   addApp(app?: string) {
@@ -330,7 +372,9 @@ export class PoolFormComponent implements OnInit {
   }
 
   getAvailApps(): string[] {
-    return ['cephfs', 'rbd', 'rgw'].filter(app => this.data.apps.indexOf(app) === -1);
+    return ['cephfs', 'rbd', 'rgw'].filter(
+      app => this.data.apps.indexOf(app) === -1
+    );
   }
 
   pgKeyUp($e) {
@@ -365,7 +409,7 @@ export class PoolFormComponent implements OnInit {
     this.silentSetValue('pgNum', pgs);
   }
 
-  pgCalc () {
+  pgCalc() {
     if (!this.info) {
       return;
     }
@@ -454,27 +498,37 @@ export class PoolFormComponent implements OnInit {
     this.removeApp('');
     const pool = {};
     this._extendByItemsForSubmit(pool, [
-      {api: 'pool', name: 'name', edit: true},
-      {api: 'pool_type', name: 'poolType'},
-      {api: 'pg_num', name: 'pgNum', edit: true},
+      { api: 'pool', name: 'name', edit: true },
+      { api: 'pool_type', name: 'poolType' },
+      { api: 'pg_num', name: 'pgNum', edit: true },
       this.isSet('poolType') === 'replicated'
-        ? {api: 'size', name: 'size'}
-        : {api: 'erasure_code_profile', name: 'erasureProfile', attr: 'name'},
-      {api: 'rule_name', name: 'crushRule', attr: 'rule_name'}
+        ? { api: 'size', name: 'size' }
+        : { api: 'erasure_code_profile', name: 'erasureProfile', attr: 'name' },
+      { api: 'rule_name', name: 'crushRule', attr: 'rule_name' }
     ]);
     if (this.info.is_all_bluestore) {
-      this._extendByItemForSubmit(pool,
-        {api: 'flags', name: 'ecOverwrites', fn: () => ['ec_overwrites']}
-      );
+      this._extendByItemForSubmit(pool, {
+        api: 'flags',
+        name: 'ecOverwrites',
+        fn: () => ['ec_overwrites']
+      });
       if (this.isSet('mode')) {
         this._extendByItemsForSubmit(pool, [
-          {api: 'compression_mode', name: 'mode', edit: true},
-          {api: 'compression_algorithm', name: 'algorithm', edit: true},
-          {api: 'compression_min_blob_size', name: 'minBlobSize', fn: this.formatter.toBytes,
-            edit: true},
-          {api: 'compression_max_blob_size', name: 'maxBlobSize', fn: this.formatter.toBytes,
-            edit: true},
-          {api: 'compression_required_ratio', name: 'ratio', edit: true},
+          { api: 'compression_mode', name: 'mode', edit: true },
+          { api: 'compression_algorithm', name: 'algorithm', edit: true },
+          {
+            api: 'compression_min_blob_size',
+            name: 'minBlobSize',
+            fn: this.formatter.toBytes,
+            edit: true
+          },
+          {
+            api: 'compression_max_blob_size',
+            name: 'maxBlobSize',
+            fn: this.formatter.toBytes,
+            edit: true
+          },
+          { api: 'compression_required_ratio', name: 'ratio', edit: true }
         ]);
       }
     }
@@ -484,12 +538,26 @@ export class PoolFormComponent implements OnInit {
     this.createAction(pool);
   }
 
-  _extendByItemsForSubmit (pool, items: any[]) {
+  _extendByItemsForSubmit(pool, items: any[]) {
     items.forEach(item => this._extendByItemForSubmit(pool, item));
   }
 
-  _extendByItemForSubmit (pool, {api, name, attr, fn, edit}:
-      {api: string, name: string, attr?: string, fn?: Function, edit?: boolean}) {
+  _extendByItemForSubmit(
+    pool,
+    {
+      api,
+      name,
+      attr,
+      fn,
+      edit
+    }: {
+      api: string;
+      name: string;
+      attr?: string;
+      fn?: Function;
+      edit?: boolean;
+    }
+  ) {
     if (this.editing && !edit) {
       return;
     }
@@ -500,20 +568,22 @@ export class PoolFormComponent implements OnInit {
     if (fn) {
       value = fn(value);
     }
-    pool[api] = fn ? fn(value) : (attr ? _.get(value, attr) : value);
+    pool[api] = fn ? fn(value) : attr ? _.get(value, attr) : value;
   }
 
   createAction(pool) {
-    this.taskWrapper.wrapTaskAroundCall({
-      task: new FinishedTask(
-        `pool/${pool.pool} ` + this.editing ? 'update' : 'creation',
-        {'pool_name': pool.pool}
-      ),
-      call: this.poolService[this.editing ? 'update' : 'create'](pool)
-    }).subscribe(
-      undefined,
-      () => this.poolForm.setErrors({'cdSubmitButton': true}),
-      () => this.router.navigate(['/pool'])
-    );
+    this.taskWrapper
+      .wrapTaskAroundCall({
+        task: new FinishedTask(
+          `pool/${pool.pool} ` + this.editing ? 'update' : 'creation',
+          { pool_name: pool.pool }
+        ),
+        call: this.poolService[this.editing ? 'update' : 'create'](pool)
+      })
+      .subscribe(
+        undefined,
+        () => this.poolForm.setErrors({ cdSubmitButton: true }),
+        () => this.router.navigate(['/pool'])
+      );
   }
 }
