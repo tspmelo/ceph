@@ -1,4 +1,4 @@
-import { NO_ERRORS_SCHEMA } from '@angular/core';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 
@@ -10,29 +10,29 @@ import { LogoutComponent } from '../../auth/logout/logout.component';
 import { NotificationsComponent } from '../notifications/notifications.component';
 import { TaskManagerComponent } from '../task-manager/task-manager.component';
 import { NavigationComponent } from './navigation.component';
-import { HealthColorPipe } from '../../../shared/pipes/health-color.pipe';
-import { SummaryService } from '../../../shared/services/summary.service';
-import { AuthStorageService } from '../../../shared/services/auth-storage.service';
 
 describe('NavigationComponent', () => {
   let component: NavigationComponent;
   let fixture: ComponentFixture<NavigationComponent>;
 
-  const fakeNotificationService = new NotificationService(null, null);
-  const fakeSummaryService = new SummaryService(null, null, null);
-
-  const fakeService = {};
+  const fakeService = new NotificationService(null, null);
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      imports: [RouterTestingModule],
-      schemas: [NO_ERRORS_SCHEMA],
-      declarations: [NavigationComponent, HealthColorPipe],
-      providers: [
-        { provide: NotificationService, useValue: fakeNotificationService },
-        { provide: SummaryService, useValue: fakeSummaryService },
-        { provide: AuthStorageService, useValue: fakeService }
-      ]
+      imports: [
+        SharedModule,
+        RouterTestingModule,
+        HttpClientTestingModule,
+        CollapseModule.forRoot(),
+        PopoverModule.forRoot()
+      ],
+      declarations: [
+        NavigationComponent,
+        NotificationsComponent,
+        LogoutComponent,
+        TaskManagerComponent
+      ],
+      providers: [{ provide: NotificationService, useValue: fakeService }]
     }).compileComponents();
   }));
 
