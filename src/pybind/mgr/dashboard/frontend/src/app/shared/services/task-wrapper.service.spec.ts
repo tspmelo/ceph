@@ -20,9 +20,11 @@ describe('TaskWrapperService', () => {
     });
   });
 
-  beforeEach(inject([TaskWrapperService], (wrapper: TaskWrapperService) => {
-    service = wrapper;
-  }));
+  beforeEach(
+    inject([TaskWrapperService], (wrapper: TaskWrapperService) => {
+      service = wrapper;
+    })
+  );
 
   it('should be created', () => {
     expect(service).toBeTruthy();
@@ -33,7 +35,7 @@ describe('TaskWrapperService', () => {
     let tasks: ExecutingTask[];
 
     const fakeCall = (status?) =>
-      new Observable(observer => {
+      new Observable((observer) => {
         if (!status) {
           observer.error({ error: 'failed' });
         }
@@ -58,11 +60,7 @@ describe('TaskWrapperService', () => {
 
     it('should simulate a synchronous task', () => {
       let passed = false;
-      callWrapTaskAroundCall(200, 'sync').subscribe(
-        null,
-        null,
-        () => (passed = true)
-      );
+      callWrapTaskAroundCall(200, 'sync').subscribe(null, null, () => (passed = true));
       expect(service._handleExecutingTasks).not.toHaveBeenCalled();
       expect(passed).toBeTruthy();
       expect(tasks.length).toBe(0);
@@ -70,11 +68,7 @@ describe('TaskWrapperService', () => {
 
     it('should simulate a asynchronous task', () => {
       let passed = false;
-      callWrapTaskAroundCall(202, 'async').subscribe(
-        null,
-        null,
-        () => (passed = true)
-      );
+      callWrapTaskAroundCall(202, 'async').subscribe(null, null, () => (passed = true));
       expect(service._handleExecutingTasks).toHaveBeenCalled();
       expect(passed).toBeTruthy();
       expect(tasks.length).toBe(1);
@@ -82,11 +76,7 @@ describe('TaskWrapperService', () => {
 
     it('should simulate a task failure', () => {
       let passed = false;
-      callWrapTaskAroundCall(null, 'async').subscribe(
-        null,
-        () => (passed = true),
-        null
-      );
+      callWrapTaskAroundCall(null, 'async').subscribe(null, () => (passed = true), null);
       expect(service._handleExecutingTasks).not.toHaveBeenCalled();
       expect(passed).toBeTruthy();
       expect(tasks.length).toBe(0);

@@ -2,6 +2,10 @@ import { Task } from './task';
 import { TaskException } from './task-exception';
 
 export class FinishedTask extends Task {
+  constructor(name?, metadata?) {
+    super(name, metadata);
+  }
+
   begin_time: number;
   end_time: number;
   exception: TaskException;
