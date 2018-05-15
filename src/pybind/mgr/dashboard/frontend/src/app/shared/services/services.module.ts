@@ -9,6 +9,7 @@ import { NotificationService } from './notification.service';
 import { SummaryService } from './summary.service';
 import { TaskManagerMessageService } from './task-manager-message.service';
 import { TaskManagerService } from './task-manager.service';
+import { TaskWrapperService } from './task-wrapper.service';
 
 @NgModule({
   imports: [CommonModule],
@@ -21,7 +22,8 @@ import { TaskManagerService } from './task-manager.service';
     ModuleStatusGuardService,
     NotificationService,
     TaskManagerService,
-    TaskManagerMessageService
+    TaskManagerMessageService,
+    TaskWrapperService
   ]
 })
 export class ServicesModule {}
