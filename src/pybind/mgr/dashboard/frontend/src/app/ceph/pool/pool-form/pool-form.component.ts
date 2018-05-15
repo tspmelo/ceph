@@ -6,20 +6,17 @@ import * as _ from 'lodash';
 
 import { Observable } from 'rxjs/Observable';
 import { PoolService } from '../../../shared/api/pool.service';
-import { NotificationType } from '../../../shared/enum/notification-type.enum';
 import { CrushRule } from '../../../shared/models/crush-rule';
 import { CrushStep } from '../../../shared/models/crush-step';
 import { FinishedTask } from '../../../shared/models/finished-task';
 import { DimlessBinaryPipe } from '../../../shared/pipes/dimless-binary.pipe';
 import { FormatterService } from '../../../shared/services/formatter.service';
-import { NotificationService } from '../../../shared/services/notification.service';
-import { TaskManagerMessageService } from '../../../shared/services/task-manager-message.service';
-import { TaskManagerService } from '../../../shared/services/task-manager.service';
 import { ErasureCodeProfile } from '../erasure-code-profile/erasure-code-profile';
 import { ErasureCodeProfileService } from '../erasure-code-profile/erasure-code-profile.service';
 import { Pool } from '../pool';
 import { PoolFormData } from './pool-form-data';
 import { PoolFormInfo } from './pool-form-info';
+import { TaskWrapperService } from 'app/shared/services/task-wrapper.service';
 
 @Component({
   selector: 'cd-pool-form',
@@ -44,9 +41,7 @@ export class PoolFormComponent implements OnInit {
               private router: Router,
               private poolService: PoolService,
               private formatter: FormatterService,
-              private notificationService: NotificationService,
-              private taskManagerService: TaskManagerService,
-              private taskManagerMessageService: TaskManagerMessageService,
+              private taskWrapper: TaskWrapperService,
               private ecpService: ErasureCodeProfileService) {
     this.createForm();
   }
@@ -509,27 +504,16 @@ export class PoolFormComponent implements OnInit {
   }
 
   createAction(pool) {
-    const finishedTask = new FinishedTask();
-    finishedTask.name = 'pool/' + this.editing ? 'update' : 'create' + ' ' + pool.pool;
-    this.poolService[this.editing ? 'update' : 'create'](pool).toPromise().then((resp) => {
-      if (resp.status === 202) {
-        this.notificationService.show(NotificationType.info,
-          'Pool ' + this.editing ? 'updating' : 'creation' + ' in progress...',
-          this.taskManagerMessageService.getDescription(finishedTask));
-        this.taskManagerService.subscribe(finishedTask.name, undefined,
-          (asyncFinishedTask: FinishedTask) => {
-            this.notificationService.notifyTask(asyncFinishedTask);
-          });
-      } else {
-        finishedTask.success = true;
-        this.notificationService.notifyTask(finishedTask);
-      }
-      this.router.navigate(['/pool']);
-    }, (resp) => {
-      this.poolForm.setErrors({'cdSubmitButton': true});
-      finishedTask.success = false;
-      finishedTask.exception = resp.error;
-      this.notificationService.notifyTask(finishedTask);
-    });
+    this.taskWrapper.wrapTaskAroundCall({
+      task: new FinishedTask(
+        `pool/${pool.pool} ` + this.editing ? 'update' : 'creation',
+        {'pool_name': pool.pool}
+      ),
+      call: this.poolService[this.editing ? 'update' : 'create'](pool)
+    }).subscribe(
+      undefined,
+      () => this.poolForm.setErrors({'cdSubmitButton': true}),
+      () => this.router.navigate(['/pool'])
+    );
   }
 }
