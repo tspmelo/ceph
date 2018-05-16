@@ -42,8 +42,8 @@ describe('RbdFormComponent', () => {
         TaskManagerMessageService,
         { provide: NotificationService, useValue: fakeService },
         { provide: PoolService, useValue: fakeService },
-        { provide: RbdService, useValue: fakeService }
-        { provide: TaskManagerService, useValue: fakeService },
+        { provide: RbdService, useValue: fakeService },
+        { provide: TaskManagerService, useValue: fakeService }
       ]
     }).compileComponents();
   }));
