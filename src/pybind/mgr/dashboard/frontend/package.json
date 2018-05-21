@@ -10,7 +10,8 @@
     "test:ci": "jest --coverage",
     "lint": "ng lint",
     "e2e": "ng e2e",
-    "makePretty": "pretty-quick --staged"
+    "makePretty": "pretty-quick --staged",
+    "compodoc": "compodoc -p src/tsconfig.app.json"
   },
   "private": true,
   "jest": {
