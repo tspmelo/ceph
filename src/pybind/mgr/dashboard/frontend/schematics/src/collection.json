@@ -1,0 +1,9 @@
+{
+  "$schema": "../node_modules/@angular-devkit/schematics/collection-schema.json",
+  "schematics": {
+    "cd-modal": {
+      "description": "A blank schematic.",
+      "factory": "./cd-modal/index#cdModal"
+    }
+  }
+}

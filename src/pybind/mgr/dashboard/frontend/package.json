@@ -61,6 +61,7 @@
     "@types/jest": "^22.2.3",
     "@types/node": "~6.0.60",
     "babel-preset-env": "^1.7.0",
+    "cd-schematics": "./schematics",
     "codelyzer": "^4.0.1",
     "copy-webpack-plugin": "4.3.0",
     "jasmine-core": "~2.6.2",
