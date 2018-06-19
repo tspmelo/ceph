@@ -163,6 +163,17 @@ export class TaskManagerMessageService {
       () => {
         return {};
       }
+    ),
+    'rbd/trash/move': new TaskManagerMessage(
+      (metadata) => `Move RBD to trash`,
+      (metadata) => `Moving RBD '${metadata.pool_name}/${metadata.image_name}' to trash`,
+      (metadata) =>
+        `RBD '${metadata.pool_name}/${metadata.image_name}' has been moved successfully`,
+      (metadata) => {
+        return {
+          2: `Could not find image.`
+        };
+      }
     )
   };
 

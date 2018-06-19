@@ -1,0 +1,45 @@
+<cd-modal>
+  <ng-container i18n
+                class="modal-title">Move RBD to trash</ng-container>
+
+  <ng-container class="modal-content">
+    <form name="deleteForm"
+          class="form"
+          #formDir="ngForm"
+          [formGroup]="deleteForm"
+          novalidate>
+      <div class="modal-body">
+        <p>
+          To move
+          <kbd>{{ poolName }}/{{ imageName }}</kbd> to trash, click on
+          <kbd>Move RBD</kbd>. Optionally, you can pick a different expiration date.
+        </p>
+
+        <div class="form-group">
+          <label for="expires">Expires at</label>
+          <input type="text"
+                 placeholder="YYYY-MM-DD hh:mm:ss"
+                 class="form-control"
+                 [minDate]="minDate"
+                 [bsConfig]="bsConfig"
+                 formControlName="expiresAt"
+                 bsDatepicker>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="button-group text-right">
+          <cd-submit-button i18n
+                            [form]="deleteForm"
+                            (submitAction)="deleteRbd()">
+            Move RBD
+          </cd-submit-button>
+          <button i18n
+                  type="button"
+                  class="btn btn-sm btn-default"
+                  (click)="modalRef.hide()">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </ng-container>
+</cd-modal>

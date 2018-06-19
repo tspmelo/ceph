@@ -21,6 +21,7 @@ import { AuthStorageService } from '../../../shared/services/auth-storage.servic
 import { SummaryService } from '../../../shared/services/summary.service';
 import { TaskWrapperService } from '../../../shared/services/task-wrapper.service';
 import { RbdParentModel } from '../rbd-form/rbd-parent.model';
+import { RbdTrashMoveModalComponent } from '../rbd-trash-move-modal/rbd-trash-move-modal.component';
 import { RbdModel } from './rbd-model';
 
 @Component({
@@ -177,7 +178,8 @@ export class RbdListComponent implements OnInit, OnDestroy {
         executingTask.name === 'rbd/snap/create' ||
         executingTask.name === 'rbd/snap/delete' ||
         executingTask.name === 'rbd/snap/edit' ||
-        executingTask.name === 'rbd/snap/rollback'
+        executingTask.name === 'rbd/snap/rollback' ||
+        executingTask.name === 'rbd/trash/move'
       ) {
         if (
           poolName === executingTask.metadata['pool_name'] &&
@@ -206,6 +208,8 @@ export class RbdListComponent implements OnInit, OnDestroy {
           rbdExecuting.cdExecuting = 'updating';
         } else if (executingTask.name === 'rbd/flatten') {
           rbdExecuting.cdExecuting = 'flattening';
+        } else if (executingTask.name === 'rbd/trash/move') {
+          rbdExecuting.cdExecuting = 'moving';
         }
       } else if (executingTask.name === 'rbd/create') {
         const rbdModel = new RbdModel();
@@ -260,6 +264,18 @@ export class RbdListComponent implements OnInit, OnDestroy {
         }),
       modalRef: this.modalRef
     });
+  }
+
+  trashRbdModal() {
+    const initialState = {
+      metaType: 'RBD',
+      poolName: this.selection.first().pool_name,
+      imageName: this.selection.first().name,
+      loadImages: () => {
+        this.loadImages(null);
+      }
+    };
+    this.modalRef = this.modalService.show(RbdTrashMoveModalComponent, { initialState });
   }
 
   flattenRbd(poolName, imageName) {

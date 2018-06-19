@@ -93,8 +93,16 @@
             *ngIf="permission.delete"
             [ngClass]="{'disabled': !selection.hasSingleSelection || selection.first().executing}">
           <a class="dropdown-item"
-             (click)="deleteRbdModal()">
+             (click)="trashRbdModal()">
             <i class="fa fa-fw fa-trash-o"></i>
+            <span i18n>Move to Trash</span>
+          </a>
+        </li>
+        <li role="menuitem"
+            [ngClass]="{'disabled': !selection.hasSingleSelection || selection.first().executing}">
+          <a class="dropdown-item"
+             (click)="deleteRbdModal()">
+            <i class="fa fa-fw fa-times"></i>
             <span i18n>Delete</span>
           </a>
         </li>
