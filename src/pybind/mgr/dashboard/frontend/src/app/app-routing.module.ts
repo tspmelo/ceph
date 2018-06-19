@@ -4,7 +4,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { IscsiComponent } from './ceph/block/iscsi/iscsi.component';
 import { MirroringComponent } from './ceph/block/mirroring/mirroring.component';
 import { RbdFormComponent } from './ceph/block/rbd-form/rbd-form.component';
-import { RbdListComponent } from './ceph/block/rbd-list/rbd-list.component';
+import { RbdImagesComponent } from './ceph/block/rbd-images/rbd-images.component';
 import { CephfsListComponent } from './ceph/cephfs/cephfs-list/cephfs-list.component';
 import { ConfigurationComponent } from './ceph/cluster/configuration/configuration.component';
 import { HostsComponent } from './ceph/cluster/hosts/hosts.component';
@@ -82,7 +82,7 @@ const routes: Routes = [
     ]
   },
   { path: 'block/iscsi', component: IscsiComponent, canActivate: [AuthGuardService] },
-  { path: 'block/rbd', component: RbdListComponent, canActivate: [AuthGuardService] },
+  { path: 'block/rbd', component: RbdImagesComponent, canActivate: [AuthGuardService] },
   { path: 'rbd/add', component: RbdFormComponent, canActivate: [AuthGuardService] },
   { path: 'rbd/edit/:pool/:name', component: RbdFormComponent, canActivate: [AuthGuardService] },
   { path: 'pool', component: PoolListComponent, canActivate: [AuthGuardService] },
