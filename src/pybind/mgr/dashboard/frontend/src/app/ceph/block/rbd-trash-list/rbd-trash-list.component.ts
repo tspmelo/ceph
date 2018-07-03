@@ -13,6 +13,7 @@ import { CdDatePipe } from '../../../shared/pipes/cd-date.pipe';
 import { SummaryService } from '../../../shared/services/summary.service';
 import { RbdModel } from '../rbd-list/rbd-model';
 import { RbdTrashDeleteModalComponent } from '../rbd-trash-delete-modal/rbd-trash-delete-modal.component';
+import { RbdTrashPurgeModalComponent } from '../rbd-trash-purge-modal/rbd-trash-purge-modal.component';
 import { RbdTrashRestoreModalComponent } from '../rbd-trash-restore-modal/rbd-trash-restore-modal.component';
 
 @Component({
@@ -183,5 +184,9 @@ export class RbdTrashListComponent implements OnInit, OnDestroy {
     };
 
     this.modalRef = this.modalService.show(RbdTrashDeleteModalComponent, { initialState });
+  }
+
+  purgeModal() {
+    this.modalService.show(RbdTrashPurgeModalComponent);
   }
 }

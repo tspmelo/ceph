@@ -198,6 +198,20 @@ export class TaskManagerMessageService {
       (metadata) => {
         return {};
       }
+    ),
+    'rbd/trash/purge': new TaskManagerMessage(
+      (metadata) => `Purge RBD Trash`,
+      (metadata) => {
+        let message = 'all pools';
+        if (metadata.pool_name) {
+          message = `'${metadata.pool_name}'`;
+        }
+        return `Purging RBDs from ${message}`;
+      },
+      (metadata) => `RBDs have been purged successfully`,
+      (metadata) => {
+        return {};
+      }
     )
   };
 
