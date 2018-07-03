@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 
 import * as _ from 'lodash';
-import { BsModalRef } from 'ngx-bootstrap';
+import { BsModalRef, BsModalService } from 'ngx-bootstrap';
 
 import { RbdService } from '../../../shared/api/rbd.service';
 import { CellTemplate } from '../../../shared/enum/cell-template.enum';
@@ -12,6 +12,7 @@ import { ExecutingTask } from '../../../shared/models/executing-task';
 import { CdDatePipe } from '../../../shared/pipes/cd-date.pipe';
 import { SummaryService } from '../../../shared/services/summary.service';
 import { RbdModel } from '../rbd-list/rbd-model';
+import { RbdTrashRestoreModalComponent } from '../rbd-trash-restore-modal/rbd-trash-restore-modal.component';
 
 @Component({
   selector: 'cd-rbd-trash-list',
@@ -33,6 +34,7 @@ export class RbdTrashListComponent implements OnInit, OnDestroy {
   constructor(
     private rbdService: RbdService,
     private summaryService: SummaryService,
+    private modalService: BsModalService,
     private cdDatePipe: CdDatePipe
   ) {}
 
@@ -155,5 +157,17 @@ export class RbdTrashListComponent implements OnInit, OnDestroy {
 
   updateSelection(selection: CdTableSelection) {
     this.selection = selection;
+  }
+
+  restoreModal() {
+    const initialState = {
+      metaType: 'RBD',
+      poolName: this.selection.first().pool_name,
+      imageName: this.selection.first().name,
+      imageId: this.selection.first().id,
+      loadImages: () => this.loadImages(null)
+    };
+
+    this.modalRef = this.modalService.show(RbdTrashRestoreModalComponent, { initialState });
   }
 }

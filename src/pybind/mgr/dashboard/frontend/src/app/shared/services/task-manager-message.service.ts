@@ -174,6 +174,19 @@ export class TaskManagerMessageService {
           2: `Could not find image.`
         };
       }
+    ),
+    'rbd/trash/restore': new TaskManagerMessage(
+      (metadata) => `Restore RBD`,
+      (metadata) =>
+        `Restoring RBD '${metadata.pool_name}/${metadata.image_name}@${metadata.image_id}' \
+        into '${metadata.pool_name}/${metadata.new_image_name}'`,
+      (metadata) =>
+        `RBD '${metadata.pool_name}/${metadata.new_image_name}' has been restored successfully`,
+      (metadata) => {
+        return {
+          17: `Image name '${metadata.pool_name}/${metadata.new_image_name}' is already in use.`
+        };
+      }
     )
   };
 
