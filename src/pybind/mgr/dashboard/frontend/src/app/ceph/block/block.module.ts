@@ -17,6 +17,7 @@ import { RbdImagesComponent } from './rbd-images/rbd-images.component';
 import { RbdListComponent } from './rbd-list/rbd-list.component';
 import { RbdSnapshotFormComponent } from './rbd-snapshot-form/rbd-snapshot-form.component';
 import { RbdSnapshotListComponent } from './rbd-snapshot-list/rbd-snapshot-list.component';
+import { RbdTrashDeleteModalComponent } from './rbd-trash-delete-modal/rbd-trash-delete-modal.component';
 import { RbdTrashListComponent } from './rbd-trash-list/rbd-trash-list.component';
 import { RbdTrashMoveModalComponent } from './rbd-trash-move-modal/rbd-trash-move-modal.component';
 import { RbdTrashRestoreModalComponent } from './rbd-trash-restore-modal/rbd-trash-restore-modal.component';
@@ -26,7 +27,8 @@ import { RbdTrashRestoreModalComponent } from './rbd-trash-restore-modal/rbd-tra
     RbdDetailsComponent,
     RbdSnapshotFormComponent,
     RbdTrashMoveModalComponent,
-    RbdTrashRestoreModalComponent
+    RbdTrashRestoreModalComponent,
+    RbdTrashDeleteModalComponent
   ],
   imports: [
     CommonModule,
@@ -53,7 +55,8 @@ import { RbdTrashRestoreModalComponent } from './rbd-trash-restore-modal/rbd-tra
     RbdTrashListComponent,
     RbdTrashMoveModalComponent,
     RbdImagesComponent,
-    RbdTrashRestoreModalComponent
+    RbdTrashRestoreModalComponent,
+    RbdTrashDeleteModalComponent
   ]
 })
 export class BlockModule {}

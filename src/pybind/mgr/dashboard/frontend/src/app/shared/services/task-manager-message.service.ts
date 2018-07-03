@@ -187,6 +187,17 @@ export class TaskManagerMessageService {
           17: `Image name '${metadata.pool_name}/${metadata.new_image_name}' is already in use.`
         };
       }
+    ),
+    'rbd/trash/remove': new TaskManagerMessage(
+      (metadata) => `Delete RBD`,
+      (metadata) =>
+        `Deleting RBD '${metadata.pool_name}/${metadata.image_name}@${metadata.image_id}'`,
+      (metadata) =>
+        `RBD '${metadata.pool_name}/${metadata.image_name}@${metadata.image_id}' \
+         has been deleted successfully`,
+      (metadata) => {
+        return {};
+      }
     )
   };
 

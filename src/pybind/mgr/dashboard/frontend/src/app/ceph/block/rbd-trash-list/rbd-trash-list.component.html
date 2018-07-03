@@ -36,6 +36,14 @@
             <span i18n>Restore</span>
           </a>
         </li>
+        <li role="menuitem"
+            [ngClass]="{'disabled': !selection.hasSingleSelection || selection.first().executing}">
+          <a class="dropdown-item"
+             (click)="deleteModal()">
+            <i class="fa fa-fw fa-times"></i>
+            <span i18n>Delete</span>
+          </a>
+        </li>
       </ul>
     </div>
   </div>

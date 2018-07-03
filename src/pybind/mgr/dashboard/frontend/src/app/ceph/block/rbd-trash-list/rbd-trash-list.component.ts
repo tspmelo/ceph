@@ -12,6 +12,7 @@ import { ExecutingTask } from '../../../shared/models/executing-task';
 import { CdDatePipe } from '../../../shared/pipes/cd-date.pipe';
 import { SummaryService } from '../../../shared/services/summary.service';
 import { RbdModel } from '../rbd-list/rbd-model';
+import { RbdTrashDeleteModalComponent } from '../rbd-trash-delete-modal/rbd-trash-delete-modal.component';
 import { RbdTrashRestoreModalComponent } from '../rbd-trash-restore-modal/rbd-trash-restore-modal.component';
 
 @Component({
@@ -169,5 +170,18 @@ export class RbdTrashListComponent implements OnInit, OnDestroy {
     };
 
     this.modalRef = this.modalService.show(RbdTrashRestoreModalComponent, { initialState });
+  }
+
+  deleteModal() {
+    const initialState = {
+      metaType: 'RBD',
+      poolName: this.selection.first().pool_name,
+      imageName: this.selection.first().name,
+      imageId: this.selection.first().id,
+      expiresAt: this.selection.first().deferment_end_time,
+      loadImages: () => this.loadImages(null)
+    };
+
+    this.modalRef = this.modalService.show(RbdTrashDeleteModalComponent, { initialState });
   }
 }
