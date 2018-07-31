@@ -42,7 +42,7 @@ private:
    *                v                               |
    *            V2_GET_ID|NAME                      |
    *                |                               |
-   *                v                               |
+   *                v (skip if have name)           |
    *            V2_GET_NAME_FROM_TRASH              |
    *                |                               |
    *                v                               |
@@ -56,6 +56,9 @@ private:
    *                |                               |
    *                v                               |
    *            V2_GET_DATA_POOL --------------> REFRESH
+   *                                                |
+   *                                                v
+   *                                             INIT_CACHE
    *                                                |
    *                                                v
    *                                             REGISTER_WATCH (skip if
@@ -110,6 +113,8 @@ private:
 
   void send_refresh();
   Context *handle_refresh(int *result);
+
+  Context *send_init_cache(int *result);
 
   Context *send_register_watch(int *result);
   Context *handle_register_watch(int *result);

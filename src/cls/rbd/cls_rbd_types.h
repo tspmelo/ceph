@@ -12,6 +12,7 @@
 #include "include/utime.h"
 #include <iosfwd>
 #include <string>
+#include <set>
 
 #define RBD_GROUP_REF "rbd_group_ref"
 
@@ -22,6 +23,24 @@ namespace rbd {
 
 static const uint32_t MAX_OBJECT_MAP_OBJECT_COUNT = 256000000;
 static const string RBD_GROUP_IMAGE_KEY_PREFIX = "image_";
+
+enum DirectoryState {
+  DIRECTORY_STATE_READY         = 0,
+  DIRECTORY_STATE_ADD_DISABLED  = 1
+};
+
+inline void encode(DirectoryState state, bufferlist& bl,
+		   uint64_t features=0)
+{
+  ceph::encode(static_cast<uint8_t>(state), bl);
+}
+
+inline void decode(DirectoryState &state, bufferlist::const_iterator& it)
+{
+  uint8_t int_state;
+  ceph::decode(int_state, it);
+  state = static_cast<DirectoryState>(int_state);
+}
 
 enum MirrorMode {
   MIRROR_MODE_DISABLED = 0,
@@ -41,7 +60,7 @@ inline void encode(const GroupImageLinkState &state, bufferlist& bl,
   encode(static_cast<uint8_t>(state), bl);
 }
 
-inline void decode(GroupImageLinkState &state, bufferlist::iterator& it)
+inline void decode(GroupImageLinkState &state, bufferlist::const_iterator& it)
 {
   uint8_t int_state;
   using ceph::decode;
@@ -68,7 +87,7 @@ struct MirrorPeer {
   }
 
   void encode(bufferlist &bl) const;
-  void decode(bufferlist::iterator &it);
+  void decode(bufferlist::const_iterator &it);
   void dump(Formatter *f) const;
 
   static void generate_test_instances(std::list<MirrorPeer*> &o);
@@ -96,7 +115,7 @@ struct MirrorImage {
   MirrorImageState state = MIRROR_IMAGE_STATE_DISABLING;
 
   void encode(bufferlist &bl) const;
-  void decode(bufferlist::iterator &it);
+  void decode(bufferlist::const_iterator &it);
   void dump(Formatter *f) const;
 
   static void generate_test_instances(std::list<MirrorImage*> &o);
@@ -127,7 +146,7 @@ inline void encode(const MirrorImageStatusState &state, bufferlist& bl,
   encode(static_cast<uint8_t>(state), bl);
 }
 
-inline void decode(MirrorImageStatusState &state, bufferlist::iterator& it)
+inline void decode(MirrorImageStatusState &state, bufferlist::const_iterator& it)
 {
   uint8_t int_state;
   using ceph::decode;
@@ -147,7 +166,7 @@ struct MirrorImageStatus {
   bool up = false;
 
   void encode(bufferlist &bl) const;
-  void decode(bufferlist::iterator &it);
+  void decode(bufferlist::const_iterator &it);
   void dump(Formatter *f) const;
 
   std::string state_to_string() const;
@@ -162,6 +181,36 @@ std::ostream& operator<<(std::ostream& os, const MirrorImageStatusState& state);
 
 WRITE_CLASS_ENCODER(MirrorImageStatus);
 
+struct ChildImageSpec {
+  int64_t pool_id = -1;
+  std::string image_id;
+
+  ChildImageSpec() {}
+  ChildImageSpec(int64_t pool_id, const std::string& image_id)
+    : pool_id(pool_id), image_id(image_id) {
+  }
+
+  void encode(bufferlist &bl) const;
+  void decode(bufferlist::const_iterator &it);
+  void dump(Formatter *f) const;
+
+  static void generate_test_instances(std::list<ChildImageSpec*> &o);
+
+  inline bool operator==(const ChildImageSpec& rhs) const {
+    return (pool_id == rhs.pool_id &&
+            image_id == rhs.image_id);
+  }
+  inline bool operator<(const ChildImageSpec& rhs) const {
+    if (pool_id != rhs.pool_id) {
+      return pool_id < rhs.pool_id;
+    }
+    return image_id < rhs.image_id;
+  }
+};
+WRITE_CLASS_ENCODER(ChildImageSpec);
+
+typedef std::set<ChildImageSpec> ChildImageSpecs;
+
 struct GroupImageSpec {
   GroupImageSpec() {}
 
@@ -174,7 +223,7 @@ struct GroupImageSpec {
   int64_t pool_id = -1;
 
   void encode(bufferlist &bl) const;
-  void decode(bufferlist::iterator &it);
+  void decode(bufferlist::const_iterator &it);
   void dump(Formatter *f) const;
 
   static void generate_test_instances(std::list<GroupImageSpec*> &o);
@@ -182,7 +231,6 @@ struct GroupImageSpec {
   std::string image_key();
 
 };
-
 WRITE_CLASS_ENCODER(GroupImageSpec);
 
 struct GroupImageStatus {
@@ -200,7 +248,7 @@ struct GroupImageStatus {
   GroupImageLinkState state = GROUP_IMAGE_LINK_STATE_INCOMPLETE;
 
   void encode(bufferlist &bl) const;
-  void decode(bufferlist::iterator &it);
+  void decode(bufferlist::const_iterator &it);
   void dump(Formatter *f) const;
 
   static void generate_test_instances(std::list<GroupImageStatus*> &o);
@@ -219,7 +267,7 @@ struct GroupSpec {
   int64_t pool_id = -1;
 
   void encode(bufferlist &bl) const;
-  void decode(bufferlist::iterator &it);
+  void decode(bufferlist::const_iterator &it);
   void dump(Formatter *f) const;
   bool is_valid() const;
 
@@ -229,8 +277,9 @@ struct GroupSpec {
 WRITE_CLASS_ENCODER(GroupSpec);
 
 enum SnapshotNamespaceType {
-  SNAPSHOT_NAMESPACE_TYPE_USER = 0,
-  SNAPSHOT_NAMESPACE_TYPE_GROUP = 1
+  SNAPSHOT_NAMESPACE_TYPE_USER  = 0,
+  SNAPSHOT_NAMESPACE_TYPE_GROUP = 1,
+  SNAPSHOT_NAMESPACE_TYPE_TRASH = 2
 };
 
 struct UserSnapshotNamespace {
@@ -240,7 +289,7 @@ struct UserSnapshotNamespace {
   UserSnapshotNamespace() {}
 
   void encode(bufferlist& bl) const {}
-  void decode(bufferlist::iterator& it) {}
+  void decode(bufferlist::const_iterator& it) {}
 
   void dump(Formatter *f) const {}
 
@@ -251,10 +300,7 @@ struct UserSnapshotNamespace {
   inline bool operator<(const UserSnapshotNamespace& usn) const {
     return false;
   }
-
 };
-
-std::ostream& operator<<(std::ostream& os, const UserSnapshotNamespace& ns);
 
 struct GroupSnapshotNamespace {
   static const SnapshotNamespaceType SNAPSHOT_NAMESPACE_TYPE =
@@ -273,7 +319,7 @@ struct GroupSnapshotNamespace {
   string group_snapshot_id;
 
   void encode(bufferlist& bl) const;
-  void decode(bufferlist::iterator& it);
+  void decode(bufferlist::const_iterator& it);
 
   void dump(Formatter *f) const;
 
@@ -293,10 +339,33 @@ struct GroupSnapshotNamespace {
     }
     return false;
   }
-
 };
 
-std::ostream& operator<<(std::ostream& os, const GroupSnapshotNamespace& ns);
+struct TrashSnapshotNamespace {
+  static const SnapshotNamespaceType SNAPSHOT_NAMESPACE_TYPE =
+    SNAPSHOT_NAMESPACE_TYPE_TRASH;
+
+  std::string original_name;
+  SnapshotNamespaceType original_snapshot_namespace_type =
+    SNAPSHOT_NAMESPACE_TYPE_USER;
+
+  TrashSnapshotNamespace() {}
+  TrashSnapshotNamespace(SnapshotNamespaceType original_snapshot_namespace_type,
+                         const std::string& original_name)
+    : original_name(original_name),
+      original_snapshot_namespace_type(original_snapshot_namespace_type) {}
+
+  void encode(bufferlist& bl) const;
+  void decode(bufferlist::const_iterator& it);
+  void dump(Formatter *f) const;
+
+  inline bool operator==(const TrashSnapshotNamespace& usn) const {
+    return true;
+  }
+  inline bool operator<(const TrashSnapshotNamespace& usn) const {
+    return false;
+  }
+};
 
 struct UnknownSnapshotNamespace {
   static const SnapshotNamespaceType SNAPSHOT_NAMESPACE_TYPE =
@@ -305,8 +374,9 @@ struct UnknownSnapshotNamespace {
   UnknownSnapshotNamespace() {}
 
   void encode(bufferlist& bl) const {}
-  void decode(bufferlist::iterator& it) {}
+  void decode(bufferlist::const_iterator& it) {}
   void dump(Formatter *f) const {}
+
   inline bool operator==(const UnknownSnapshotNamespace& gsn) const {
     return true;
   }
@@ -316,33 +386,69 @@ struct UnknownSnapshotNamespace {
   }
 };
 
+std::ostream& operator<<(std::ostream& os, const SnapshotNamespaceType& type);
+std::ostream& operator<<(std::ostream& os, const UserSnapshotNamespace& ns);
+std::ostream& operator<<(std::ostream& os, const GroupSnapshotNamespace& ns);
+std::ostream& operator<<(std::ostream& os, const TrashSnapshotNamespace& ns);
 std::ostream& operator<<(std::ostream& os, const UnknownSnapshotNamespace& ns);
 
 typedef boost::variant<UserSnapshotNamespace,
-		       GroupSnapshotNamespace,
-		       UnknownSnapshotNamespace> SnapshotNamespace;
+                       GroupSnapshotNamespace,
+                       TrashSnapshotNamespace,
+                       UnknownSnapshotNamespace> SnapshotNamespaceVariant;
 
+struct SnapshotNamespace : public SnapshotNamespaceVariant {
+  SnapshotNamespace() {
+  }
 
-struct SnapshotNamespaceOnDisk {
-
-  SnapshotNamespaceOnDisk() : snapshot_namespace(UnknownSnapshotNamespace()) {}
-  SnapshotNamespaceOnDisk(const SnapshotNamespace &sn) : snapshot_namespace(sn) {}
-
-  SnapshotNamespace snapshot_namespace;
+  template <typename T>
+  SnapshotNamespace(T&& t) : SnapshotNamespaceVariant(std::forward<T>(t)) {
+  }
 
   void encode(bufferlist& bl) const;
-  void decode(bufferlist::iterator& it);
+  void decode(bufferlist::const_iterator& it);
   void dump(Formatter *f) const;
 
-  static void generate_test_instances(std::list<SnapshotNamespaceOnDisk *> &o);
+  static void generate_test_instances(std::list<SnapshotNamespace*> &o);
 
-  inline bool operator==(const SnapshotNamespaceOnDisk& gsn) const {
-    return snapshot_namespace == gsn.snapshot_namespace;
+  inline bool operator==(const SnapshotNamespaceVariant& sn) const {
+    return static_cast<const SnapshotNamespaceVariant&>(*this) == sn;
+  }
+  inline bool operator<(const SnapshotNamespaceVariant& sn) const {
+    return static_cast<const SnapshotNamespaceVariant&>(*this) < sn;
   }
 };
-WRITE_CLASS_ENCODER(SnapshotNamespaceOnDisk);
+WRITE_CLASS_ENCODER(SnapshotNamespace);
 
-SnapshotNamespaceType get_snap_namespace_type(const SnapshotNamespace& snapshot_namespace);
+SnapshotNamespaceType get_snap_namespace_type(
+    const SnapshotNamespace& snapshot_namespace);
+
+struct SnapshotInfo {
+  snapid_t id = CEPH_NOSNAP;
+  cls::rbd::SnapshotNamespace snapshot_namespace = {UserSnapshotNamespace{}};
+  std::string name;
+  uint64_t image_size = 0;
+  utime_t timestamp;
+  uint32_t child_count = 0;
+
+  SnapshotInfo() {
+  }
+  SnapshotInfo(snapid_t id,
+               const cls::rbd::SnapshotNamespace& snapshot_namespace,
+               const std::string& name, uint64_t image_size,
+               const utime_t& timestamp, uint32_t child_count)
+    : id(id), snapshot_namespace(snapshot_namespace),
+      name(name), image_size(image_size), timestamp(timestamp),
+      child_count(child_count) {
+  }
+
+  void encode(bufferlist& bl) const;
+  void decode(bufferlist::const_iterator& it);
+  void dump(Formatter *f) const;
+
+  static void generate_test_instances(std::list<SnapshotInfo*> &o);
+};
+WRITE_CLASS_ENCODER(SnapshotInfo);
 
 enum GroupSnapshotState {
   GROUP_SNAPSHOT_STATE_INCOMPLETE = 0,
@@ -355,7 +461,7 @@ inline void encode(const GroupSnapshotState &state, bufferlist& bl, uint64_t fea
   encode(static_cast<uint8_t>(state), bl);
 }
 
-inline void decode(GroupSnapshotState &state, bufferlist::iterator& it)
+inline void decode(GroupSnapshotState &state, bufferlist::const_iterator& it)
 {
   using ceph::decode;
   uint8_t int_state;
@@ -376,7 +482,7 @@ struct ImageSnapshotSpec {
 					 snap_id(_snap_id) {}
 
   void encode(bufferlist& bl) const;
-  void decode(bufferlist::iterator& it);
+  void decode(bufferlist::const_iterator& it);
 
   void dump(Formatter *f) const;
 
@@ -399,7 +505,7 @@ struct GroupSnapshot {
   vector<ImageSnapshotSpec> snaps;
 
   void encode(bufferlist& bl) const;
-  void decode(bufferlist::iterator& it);
+  void decode(bufferlist::const_iterator& it);
   void dump(Formatter *f) const;
 
   static void generate_test_instances(std::list<GroupSnapshot *> &o);
@@ -417,7 +523,7 @@ inline void encode(const TrashImageSource &source, bufferlist& bl,
   encode(static_cast<uint8_t>(source), bl);
 }
 
-inline void decode(TrashImageSource &source, bufferlist::iterator& it)
+inline void decode(TrashImageSource &source, bufferlist::const_iterator& it)
 {
   uint8_t int_source;
   using ceph::decode;
@@ -440,7 +546,7 @@ struct TrashImageSpec {
   }
 
   void encode(bufferlist &bl) const;
-  void decode(bufferlist::iterator& it);
+  void decode(bufferlist::const_iterator& it);
   void dump(Formatter *f) const;
 
   inline bool operator==(const TrashImageSpec& rhs) const {
@@ -468,7 +574,7 @@ struct MirrorImageMap {
   bufferlist data;
 
   void encode(bufferlist &bl) const;
-  void decode(bufferlist::iterator &it);
+  void decode(bufferlist::const_iterator &it);
   void dump(Formatter *f) const;
 
   static void generate_test_instances(std::list<MirrorImageMap*> &o);

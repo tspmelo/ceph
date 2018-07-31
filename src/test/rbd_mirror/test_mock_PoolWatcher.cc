@@ -158,7 +158,7 @@ public:
   typedef librbd::MockMirroringWatcher MockMirroringWatcher;
   typedef librbd::MirroringWatcher<librbd::MockTestImageCtx> MirroringWatcher;
 
-  struct MockListener : MockPoolWatcher::Listener {
+  struct MockListener : pool_watcher::Listener {
     TestMockPoolWatcher *test;
 
     MockListener(TestMockPoolWatcher *test) : test(test) {
@@ -231,7 +231,7 @@ public:
     EXPECT_CALL(get_mock_io_ctx(io_ctx),
                 exec(RBD_MIRRORING, _, StrEq("rbd"), StrEq("mirror_uuid_get"),
                      _, _, _))
-      .WillOnce(DoAll(WithArg<5>(Invoke([this, out_bl](bufferlist *bl) {
+      .WillOnce(DoAll(WithArg<5>(Invoke([out_bl](bufferlist *bl) {
                           *bl = out_bl;
                         })),
                       Return(r)));

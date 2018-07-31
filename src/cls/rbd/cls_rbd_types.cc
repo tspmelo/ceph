@@ -17,7 +17,7 @@ void MirrorPeer::encode(bufferlist &bl) const {
   ENCODE_FINISH(bl);
 }
 
-void MirrorPeer::decode(bufferlist::iterator &it) {
+void MirrorPeer::decode(bufferlist::const_iterator &it) {
   DECODE_START(1, it);
   decode(uuid, it);
   decode(cluster_name, it);
@@ -82,7 +82,7 @@ void MirrorImage::encode(bufferlist &bl) const {
   ENCODE_FINISH(bl);
 }
 
-void MirrorImage::decode(bufferlist::iterator &it) {
+void MirrorImage::decode(bufferlist::const_iterator &it) {
   uint8_t int_state;
   DECODE_START(1, it);
   decode(global_image_id, it);
@@ -142,7 +142,7 @@ void MirrorImageStatus::encode(bufferlist &bl) const {
   ENCODE_FINISH(bl);
 }
 
-void MirrorImageStatus::decode(bufferlist::iterator &it) {
+void MirrorImageStatus::decode(bufferlist::const_iterator &it) {
   DECODE_START(1, it);
   decode(state, it);
   decode(description, it);
@@ -212,6 +212,30 @@ std::ostream& operator<<(std::ostream& os, const MirrorImageStatus& status) {
   return os;
 }
 
+void ChildImageSpec::encode(bufferlist &bl) const {
+  ENCODE_START(1, 1, bl);
+  encode(pool_id, bl);
+  encode(image_id, bl);
+  ENCODE_FINISH(bl);
+}
+
+void ChildImageSpec::decode(bufferlist::const_iterator &it) {
+  DECODE_START(1, it);
+  decode(pool_id, it);
+  decode(image_id, it);
+  DECODE_FINISH(it);
+}
+
+void ChildImageSpec::dump(Formatter *f) const {
+  f->dump_int("pool_id", pool_id);
+  f->dump_string("image_id", image_id);
+}
+
+void ChildImageSpec::generate_test_instances(std::list<ChildImageSpec*> &o) {
+  o.push_back(new ChildImageSpec());
+  o.push_back(new ChildImageSpec(123, "abc"));
+}
+
 void GroupImageSpec::encode(bufferlist &bl) const {
   ENCODE_START(1, 1, bl);
   encode(image_id, bl);
@@ -219,7 +243,7 @@ void GroupImageSpec::encode(bufferlist &bl) const {
   ENCODE_FINISH(bl);
 }
 
-void GroupImageSpec::decode(bufferlist::iterator &it) {
+void GroupImageSpec::decode(bufferlist::const_iterator &it) {
   DECODE_START(1, it);
   decode(image_id, it);
   decode(pool_id, it);
@@ -276,7 +300,7 @@ void GroupImageStatus::encode(bufferlist &bl) const {
   ENCODE_FINISH(bl);
 }
 
-void GroupImageStatus::decode(bufferlist::iterator &it) {
+void GroupImageStatus::decode(bufferlist::const_iterator &it) {
   DECODE_START(1, it);
   decode(spec, it);
   decode(state, it);
@@ -314,7 +338,7 @@ void GroupSpec::encode(bufferlist &bl) const {
   ENCODE_FINISH(bl);
 }
 
-void GroupSpec::decode(bufferlist::iterator &it) {
+void GroupSpec::decode(bufferlist::const_iterator &it) {
   DECODE_START(1, it);
   decode(pool_id, it);
   decode(group_id, it);
@@ -342,7 +366,7 @@ void GroupSnapshotNamespace::encode(bufferlist& bl) const {
   encode(group_snapshot_id, bl);
 }
 
-void GroupSnapshotNamespace::decode(bufferlist::iterator& it) {
+void GroupSnapshotNamespace::decode(bufferlist::const_iterator& it) {
   using ceph::decode;
   decode(group_pool, it);
   decode(group_id, it);
@@ -353,6 +377,27 @@ void GroupSnapshotNamespace::dump(Formatter *f) const {
   f->dump_int("group_pool", group_pool);
   f->dump_string("group_id", group_id);
   f->dump_string("group_snapshot_id", group_snapshot_id);
+}
+
+void TrashSnapshotNamespace::encode(bufferlist& bl) const {
+  using ceph::encode;
+  encode(original_name, bl);
+  encode(static_cast<uint32_t>(original_snapshot_namespace_type), bl);
+}
+
+void TrashSnapshotNamespace::decode(bufferlist::const_iterator& it) {
+  using ceph::decode;
+  decode(original_name, it);
+  uint32_t snap_type;
+  decode(snap_type, it);
+  original_snapshot_namespace_type = static_cast<SnapshotNamespaceType>(
+    snap_type);
+}
+
+void TrashSnapshotNamespace::dump(Formatter *f) const {
+  f->dump_string("original_name", original_name);
+  f->dump_stream("original_snapshot_namespace")
+    << original_snapshot_namespace_type;
 }
 
 class EncodeSnapshotNamespaceVisitor : public boost::static_visitor<void> {
@@ -373,7 +418,7 @@ private:
 
 class DecodeSnapshotNamespaceVisitor : public boost::static_visitor<void> {
 public:
-  DecodeSnapshotNamespaceVisitor(bufferlist::iterator &iter)
+  DecodeSnapshotNamespaceVisitor(bufferlist::const_iterator &iter)
     : m_iter(iter) {
   }
 
@@ -382,7 +427,7 @@ public:
     t.decode(m_iter);
   }
 private:
-  bufferlist::iterator &m_iter;
+  bufferlist::const_iterator &m_iter;
 };
 
 class DumpSnapshotNamespaceVisitor : public boost::static_visitor<void> {
@@ -415,52 +460,130 @@ SnapshotNamespaceType get_snap_namespace_type(
     GetTypeVisitor(), snapshot_namespace));
 }
 
-void SnapshotNamespaceOnDisk::encode(bufferlist& bl) const {
+void SnapshotInfo::encode(bufferlist& bl) const {
   ENCODE_START(1, 1, bl);
-  boost::apply_visitor(EncodeSnapshotNamespaceVisitor(bl), snapshot_namespace);
+  encode(id, bl);
+  encode(snapshot_namespace, bl);
+  encode(name, bl);
+  encode(image_size, bl);
+  encode(timestamp, bl);
+  encode(child_count, bl);
   ENCODE_FINISH(bl);
 }
 
-void SnapshotNamespaceOnDisk::decode(bufferlist::iterator &p)
+void SnapshotInfo::decode(bufferlist::const_iterator& it) {
+  DECODE_START(1, it);
+  decode(id, it);
+  decode(snapshot_namespace, it);
+  decode(name, it);
+  decode(image_size, it);
+  decode(timestamp, it);
+  decode(child_count, it);
+  DECODE_FINISH(it);
+}
+
+void SnapshotInfo::dump(Formatter *f) const {
+  f->dump_unsigned("id", id);
+  f->open_object_section("namespace");
+  boost::apply_visitor(DumpSnapshotNamespaceVisitor(f, "type"),
+                       snapshot_namespace);
+  f->close_section();
+  f->dump_string("name", name);
+  f->dump_unsigned("image_size", image_size);
+  f->dump_stream("timestamp") << timestamp;
+}
+
+void SnapshotInfo::generate_test_instances(std::list<SnapshotInfo*> &o) {
+  o.push_back(new SnapshotInfo(1ULL, UserSnapshotNamespace{}, "snap1", 123,
+                               {123456, 0}, 12));
+  o.push_back(new SnapshotInfo(2ULL,
+                               GroupSnapshotNamespace{567, "group1", "snap1"},
+                               "snap1", 123, {123456, 0}, 987));
+  o.push_back(new SnapshotInfo(3ULL,
+                               TrashSnapshotNamespace{
+                                 SNAPSHOT_NAMESPACE_TYPE_USER, "snap1"},
+                               "12345", 123, {123456, 0}, 429));
+}
+
+void SnapshotNamespace::encode(bufferlist& bl) const {
+  ENCODE_START(1, 1, bl);
+  boost::apply_visitor(EncodeSnapshotNamespaceVisitor(bl), *this);
+  ENCODE_FINISH(bl);
+}
+
+void SnapshotNamespace::decode(bufferlist::const_iterator &p)
 {
   DECODE_START(1, p);
   uint32_t snap_type;
   decode(snap_type, p);
   switch (snap_type) {
     case cls::rbd::SNAPSHOT_NAMESPACE_TYPE_USER:
-      snapshot_namespace = UserSnapshotNamespace();
+      *this = UserSnapshotNamespace();
       break;
     case cls::rbd::SNAPSHOT_NAMESPACE_TYPE_GROUP:
-      snapshot_namespace = GroupSnapshotNamespace();
+      *this = GroupSnapshotNamespace();
+      break;
+    case cls::rbd::SNAPSHOT_NAMESPACE_TYPE_TRASH:
+      *this = TrashSnapshotNamespace();
       break;
     default:
-      snapshot_namespace = UnknownSnapshotNamespace();
+      *this = UnknownSnapshotNamespace();
       break;
   }
-  boost::apply_visitor(DecodeSnapshotNamespaceVisitor(p), snapshot_namespace);
+  boost::apply_visitor(DecodeSnapshotNamespaceVisitor(p), *this);
   DECODE_FINISH(p);
 }
 
-void SnapshotNamespaceOnDisk::dump(Formatter *f) const {
-  boost::apply_visitor(DumpSnapshotNamespaceVisitor(f, "snapshot_namespace_type"), snapshot_namespace);
+void SnapshotNamespace::dump(Formatter *f) const {
+  boost::apply_visitor(
+    DumpSnapshotNamespaceVisitor(f, "snapshot_namespace_type"), *this);
 }
 
-void SnapshotNamespaceOnDisk::generate_test_instances(std::list<SnapshotNamespaceOnDisk *> &o) {
-  o.push_back(new SnapshotNamespaceOnDisk(UserSnapshotNamespace()));
-  o.push_back(new SnapshotNamespaceOnDisk(GroupSnapshotNamespace(0, "10152ae8944a", "2118643c9732")));
-  o.push_back(new SnapshotNamespaceOnDisk(GroupSnapshotNamespace(5, "1018643c9869", "33352be8933c")));
+void SnapshotNamespace::generate_test_instances(std::list<SnapshotNamespace*> &o) {
+  o.push_back(new SnapshotNamespace(UserSnapshotNamespace()));
+  o.push_back(new SnapshotNamespace(GroupSnapshotNamespace(0, "10152ae8944a",
+                                                           "2118643c9732")));
+  o.push_back(new SnapshotNamespace(GroupSnapshotNamespace(5, "1018643c9869",
+                                                           "33352be8933c")));
+  o.push_back(new SnapshotNamespace(TrashSnapshotNamespace()));
+}
+
+std::ostream& operator<<(std::ostream& os, const SnapshotNamespaceType& type) {
+  switch (type) {
+  case SNAPSHOT_NAMESPACE_TYPE_USER:
+    os << "user";
+    break;
+  case SNAPSHOT_NAMESPACE_TYPE_GROUP:
+    os << "group";
+    break;
+  case SNAPSHOT_NAMESPACE_TYPE_TRASH:
+    os << "trash";
+    break;
+  default:
+    os << "unknown";
+    break;
+  }
+  return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const UserSnapshotNamespace& ns) {
-  os << "[user]";
+  os << "[" << SNAPSHOT_NAMESPACE_TYPE_USER << "]";
   return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const GroupSnapshotNamespace& ns) {
-  os << "[group"
-     << " group_pool=" << ns.group_pool
-     << " group_id=" << ns.group_id
-     << " group_snapshot_id=" << ns.group_snapshot_id << "]";
+  os << "[" << SNAPSHOT_NAMESPACE_TYPE_GROUP << " "
+     << "group_pool=" << ns.group_pool << ", "
+     << "group_id=" << ns.group_id << ", "
+     << "group_snapshot_id=" << ns.group_snapshot_id << "]";
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const TrashSnapshotNamespace& ns) {
+  os << "[" << SNAPSHOT_NAMESPACE_TYPE_TRASH << " "
+     << "original_name=" << ns.original_name << ", "
+     << "original_snapshot_namespace=" << ns.original_snapshot_namespace_type
+     << "]";
   return os;
 }
 
@@ -478,7 +601,7 @@ void ImageSnapshotSpec::encode(bufferlist& bl) const {
   ENCODE_FINISH(bl);
 }
 
-void ImageSnapshotSpec::decode(bufferlist::iterator& it) {
+void ImageSnapshotSpec::decode(bufferlist::const_iterator& it) {
   using ceph::decode;
   DECODE_START(1, it);
   decode(pool, it);
@@ -508,7 +631,7 @@ void GroupSnapshot::encode(bufferlist& bl) const {
   ENCODE_FINISH(bl);
 }
 
-void GroupSnapshot::decode(bufferlist::iterator& it) {
+void GroupSnapshot::decode(bufferlist::const_iterator& it) {
   using ceph::decode;
   DECODE_START(1, it);
   decode(id, it);
@@ -537,7 +660,7 @@ void TrashImageSpec::encode(bufferlist& bl) const {
   ENCODE_FINISH(bl);
 }
 
-void TrashImageSpec::decode(bufferlist::iterator &it) {
+void TrashImageSpec::decode(bufferlist::const_iterator &it) {
   DECODE_START(1, it);
   decode(source, it);
   decode(name, it);
@@ -567,7 +690,7 @@ void MirrorImageMap::encode(bufferlist &bl) const {
   ENCODE_FINISH(bl);
 }
 
-void MirrorImageMap::decode(bufferlist::iterator &it) {
+void MirrorImageMap::decode(bufferlist::const_iterator &it) {
   DECODE_START(1, it);
   decode(instance_id, it);
   decode(mapped_time, it);

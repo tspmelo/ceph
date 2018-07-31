@@ -209,7 +209,7 @@ int rgw_store_user_info(RGWRados *store,
     if (!old_info ||
         old_info->user_email.compare(info.user_email) != 0) { /* only if new index changed */
       ret = rgw_put_system_obj(store, store->get_zone_params().user_email_pool, info.user_email,
-                               link_bl.c_str(), link_bl.length(), exclusive, NULL, real_time());
+                               link_bl, exclusive, NULL, real_time());
       if (ret < 0)
         return ret;
     }
@@ -223,8 +223,7 @@ int rgw_store_user_info(RGWRados *store,
 	continue;
 
       ret = rgw_put_system_obj(store, store->get_zone_params().user_keys_pool, k.id,
-                               link_bl.c_str(), link_bl.length(), exclusive,
-                               NULL, real_time());
+                               link_bl, exclusive, NULL, real_time());
       if (ret < 0)
         return ret;
     }
@@ -237,8 +236,7 @@ int rgw_store_user_info(RGWRados *store,
       continue;
 
     ret = rgw_put_system_obj(store, store->get_zone_params().user_swift_pool, k.id,
-                             link_bl.c_str(), link_bl.length(), exclusive,
-                             NULL, real_time());
+                             link_bl, exclusive, NULL, real_time());
     if (ret < 0)
       return ret;
   }
@@ -281,7 +279,7 @@ int rgw_get_user_info_from_index(RGWRados * const store,
 
   rgw_cache_entry_info cache_info;
 
-  bufferlist::iterator iter = bl.begin();
+  auto iter = bl.cbegin();
   try {
     decode(uid, iter);
     int ret = rgw_get_user_info_by_uid(store, uid.user_id, e.info, &e.objv_tracker, NULL, &cache_info);
@@ -326,7 +324,7 @@ int rgw_get_user_info_by_uid(RGWRados *store,
     return ret;
   }
 
-  bufferlist::iterator iter = bl.begin();
+  auto iter = bl.cbegin();
   try {
     decode(user_id, iter);
     if (user_id.user_id.compare(uid) != 0) {
@@ -527,7 +525,7 @@ static struct rgw_flags_desc rgw_perms[] = {
  { RGW_PERM_READ, "read" },
  { RGW_PERM_WRITE, "write" },
  { RGW_PERM_READ_ACP, "read-acp" },
- { RGW_PERM_WRITE_ACP, "read-acp" },
+ { RGW_PERM_WRITE_ACP, "write-acp" },
  { 0, NULL }
 };
 
@@ -721,7 +719,7 @@ static void dump_user_info(Formatter *f, RGWUserInfo &info,
   f->dump_string("email", info.user_email);
   f->dump_int("suspended", (int)info.suspended);
   f->dump_int("max_buckets", (int)info.max_buckets);
-
+  f->dump_bool("system", (bool)info.system);
   dump_subusers_info(f, info);
   dump_access_keys_info(f, info);
   dump_swift_keys_info(f, info);
@@ -2257,6 +2255,10 @@ int RGWUser::execute_modify(RGWUserAdminOpState& op_state, std::string *err_msg)
 
     } while (is_truncated);
   }
+
+  if (op_state.mfa_ids_specified) {
+    user_info.mfa_ids = op_state.mfa_ids;
+  }
   op_state.set_user_info(user_info);
 
   // if we're supposed to modify keys, do so
@@ -2350,7 +2352,7 @@ int RGWUserAdminOp_User::info(RGWRados *store, RGWUserAdminOpState& op_state,
   RGWStorageStats *arg_stats = NULL;
   if (op_state.fetch_stats) {
     int ret = store->get_user_stats(info.user_id, stats);
-    if (ret < 0) {
+    if (ret < 0 && ret != -ENOENT) {
       return ret;
     }
 
@@ -2791,7 +2793,7 @@ public:
     if (ret == -ENOENT) {
       if (truncated)
         *truncated = false;
-      return -ENOENT;
+      return 0;
     }
 
     // now filter out the buckets entries
@@ -2812,7 +2814,7 @@ public:
     delete info;
   }
 
-  string get_marker(void *handle) {
+  string get_marker(void *handle) override {
     list_keys_info *info = static_cast<list_keys_info *>(handle);
     return info->store->list_raw_objs_get_cursor(info->ctx);
   }

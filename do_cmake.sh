@@ -5,8 +5,7 @@ if test -e build; then
     exit 1
 fi
 
-ARGS=""
-if which ccache ; then
+if type ccache > /dev/null 2>&1 ; then
     echo "enabling ccache"
     ARGS="$ARGS -DWITH_CCACHE=ON"
 fi
@@ -14,7 +13,12 @@ fi
 mkdir build
 cd build
 NPROC=${NPROC:-$(nproc)}
-cmake -DBOOST_J=$NPROC $ARGS "$@" ..
+if type cmake3 > /dev/null 2>&1 ; then
+    CMAKE=cmake3
+else
+    CMAKE=cmake
+fi
+${CMAKE} -DBOOST_J=$NPROC $ARGS "$@" .. || exit 1
 
 # minimal config to find plugins
 cat <<EOF > ceph.conf

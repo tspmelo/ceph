@@ -142,6 +142,17 @@ void ObjectMap<I>::close(Context *on_finish) {
 }
 
 template <typename I>
+bool ObjectMap<I>::set_object_map(ceph::BitVector<2> &target_object_map) {
+  assert(m_image_ctx.owner_lock.is_locked());
+  assert(m_image_ctx.snap_lock.is_locked());
+  assert(m_image_ctx.test_features(RBD_FEATURE_OBJECT_MAP,
+                                   m_image_ctx.snap_lock));
+  RWLock::RLocker object_map_locker(m_image_ctx.object_map_lock);
+  m_object_map = target_object_map;
+  return true;
+}
+
+template <typename I>
 void ObjectMap<I>::rollback(uint64_t snap_id, Context *on_finish) {
   assert(m_image_ctx.snap_lock.is_locked());
   assert(m_image_ctx.object_map_lock.is_wlocked());
@@ -291,7 +302,8 @@ void ObjectMap<I>::aio_update(uint64_t snap_id, uint64_t start_object_no,
                        stringify(static_cast<uint32_t>(*current_state)) : "")
 		 << "->" << static_cast<uint32_t>(new_state) << dendl;
   if (snap_id == CEPH_NOSNAP) {
-    if (end_object_no > m_object_map.size()) {
+    end_object_no = std::min(end_object_no, m_object_map.size());
+    if (start_object_no >= end_object_no) {
       ldout(cct, 20) << "skipping update of invalid object map" << dendl;
       m_image_ctx.op_work_queue->queue(on_finish, 0);
       return;

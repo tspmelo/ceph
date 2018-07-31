@@ -165,6 +165,20 @@ void ceph_userperm_destroy(UserPerm *perm);
 struct UserPerm *ceph_mount_perms(struct ceph_mount_info *cmount);
 
 /**
+ * Set cmount's default permissions
+ *
+ * @param cmount the mount info handle
+ * @param perm permissions to set to default for mount
+ *
+ * Every cmount has a default set of credentials. This does a deep copy of
+ * the given permissions to the ones in the cmount. Must be done after
+ * ceph_init but before ceph_mount.
+ *
+ * Returns 0 on success, and -EISCONN if the cmount is already mounted.
+ */
+int ceph_mount_perms_set(struct ceph_mount_info *cmount, UserPerm *perm);
+
+/**
  * @defgroup libcephfs_h_init Setup and Teardown
  * These are the first and last functions that should be called
  * when using libcephfs.
@@ -285,6 +299,14 @@ void ceph_buffer_free(char *buf);
 int ceph_unmount(struct ceph_mount_info *cmount);
 
 /**
+ * Abort mds connections
+ *
+ * @param cmount the mount handle
+ * @return 0 on success, negative error code on failure
+ */
+int ceph_abort_conn(struct ceph_mount_info *cmount);
+
+/**
  * Destroy the mount handle.
  *
  * The handle should not be mounted. This should be called on completion of
@@ -304,6 +326,17 @@ int ceph_release(struct ceph_mount_info *cmount);
  * @param cmount the mount handle to shutdown
  */
 void ceph_shutdown(struct ceph_mount_info *cmount);
+
+/**
+ * Get a global id for current instance
+ *
+ * The handle should not be mounted. This should be called on completion of
+ * all libcephfs functions.
+ *
+ * @param cmount the mount handle
+ * @returns instance global id
+ */
+uint64_t ceph_get_instance_id(struct ceph_mount_info *cmount);
 
 /**
  * Extract the CephContext from the mount point handle.
@@ -770,6 +803,56 @@ int ceph_lchown(struct ceph_mount_info *cmount, const char *path, int uid, int g
  * @returns 0 on success or negative error code on failure.
  */
 int ceph_utime(struct ceph_mount_info *cmount, const char *path, struct utimbuf *buf);
+
+/**
+ * Change file/directory last access and modification times.
+ *
+ * @param cmount the ceph mount handle to use for performing the utime.
+ * @param fd the fd of the open file/directory to set the time values of.
+ * @param buf holding the access and modification times to set on the file.
+ * @returns 0 on success or negative error code on failure.
+ */
+int ceph_futime(struct ceph_mount_info *cmount, int fd, struct utimbuf *buf);
+
+/**
+ * Change file/directory last access and modification times.
+ *
+ * @param cmount the ceph mount handle to use for performing the utime.
+ * @param path the path to the file/directory to set the time values of.
+ * @param times holding the access and modification times to set on the file.
+ * @returns 0 on success or negative error code on failure.
+ */
+int ceph_utimes(struct ceph_mount_info *cmount, const char *path, struct timeval times[2]);
+
+/**
+ * Change file/directory last access and modification times, don't follow symlinks.
+ *
+ * @param cmount the ceph mount handle to use for performing the utime.
+ * @param path the path to the file/directory to set the time values of.
+ * @param times holding the access and modification times to set on the file.
+ * @returns 0 on success or negative error code on failure.
+ */
+int ceph_lutimes(struct ceph_mount_info *cmount, const char *path, struct timeval times[2]);
+
+/**
+ * Change file/directory last access and modification times.
+ *
+ * @param cmount the ceph mount handle to use for performing the utime.
+ * @param fd the fd of the open file/directory to set the time values of.
+ * @param times holding the access and modification times to set on the file.
+ * @returns 0 on success or negative error code on failure.
+ */
+int ceph_futimes(struct ceph_mount_info *cmount, int fd, struct timeval times[2]);
+
+/**
+ * Change file/directory last access and modification times.
+ *
+ * @param cmount the ceph mount handle to use for performing the utime.
+ * @param fd the fd of the open file/directory to set the time values of.
+ * @param times holding the access and modification times to set on the file.
+ * @returns 0 on success or negative error code on failure.
+ */
+int ceph_futimens(struct ceph_mount_info *cmount, int fd, struct timespec times[2]);
 
 /**
  * Apply or remove an advisory lock.
@@ -1473,6 +1556,10 @@ int ceph_ll_read(struct ceph_mount_info *cmount, struct Fh* filehandle,
 		 int64_t off, uint64_t len, char* buf);
 int ceph_ll_fsync(struct ceph_mount_info *cmount, struct Fh *fh,
 		  int syncdataonly);
+int ceph_ll_sync_inode(struct ceph_mount_info *cmount, struct Inode *in,
+		  int syncdataonly);
+int ceph_ll_fallocate(struct ceph_mount_info *cmount, struct Fh *fh,
+		      int mode, int64_t offset, int64_t length);
 int ceph_ll_write(struct ceph_mount_info *cmount, struct Fh* filehandle,
 		  int64_t off, uint64_t len, const char *data);
 int64_t ceph_ll_readv(struct ceph_mount_info *cmount, struct Fh *fh,

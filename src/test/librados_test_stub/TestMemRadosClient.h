@@ -29,6 +29,13 @@ public:
     return m_global_id;
   }
 
+  int get_min_compatible_client(int8_t* min_compat_client,
+                                int8_t* require_min_compat_client) override {
+    *min_compat_client = CEPH_RELEASE_MIMIC;
+    *require_min_compat_client = CEPH_RELEASE_MIMIC;
+    return 0;
+  }
+
   void object_list(int64_t pool_id,
                    std::list<librados::TestRadosClient::Object> *list) override;
 
@@ -59,8 +66,10 @@ protected:
   }
 
 protected:
-  void transaction_start(const std::string &oid) override;
-  void transaction_finish(const std::string &oid) override;
+  void transaction_start(const std::string& nspace,
+                         const std::string &oid) override;
+  void transaction_finish(const std::string& nspace,
+                          const std::string &oid) override;
 
 private:
   TestMemCluster *m_mem_cluster;

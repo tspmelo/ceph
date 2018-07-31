@@ -33,6 +33,14 @@ remove_group()
     rbd group remove $group_name
 }
 
+rename_group()
+{
+    local src_name=$1
+    local dest_name=$2
+
+    rbd group rename $src_name $dest_name
+}
+
 check_group_does_not_exist()
 {
     local group_name=$1
@@ -110,6 +118,14 @@ remove_snapshot()
     rbd group snap remove $group_name@$snap_name
 }
 
+rename_snapshot()
+{
+    local group_name=$1
+    local snap_name=$2
+    local new_snap_name=$3
+    rbd group snap rename $group_name@$snap_name $new_snap_name
+}
+
 list_snapshots()
 {
     local group_name=$1
@@ -137,10 +153,13 @@ check_snapshot_not_in_group()
 
 echo "TEST: create remove consistency group"
 group="test_consistency_group"
+new_group="test_new_consistency_group"
 create_group $group
 check_group_exists $group
-remove_group $group
-check_group_does_not_exist $group
+rename_group $group $new_group
+check_group_exists $new_group
+remove_group $new_group
+check_group_does_not_exist $new_group
 echo "PASSED"
 
 echo "TEST: add remove images to consistency group"
@@ -160,13 +179,16 @@ echo "TEST: create remove snapshots of consistency group"
 image="test_image"
 group="test_consistency_group"
 snap="group_snap"
+new_snap="new_group_snap"
 create_image $image
 create_group $group
 add_image_to_group $image $group
 create_snapshot $group $snap
 check_snapshot_in_group $group $snap
-remove_snapshot $group $snap
+rename_snapshot $group $snap $new_snap
 check_snapshot_not_in_group $group $snap
+remove_snapshot $group $new_snap
+check_snapshot_not_in_group $group $new_snap
 remove_group $group
 remove_image $image
 echo "PASSED"

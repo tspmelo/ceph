@@ -27,6 +27,11 @@ namespace rgw {
 namespace auth {
 namespace s3 {
 
+static constexpr auto RGW_AUTH_GRACE = std::chrono::minutes{15};
+
+// returns true if the request time is within RGW_AUTH_GRACE of the current time
+bool is_time_skew_ok(time_t t);
+
 class ExternalAuthStrategy : public rgw::auth::Strategy,
                              public rgw::auth::RemoteApplier::Factory {
   typedef rgw::auth::IdentityApplier::aplptr_t aplptr_t;
@@ -42,7 +47,7 @@ class ExternalAuthStrategy : public rgw::auth::Strategy,
   aplptr_t create_apl_remote(CephContext* const cct,
                              const req_state* const s,
                              rgw::auth::RemoteApplier::acl_strategy_t&& acl_alg,
-                             const rgw::auth::RemoteApplier::AuthInfo info
+                             const rgw::auth::RemoteApplier::AuthInfo &info
                             ) const override {
     auto apl = rgw::auth::add_sysreq(cct, store, s,
       rgw::auth::RemoteApplier(cct, store, std::move(acl_alg), info,
@@ -110,6 +115,42 @@ class AWSAuthStrategy : public rgw::auth::Strategy,
   }
 
 public:
+  using engine_map_t = std::map <std::string, std::reference_wrapper<const Engine>>;
+  void add_engines(const std::vector <std::string>& auth_order,
+		   engine_map_t eng_map)
+  {
+    auto ctrl_flag = Control::SUFFICIENT;
+    for (const auto &eng : auth_order) {
+      // fallback to the last engine, in case of multiple engines, since ctrl
+      // flag is sufficient for others, error from earlier engine is returned
+      if (&eng == &auth_order.back() && eng_map.size() > 1) {
+        ctrl_flag = Control::FALLBACK;
+      }
+      if (const auto kv = eng_map.find(eng);
+          kv != eng_map.end()) {
+        add_engine(ctrl_flag, kv->second);
+      }
+    }
+  }
+
+  auto parse_auth_order(CephContext* const cct)
+  {
+    std::vector <std::string> result;
+
+    const std::set <std::string_view> allowed_auth = { "external", "local" };
+    std::vector <std::string> default_order = { "external", "local"};
+    // supplied strings may contain a space, so let's bypass that
+    boost::split(result, cct->_conf->rgw_s3_auth_order,
+		 boost::is_any_of(", "), boost::token_compress_on);
+
+    if (std::any_of(result.begin(), result.end(),
+		    [allowed_auth](std::string_view s)
+		    { return allowed_auth.find(s) == allowed_auth.end();})){
+      return default_order;
+    }
+    return result;
+  }
+
   AWSAuthStrategy(CephContext* const cct,
                   RGWRados* const store)
     : store(store),
@@ -124,20 +165,17 @@ public:
       add_engine(Control::SUFFICIENT, anonymous_engine);
     }
 
+    auto auth_order = parse_auth_order(cct);
+    engine_map_t engine_map;
     /* The external auth. */
-    Control local_engine_mode;
     if (! external_engines.is_empty()) {
-      add_engine(Control::SUFFICIENT, external_engines);
-
-      local_engine_mode = Control::FALLBACK;
-    } else {
-      local_engine_mode = Control::SUFFICIENT;
+      engine_map.insert(std::make_pair("external", std::cref(external_engines)));
     }
-
     /* The local auth. */
     if (cct->_conf->rgw_s3_auth_use_rados) {
-      add_engine(local_engine_mode, local_engine);
+      engine_map.insert(std::make_pair("local", std::cref(local_engine)));
     }
+    add_engines(auth_order, engine_map);
   }
 
   const char* get_name() const noexcept override {
@@ -172,7 +210,7 @@ class AWSv4ComplMulti : public rgw::auth::Completer,
         signature(signature.to_string()) {
     }
 
-    ChunkMeta(const boost::string_view& signature)
+    explicit ChunkMeta(const boost::string_view& signature)
       : signature(signature.to_string()) {
     }
 
@@ -276,7 +314,7 @@ public:
   /* Defined in rgw_auth_s3.cc because of get_v4_exp_payload_hash(). We need
    * the constructor to be public because of the std::make_shared employed by
    * the create() method. */
-  AWSv4ComplSingle(const req_state* const s);
+  explicit AWSv4ComplSingle(const req_state* const s);
 
   ~AWSv4ComplSingle() {
     if (sha256_hash) {

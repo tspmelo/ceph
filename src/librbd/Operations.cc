@@ -5,7 +5,9 @@
 #include "librbd/Operations.h"
 #include "common/dout.h"
 #include "common/errno.h"
+#include "common/perf_counters.h"
 #include "common/WorkQueue.h"
+#include "osdc/Striper.h"
 
 #include "librbd/ExclusiveLock.h"
 #include "librbd/ImageCtx.h"
@@ -373,7 +375,7 @@ void Operations<I>::execute_flatten(ProgressContext &prog_ctx,
   CephContext *cct = m_image_ctx.cct;
   ldout(cct, 20) << "flatten" << dendl;
 
-  if (m_image_ctx.read_only) {
+  if (m_image_ctx.read_only || m_image_ctx.operations_disabled) {
     on_finish->complete(-EROFS);
     return;
   }
@@ -452,10 +454,11 @@ void Operations<I>::execute_rebuild_object_map(ProgressContext &prog_ctx,
   CephContext *cct = m_image_ctx.cct;
   ldout(cct, 5) << this << " " << __func__ << dendl;
 
-  if (m_image_ctx.read_only) {
+  if (m_image_ctx.read_only || m_image_ctx.operations_disabled) {
     on_finish->complete(-EROFS);
     return;
   }
+
   if (!m_image_ctx.test_features(RBD_FEATURE_OBJECT_MAP)) {
     lderr(cct) << "image must support object-map feature" << dendl;
     on_finish->complete(-EINVAL);
@@ -480,7 +483,9 @@ int Operations<I>::check_object_map(ProgressContext &prog_ctx) {
   r = invoke_async_request("check object map", true,
                            boost::bind(&Operations<I>::check_object_map, this,
                                        boost::ref(prog_ctx), _1),
-			   [] (Context *c) { c->complete(-EOPNOTSUPP); });
+			   [this](Context *c) {
+                             m_image_ctx.op_work_queue->queue(c, -EOPNOTSUPP);
+                           });
 
   return r;
 }
@@ -561,6 +566,11 @@ void Operations<I>::execute_rename(const std::string &dest_name,
   if (m_image_ctx.test_features(RBD_FEATURE_JOURNALING)) {
     assert(m_image_ctx.exclusive_lock == nullptr ||
            m_image_ctx.exclusive_lock->is_lock_owner());
+  }
+
+  if (m_image_ctx.operations_disabled) {
+    on_finish->complete(-EROFS);
+    return;
   }
 
   m_image_ctx.snap_lock.get_read();
@@ -646,7 +656,8 @@ void Operations<I>::execute_resize(uint64_t size, bool allow_shrink, ProgressCon
                 << "size=" << m_image_ctx.size << ", "
                 << "new_size=" << size << dendl;
 
-  if (m_image_ctx.snap_id != CEPH_NOSNAP || m_image_ctx.read_only) {
+  if (m_image_ctx.snap_id != CEPH_NOSNAP || m_image_ctx.read_only ||
+      m_image_ctx.operations_disabled) {
     m_image_ctx.snap_lock.put_read();
     on_finish->complete(-EROFS);
     return;
@@ -734,6 +745,11 @@ void Operations<I>::execute_snap_create(const cls::rbd::SnapshotNamespace &snap_
   ldout(cct, 5) << this << " " << __func__ << ": snap_name=" << snap_name
                 << dendl;
 
+  if (m_image_ctx.operations_disabled) {
+    on_finish->complete(-EROFS);
+    return;
+  }
+
   m_image_ctx.snap_lock.get_read();
   if (m_image_ctx.get_snap_id(snap_namespace, snap_name) != CEPH_NOSNAP) {
     m_image_ctx.snap_lock.put_read();
@@ -808,6 +824,11 @@ void Operations<I>::execute_snap_rollback(const cls::rbd::SnapshotNamespace& sna
   CephContext *cct = m_image_ctx.cct;
   ldout(cct, 5) << this << " " << __func__ << ": snap_name=" << snap_name
                 << dendl;
+
+  if (m_image_ctx.operations_disabled) {
+    on_finish->complete(-EROFS);
+    return;
+  }
 
   m_image_ctx.snap_lock.get_read();
   uint64_t snap_id = m_image_ctx.get_snap_id(snap_namespace, snap_name);
@@ -908,6 +929,11 @@ void Operations<I>::execute_snap_remove(const cls::rbd::SnapshotNamespace& snap_
   ldout(cct, 5) << this << " " << __func__ << ": snap_name=" << snap_name
                 << dendl;
 
+  if (m_image_ctx.operations_disabled) {
+    on_finish->complete(-EROFS);
+    return;
+  }
+
   m_image_ctx.snap_lock.get_read();
   uint64_t snap_id = m_image_ctx.get_snap_id(snap_namespace, snap_name);
   if (snap_id == CEPH_NOSNAP) {
@@ -1002,6 +1028,11 @@ void Operations<I>::execute_snap_rename(const uint64_t src_snap_id,
            m_image_ctx.exclusive_lock->is_lock_owner());
   }
 
+  if (m_image_ctx.operations_disabled) {
+    on_finish->complete(-EROFS);
+    return;
+  }
+
   m_image_ctx.snap_lock.get_read();
   if (m_image_ctx.get_snap_id(cls::rbd::UserSnapshotNamespace(),
 			      dest_snap_name) != CEPH_NOSNAP) {
@@ -1094,6 +1125,11 @@ void Operations<I>::execute_snap_protect(const cls::rbd::SnapshotNamespace& snap
            m_image_ctx.exclusive_lock->is_lock_owner());
   }
 
+  if (m_image_ctx.operations_disabled) {
+    on_finish->complete(-EROFS);
+    return;
+  }
+
   m_image_ctx.snap_lock.get_read();
   bool is_protected;
   int r = m_image_ctx.is_snap_protected(m_image_ctx.get_snap_id(snap_namespace, snap_name),
@@ -1182,6 +1218,11 @@ void Operations<I>::execute_snap_unprotect(const cls::rbd::SnapshotNamespace& sn
   if (m_image_ctx.test_features(RBD_FEATURE_JOURNALING)) {
     assert(m_image_ctx.exclusive_lock == nullptr ||
            m_image_ctx.exclusive_lock->is_lock_owner());
+  }
+
+  if (m_image_ctx.operations_disabled) {
+    on_finish->complete(-EROFS);
+    return;
   }
 
   m_image_ctx.snap_lock.get_read();
@@ -1277,6 +1318,17 @@ int Operations<I>::update_features(uint64_t features, bool enabled) {
     lderr(cct) << "cannot update immutable features" << dendl;
     return -EINVAL;
   }
+
+  bool set_object_map = (features & RBD_FEATURE_OBJECT_MAP) == RBD_FEATURE_OBJECT_MAP;
+  bool set_fast_diff = (features & RBD_FEATURE_FAST_DIFF) == RBD_FEATURE_FAST_DIFF;
+  bool exist_fast_diff = (m_image_ctx.features & RBD_FEATURE_FAST_DIFF) != 0;
+  bool exist_object_map = (m_image_ctx.features & RBD_FEATURE_OBJECT_MAP) != 0;
+
+  if ((enabled && ((set_object_map && !exist_fast_diff) || (set_fast_diff && !exist_object_map)))
+      || (!enabled && (set_object_map && exist_fast_diff))) {
+    features |= (RBD_FEATURE_OBJECT_MAP | RBD_FEATURE_FAST_DIFF);
+  }
+
   if (features == 0) {
     lderr(cct) << "update requires at least one feature" << dendl;
     return -EINVAL;
@@ -1333,6 +1385,11 @@ void Operations<I>::execute_update_features(uint64_t features, bool enabled,
   ldout(cct, 5) << this << " " << __func__ << ": features=" << features
                 << ", enabled=" << enabled << dendl;
 
+  if (m_image_ctx.operations_disabled) {
+    on_finish->complete(-EROFS);
+    return;
+  }
+
   if (enabled) {
     operation::EnableFeaturesRequest<I> *req =
       new operation::EnableFeaturesRequest<I>(
@@ -1357,7 +1414,7 @@ int Operations<I>::metadata_set(const std::string &key,
   bool config_override = util::is_metadata_config_override(key, &config_key);
   if (config_override) {
     // validate config setting
-    int r = md_config_t().set_val(config_key.c_str(), value);
+    int r = ConfigProxy{false}.set_val(config_key.c_str(), value);
     if (r < 0) {
       return r;
     }
@@ -1401,6 +1458,11 @@ void Operations<I>::execute_metadata_set(const std::string &key,
   CephContext *cct = m_image_ctx.cct;
   ldout(cct, 5) << this << " " << __func__ << ": key=" << key << ", value="
                 << value << dendl;
+
+  if (m_image_ctx.operations_disabled) {
+    on_finish->complete(-EROFS);
+    return;
+  }
 
   operation::MetadataSetRequest<I> *request =
     new operation::MetadataSetRequest<I>(m_image_ctx,
@@ -1461,6 +1523,11 @@ void Operations<I>::execute_metadata_remove(const std::string &key,
 
   CephContext *cct = m_image_ctx.cct;
   ldout(cct, 5) << this << " " << __func__ << ": key=" << key << dendl;
+
+  if (m_image_ctx.operations_disabled) {
+    on_finish->complete(-EROFS);
+    return;
+  }
 
   operation::MetadataRemoveRequest<I> *request =
     new operation::MetadataRemoveRequest<I>(

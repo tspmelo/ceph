@@ -14,6 +14,7 @@ set(librbd_test
   journal/test_Entries.cc
   journal/test_Replay.cc)
 add_library(rbd_test STATIC ${librbd_test})
+target_link_libraries(rbd_test PRIVATE Boost::thread)
 set_target_properties(rbd_test PROPERTIES COMPILE_FLAGS ${UNITTEST_CXX_FLAGS})
 
 set(librbd_test_mock_srcs
@@ -44,6 +45,7 @@ set(unittest_librbd_srcs
   exclusive_lock/test_mock_PostAcquireRequest.cc
   exclusive_lock/test_mock_PreReleaseRequest.cc
   image/test_mock_CloneRequest.cc
+  image/test_mock_DetachChildRequest.cc
   image/test_mock_RefreshRequest.cc
   image/test_mock_RemoveRequest.cc
   io/test_mock_ImageRequest.cc

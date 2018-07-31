@@ -41,7 +41,7 @@ void PurgeItem::encode(bufferlist &bl) const
   ENCODE_FINISH(bl);
 }
 
-void PurgeItem::decode(bufferlist::iterator &p)
+void PurgeItem::decode(bufferlist::const_iterator &p)
 {
   DECODE_START(1, p);
   decode((uint8_t&)action, p);
@@ -252,7 +252,7 @@ void PurgeQueue::create(Context *fin)
  */
 void PurgeQueue::push(const PurgeItem &pi, Context *completion)
 {
-  dout(4) << "pushing inode 0x" << std::hex << pi.ino << std::dec << dendl;
+  dout(4) << "pushing inode " << pi.ino << dendl;
   Mutex::Locker l(lock);
 
   // Callers should have waited for open() before using us
@@ -279,7 +279,7 @@ void PurgeQueue::push(const PurgeItem &pi, Context *completion)
           });
 
       timer.add_event_after(
-          g_conf->mds_purge_queue_busy_flush_period,
+	  g_conf()->mds_purge_queue_busy_flush_period,
           delayed_flush);
     }
   }
@@ -301,7 +301,7 @@ uint32_t PurgeQueue::_calculate_ops(const PurgeItem &item) const
     const uint64_t num = (item.size > 0) ?
       Striper::get_num_objects(item.layout, item.size) : 1;
 
-    ops_required = std::min(num, g_conf->filer_max_purge_ops);
+    ops_required = std::min(num, g_conf()->filer_max_purge_ops);
 
     // Account for removing (or zeroing) backtrace
     ops_required += 1;
@@ -318,7 +318,7 @@ uint32_t PurgeQueue::_calculate_ops(const PurgeItem &item) const
 bool PurgeQueue::can_consume()
 {
   dout(20) << ops_in_flight << "/" << max_purge_ops << " ops, "
-           << in_flight.size() << "/" << g_conf->mds_max_purge_files
+           << in_flight.size() << "/" << g_conf()->mds_max_purge_files
            << " files" << dendl;
 
   if (in_flight.size() == 0 && cct->_conf->mds_max_purge_files > 0) {
@@ -350,7 +350,6 @@ bool PurgeQueue::_consume()
 
   bool could_consume = false;
   while(can_consume()) {
-    could_consume = true;
 
     if (delayed_flush) {
       // We are now going to read from the journal, so any proactive
@@ -358,6 +357,12 @@ bool PurgeQueue::_consume()
       // but it can avoid generating extra fragmented flush IOs.
       timer.cancel_event(delayed_flush);
       delayed_flush = nullptr;
+    }
+
+    if (int r = journaler.get_error()) {
+      derr << "Error " << r << " recovering write_pos" << dendl;
+      on_error->complete(r);
+      return could_consume;
     }
 
     if (!journaler.is_readable()) {
@@ -369,6 +374,8 @@ bool PurgeQueue::_consume()
           Mutex::Locker l(lock);
           if (r == 0) {
             _consume();
+          } else if (r != -EAGAIN) {
+            on_error->complete(r);
           }
         }));
       }
@@ -376,6 +383,7 @@ bool PurgeQueue::_consume()
       return could_consume;
     }
 
+    could_consume = true;
     // The journaler is readable: consume an entry
     bufferlist bl;
     bool readable = journaler.try_read_entry(bl);
@@ -383,7 +391,7 @@ bool PurgeQueue::_consume()
 
     dout(20) << " decoding entry" << dendl;
     PurgeItem item;
-    bufferlist::iterator q = bl.begin();
+    auto q = bl.cbegin();
     try {
       decode(item, q);
     } catch (const buffer::error &err) {
@@ -391,8 +399,7 @@ bool PurgeQueue::_consume()
            << journaler.get_read_pos() << dendl;
       on_error->complete(0);
     }
-    dout(20) << " executing item (0x" << std::hex << item.ino
-             << std::dec << ")" << dendl;
+    dout(20) << " executing item (" << item.ino << ")" << dendl;
     _execute_item(item, journaler.get_read_pos());
   }
 
@@ -514,21 +521,36 @@ void PurgeQueue::_execute_item_complete(
   auto iter = in_flight.find(expire_to);
   assert(iter != in_flight.end());
   if (iter == in_flight.begin()) {
-    // This was the lowest journal position in flight, so we can now
-    // safely expire the journal up to here.
-    dout(10) << "expiring to 0x" << std::hex << expire_to << std::dec << dendl;
-    journaler.set_expire_pos(expire_to);
+    uint64_t pos = expire_to;
+    if (!pending_expire.empty()) {
+      auto n = iter;
+      ++n;
+      if (n == in_flight.end()) {
+	pos = *pending_expire.rbegin();
+	pending_expire.clear();
+      } else {
+	auto p = pending_expire.begin();
+	do {
+	  if (*p >= n->first)
+	    break;
+	  pos = *p;
+	  pending_expire.erase(p++);
+	} while (p != pending_expire.end());
+      }
+    }
+    dout(10) << "expiring to 0x" << std::hex << pos << std::dec << dendl;
+    journaler.set_expire_pos(pos);
   } else {
     // This is completely fine, we're not supposed to purge files in
     // order when doing them in parallel.
     dout(10) << "non-sequential completion, not expiring anything" << dendl;
+    pending_expire.insert(expire_to);
   }
 
   ops_in_flight -= _calculate_ops(iter->second);
   logger->set(l_pq_executing_ops, ops_in_flight);
 
-  dout(10) << "completed item for ino 0x" << std::hex << iter->second.ino
-           << std::dec << dendl;
+  dout(10) << "completed item for ino " << iter->second.ino << dendl;
 
   in_flight.erase(iter);
   logger->set(l_pq_executing, in_flight.size());
@@ -568,7 +590,7 @@ void PurgeQueue::update_op_limit(const MDSMap &mds_map)
   }
 }
 
-void PurgeQueue::handle_conf_change(const struct md_config_t *conf,
+void PurgeQueue::handle_conf_change(const ConfigProxy& conf,
 			     const std::set <std::string> &changed,
                              const MDSMap &mds_map)
 {
@@ -577,7 +599,6 @@ void PurgeQueue::handle_conf_change(const struct md_config_t *conf,
     update_op_limit(mds_map);
   } else if (changed.count("mds_max_purge_files")) {
     Mutex::Locker l(lock);
-
     if (in_flight.empty()) {
       // We might have gone from zero to a finite limit, so
       // might need to kick off consume.

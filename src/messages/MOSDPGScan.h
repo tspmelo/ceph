@@ -52,7 +52,7 @@ public:
   }
 
   void decode_payload() override {
-    bufferlist::iterator p = payload.begin();
+    auto p = payload.cbegin();
     decode(op, p);
     decode(map_epoch, p);
     decode(query_epoch, p);
@@ -74,7 +74,12 @@ public:
     using ceph::encode;
     encode(op, payload);
     encode(map_epoch, payload);
-    encode(query_epoch, payload);
+    if (!HAVE_FEATURE(features, SERVER_NAUTILUS)) {
+      // pre-nautilus OSDs do not set last_peering_reset properly
+      encode(map_epoch, payload);
+    } else {
+      encode(query_epoch, payload);
+    }
     encode(pgid.pgid, payload);
     encode(begin, payload);
     encode(end, payload);
@@ -88,7 +93,7 @@ public:
 	     epoch_t e, epoch_t qe, spg_t p, hobject_t be, hobject_t en)
     : MOSDFastDispatchOp(MSG_OSD_PG_SCAN, HEAD_VERSION, COMPAT_VERSION),
       op(o),
-      map_epoch(e), query_epoch(e),
+      map_epoch(e), query_epoch(qe),
       from(from),
       pgid(p),
       begin(be), end(en) {

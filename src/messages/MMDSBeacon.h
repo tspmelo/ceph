@@ -15,6 +15,8 @@
 #ifndef CEPH_MMDSBEACON_H
 #define CEPH_MMDSBEACON_H
 
+#include <string_view>
+
 #include "messages/PaxosServiceMessage.h"
 
 #include "include/types.h"
@@ -40,7 +42,8 @@ enum mds_metric_t {
   MDS_HEALTH_DAMAGE,
   MDS_HEALTH_READ_ONLY,
   MDS_HEALTH_SLOW_REQUEST,
-  MDS_HEALTH_CACHE_OVERSIZED
+  MDS_HEALTH_CACHE_OVERSIZED,
+  MDS_HEALTH_SLOW_METADATA_IO,
 };
 
 inline const char *mds_metric_name(mds_metric_t m)
@@ -57,6 +60,7 @@ inline const char *mds_metric_name(mds_metric_t m)
   case MDS_HEALTH_READ_ONLY: return "MDS_READ_ONLY";
   case MDS_HEALTH_SLOW_REQUEST: return "MDS_SLOW_REQUEST";
   case MDS_HEALTH_CACHE_OVERSIZED: return "MDS_CACHE_OVERSIZED";
+  case MDS_HEALTH_SLOW_METADATA_IO: return "MDS_SLOW_METADATA_IO";
   default:
     return "???";
   }
@@ -88,6 +92,8 @@ inline const char *mds_metric_summary(mds_metric_t m)
     return "%num% MDSs report slow requests";
   case MDS_HEALTH_CACHE_OVERSIZED:
     return "%num% MDSs report oversized cache";
+  case MDS_HEALTH_SLOW_METADATA_IO:
+    return "%num% MDSs report slow metadata IOs";
   default:
     return "???";
   }
@@ -122,7 +128,7 @@ struct MDSHealthMetric
     ENCODE_FINISH(bl);
   }
 
-  void decode(bufferlist::iterator& bl) {
+  void decode(bufferlist::const_iterator& bl) {
     DECODE_START(1, bl);
     decode((uint16_t&)type, bl);
     assert(type != MDS_HEALTH_NULL);
@@ -138,7 +144,7 @@ struct MDSHealthMetric
   }
 
   MDSHealthMetric() : type(MDS_HEALTH_NULL), sev(HEALTH_OK) {}
-  MDSHealthMetric(mds_metric_t type_, health_status_t sev_, std::string const &message_)
+  MDSHealthMetric(mds_metric_t type_, health_status_t sev_, std::string_view message_)
     : type(type_), sev(sev_), message(message_) {}
 };
 WRITE_CLASS_ENCODER(MDSHealthMetric)
@@ -158,7 +164,7 @@ struct MDSHealth
     ENCODE_FINISH(bl);
   }
 
-  void decode(bufferlist::iterator& bl) {
+  void decode(bufferlist::const_iterator& bl) {
     DECODE_START(1, bl);
     decode(metrics, bl);
     DECODE_FINISH(bl);
@@ -268,7 +274,7 @@ public:
   }
   void decode_payload() override {
     using ceph::decode;
-    bufferlist::iterator p = payload.begin();
+    auto p = payload.cbegin();
     paxos_decode(p);
     decode(fsid, p);
     decode(global_id, p);

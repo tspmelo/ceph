@@ -67,7 +67,7 @@ void LogSegment::try_to_expire(MDSRank *mds, MDSGatherBuilder &gather_bld, int o
 
   dout(6) << "LogSegment(" << seq << "/" << offset << ").try_to_expire" << dendl;
 
-  assert(g_conf->mds_kill_journal_expire_at != 1);
+  assert(g_conf()->mds_kill_journal_expire_at != 1);
 
   // commit dirs
   for (elist<CDir*>::iterator p = new_dirfrags.begin(); !p.end(); ++p) {
@@ -143,7 +143,7 @@ void LogSegment::try_to_expire(MDSRank *mds, MDSGatherBuilder &gather_bld, int o
     mds->locker->scatter_nudge(&in->nestlock, gather_bld.new_sub());
   }
 
-  assert(g_conf->mds_kill_journal_expire_at != 2);
+  assert(g_conf()->mds_kill_journal_expire_at != 2);
 
   // open files and snap inodes 
   if (!open_files.empty()) {
@@ -155,22 +155,7 @@ void LogSegment::try_to_expire(MDSRank *mds, MDSGatherBuilder &gather_bld, int o
     while (!p.end()) {
       CInode *in = *p;
       ++p;
-      if (in->last == CEPH_NOSNAP && in->is_auth() &&
-	  !in->is_ambiguous_auth() && in->is_any_caps()) {
-	if (in->is_any_caps_wanted()) {
-	  dout(20) << "try_to_expire requeueing open file " << *in << dendl;
-	  if (!le) {
-	    le = new EOpen(mds->mdlog);
-	    mds->mdlog->start_entry(le);
-	  }
-	  le->add_clean_inode(in);
-	  ls->open_files.push_back(&in->item_open_file);
-	} else {
-	  // drop inodes that aren't wanted
-	  dout(20) << "try_to_expire not requeueing and delisting unwanted file " << *in << dendl;
-	  in->item_open_file.remove_myself();
-	}
-      } else if (in->last != CEPH_NOSNAP && !in->client_snap_caps.empty()) {
+      if (in->last != CEPH_NOSNAP && in->is_auth() && !in->client_snap_caps.empty()) {
 	// journal snap inodes that need flush. This simplify the mds failover hanlding
 	dout(20) << "try_to_expire requeueing snap needflush inode " << *in << dendl;
 	if (!le) {
@@ -180,16 +165,7 @@ void LogSegment::try_to_expire(MDSRank *mds, MDSGatherBuilder &gather_bld, int o
 	le->add_clean_inode(in);
 	ls->open_files.push_back(&in->item_open_file);
       } else {
-	/*
-	 * we can get a capless inode here if we replay an open file, the client fails to
-	 * reconnect it, but does REPLAY an open request (that adds it to the logseg).  AFAICS
-	 * it's ok for the client to replay an open on a file it doesn't have in it's cache
-	 * anymore.
-	 *
-	 * this makes the mds less sensitive to strict open_file consistency, although it does
-	 * make it easier to miss subtle problems.
-	 */
-	dout(20) << "try_to_expire not requeueing and delisting capless file " << *in << dendl;
+	// open files are tracked by open file table, no need to journal them again
 	in->item_open_file.remove_myself();
       }
     }
@@ -200,7 +176,7 @@ void LogSegment::try_to_expire(MDSRank *mds, MDSGatherBuilder &gather_bld, int o
     }
   }
 
-  assert(g_conf->mds_kill_journal_expire_at != 3);
+  assert(g_conf()->mds_kill_journal_expire_at != 3);
 
   // backtraces to be stored/updated
   for (elist<CInode*>::iterator p = dirty_parent_inodes.begin(); !p.end(); ++p) {
@@ -215,7 +191,7 @@ void LogSegment::try_to_expire(MDSRank *mds, MDSGatherBuilder &gather_bld, int o
     }
   }
 
-  assert(g_conf->mds_kill_journal_expire_at != 4);
+  assert(g_conf()->mds_kill_journal_expire_at != 4);
 
   // slave updates
   for (elist<MDSlaveUpdate*>::iterator p = slave_updates.begin(member_offset(MDSlaveUpdate,
@@ -290,7 +266,7 @@ void LogSegment::try_to_expire(MDSRank *mds, MDSGatherBuilder &gather_bld, int o
     dout(6) << "LogSegment(" << seq << "/" << offset << ").try_to_expire waiting" << dendl;
     mds->mdlog->flush();
   } else {
-    assert(g_conf->mds_kill_journal_expire_at != 5);
+    assert(g_conf()->mds_kill_journal_expire_at != 5);
     dout(6) << "LogSegment(" << seq << "/" << offset << ").try_to_expire success" << dendl;
   }
 }
@@ -441,7 +417,7 @@ void EMetaBlob::fullbit::encode(bufferlist& bl, uint64_t features) const {
   ENCODE_FINISH(bl);
 }
 
-void EMetaBlob::fullbit::decode(bufferlist::iterator &bl) {
+void EMetaBlob::fullbit::decode(bufferlist::const_iterator &bl) {
   DECODE_START_LEGACY_COMPAT_LEN(7, 5, 5, bl);
   decode(dn, bl);
   decode(dnfirst, bl);
@@ -501,10 +477,9 @@ void EMetaBlob::fullbit::dump(Formatter *f) const
   inode.dump(f);
   f->close_section(); // inode
   f->open_object_section("xattrs");
-  for (map<string, bufferptr>::const_iterator iter = xattrs.begin();
-      iter != xattrs.end(); ++iter) {
-    string s(iter->second.c_str(), iter->second.length());
-    f->dump_string(iter->first.c_str(), s);
+  for (const auto &p : xattrs) {
+    std::string s(p.second.c_str(), p.second.length());
+    f->dump_string(p.first.c_str(), s);
   }
   f->close_section(); // xattrs
   if (inode.is_symlink()) {
@@ -523,12 +498,10 @@ void EMetaBlob::fullbit::dump(Formatter *f) const
   f->dump_string("state", state_string());
   if (!old_inodes.empty()) {
     f->open_array_section("old inodes");
-    for (old_inodes_t::const_iterator iter = old_inodes.begin();
-	 iter != old_inodes.end();
-	 ++iter) {
+    for (const auto &p : old_inodes) {
       f->open_object_section("inode");
-      f->dump_int("snapid", iter->first);
-      iter->second.dump(f);
+      f->dump_int("snapid", p.first);
+      p.second.dump(f);
       f->close_section(); // inode
     }
     f->close_section(); // old inodes
@@ -537,9 +510,9 @@ void EMetaBlob::fullbit::dump(Formatter *f) const
 
 void EMetaBlob::fullbit::generate_test_instances(list<EMetaBlob::fullbit*>& ls)
 {
-  inode_t inode;
+  CInode::mempool_inode inode;
   fragtree_t fragtree;
-  map<string,bufferptr> empty_xattrs;
+  CInode::mempool_xattr_map empty_xattrs;
   bufferlist empty_snapbl;
   fullbit *sample = new fullbit("/testdn", 0, 0, 0,
                                 inode, fragtree, empty_xattrs, "", 0, empty_snapbl,
@@ -600,8 +573,7 @@ void EMetaBlob::fullbit::update_inode(MDSRank *mds, CInode *in)
       dout(0) << "EMetaBlob.replay invalid layout on ino " << *in
               << ": " << in->inode.layout << dendl;
       std::ostringstream oss;
-      oss << "Invalid layout for inode 0x" << std::hex << in->inode.ino
-          << std::dec << " in journal";
+      oss << "Invalid layout for inode " << in->ino() << " in journal";
       mds->clog->error() << oss.str();
       mds->damaged();
       ceph_abort();  // Should be unreachable because damaged() calls respawn()
@@ -624,7 +596,7 @@ void EMetaBlob::remotebit::encode(bufferlist& bl) const
   ENCODE_FINISH(bl);
 }
 
-void EMetaBlob::remotebit::decode(bufferlist::iterator &bl)
+void EMetaBlob::remotebit::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(2, 2, 2, bl);
   decode(dn, bl);
@@ -688,7 +660,7 @@ void EMetaBlob::nullbit::encode(bufferlist& bl) const
   ENCODE_FINISH(bl);
 }
 
-void EMetaBlob::nullbit::decode(bufferlist::iterator &bl)
+void EMetaBlob::nullbit::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(2, 2, 2, bl);
   decode(dn, bl);
@@ -731,7 +703,7 @@ void EMetaBlob::dirlump::encode(bufferlist& bl, uint64_t features) const
   ENCODE_FINISH(bl);
 }
 
-void EMetaBlob::dirlump::decode(bufferlist::iterator &bl)
+void EMetaBlob::dirlump::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(2, 2, 2, bl)
   decode(fnode, bl);
@@ -759,7 +731,7 @@ void EMetaBlob::dirlump::dump(Formatter *f) const
   f->dump_int("nnull", nnull);
 
   f->open_array_section("full bits");
-  for (list<ceph::shared_ptr<fullbit> >::const_iterator
+  for (list<std::shared_ptr<fullbit> >::const_iterator
       iter = dfull.begin(); iter != dfull.end(); ++iter) {
     f->open_object_section("fullbit");
     (*iter)->dump(f);
@@ -822,7 +794,7 @@ void EMetaBlob::encode(bufferlist& bl, uint64_t features) const
   encode(client_flushes, bl);
   ENCODE_FINISH(bl);
 }
-void EMetaBlob::decode(bufferlist::iterator &bl)
+void EMetaBlob::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(7, 5, 5, bl);
   decode(lump_order, bl);
@@ -833,8 +805,8 @@ void EMetaBlob::decode(bufferlist::iterator &bl)
     bufferlist rootbl;
     decode(rootbl, bl);
     if (rootbl.length()) {
-      bufferlist::iterator p = rootbl.begin();
-      roots.push_back(ceph::shared_ptr<fullbit>(new fullbit(p)));
+      auto p = rootbl.cbegin();
+      roots.push_back(std::shared_ptr<fullbit>(new fullbit(p)));
     }
   }
   decode(table_tids, bl);
@@ -894,8 +866,8 @@ void EMetaBlob::get_inodes(
     dl._decode_bits();
 
     // Record inodes of fullbits
-    list<ceph::shared_ptr<fullbit> > const &fb_list = dl.get_dfull();
-    for (list<ceph::shared_ptr<fullbit> >::const_iterator
+    list<std::shared_ptr<fullbit> > const &fb_list = dl.get_dfull();
+    for (list<std::shared_ptr<fullbit> >::const_iterator
         iter = fb_list.begin(); iter != fb_list.end(); ++iter) {
       inodes.insert((*iter)->inode.ino);
     }
@@ -922,12 +894,12 @@ void EMetaBlob::get_dentries(std::map<dirfrag_t, std::set<std::string> > &dentri
 
     // Get all bits
     dl._decode_bits();
-    list<ceph::shared_ptr<fullbit> > const &fb_list = dl.get_dfull();
+    list<std::shared_ptr<fullbit> > const &fb_list = dl.get_dfull();
     list<nullbit> const &nb_list = dl.get_dnull();
     list<remotebit> const &rb_list = dl.get_dremote();
 
     // For all bits, store dentry
-    for (list<ceph::shared_ptr<fullbit> >::const_iterator
+    for (list<std::shared_ptr<fullbit> >::const_iterator
         iter = fb_list.begin(); iter != fb_list.end(); ++iter) {
       dentries[df].insert((*iter)->dn);
 
@@ -978,27 +950,27 @@ void EMetaBlob::get_paths(
     dirlump const &dl = i->second;
     dl._decode_bits();
 
-    list<ceph::shared_ptr<fullbit> > const &fb_list = dl.get_dfull();
+    list<std::shared_ptr<fullbit> > const &fb_list = dl.get_dfull();
     list<nullbit> const &nb_list = dl.get_dnull();
     list<remotebit> const &rb_list = dl.get_dremote();
 
-    for (list<ceph::shared_ptr<fullbit> >::const_iterator
+    for (list<std::shared_ptr<fullbit> >::const_iterator
         iter = fb_list.begin(); iter != fb_list.end(); ++iter) {
-      std::string const &dentry = (*iter)->dn;
-      children[dir_ino].push_back(dentry);
+      std::string_view dentry = (*iter)->dn;
+      children[dir_ino].emplace_back(dentry);
       ino_locations[(*iter)->inode.ino] = Location(dir_ino, dentry);
     }
 
     for (list<nullbit>::const_iterator
 	iter = nb_list.begin(); iter != nb_list.end(); ++iter) {
-      std::string const &dentry = iter->dn;
-      children[dir_ino].push_back(dentry);
+      std::string_view dentry = iter->dn;
+      children[dir_ino].emplace_back(dentry);
     }
 
     for (list<remotebit>::const_iterator
 	iter = rb_list.begin(); iter != rb_list.end(); ++iter) {
-      std::string const &dentry = iter->dn;
-      children[dir_ino].push_back(dentry);
+      std::string_view dentry = iter->dn;
+      children[dir_ino].emplace_back(dentry);
     }
   }
 
@@ -1012,10 +984,10 @@ void EMetaBlob::get_paths(
     dirlump const &dl = i->second;
     dl._decode_bits();
 
-    list<ceph::shared_ptr<fullbit> > const &fb_list = dl.get_dfull();
-    for (list<ceph::shared_ptr<fullbit> >::const_iterator
+    list<std::shared_ptr<fullbit> > const &fb_list = dl.get_dfull();
+    for (list<std::shared_ptr<fullbit> >::const_iterator
         iter = fb_list.begin(); iter != fb_list.end(); ++iter) {
-      std::string const &dentry = (*iter)->dn;
+      std::string_view dentry = (*iter)->dn;
       if (children.find((*iter)->inode.ino) == children.end()) {
         leaf_locations.push_back(Location(dir_ino, dentry));
       }
@@ -1024,14 +996,14 @@ void EMetaBlob::get_paths(
     list<nullbit> const &nb_list = dl.get_dnull();
     for (list<nullbit>::const_iterator
 	iter = nb_list.begin(); iter != nb_list.end(); ++iter) {
-      std::string const &dentry = iter->dn;
+      std::string_view dentry = iter->dn;
       leaf_locations.push_back(Location(dir_ino, dentry));
     }
 
     list<remotebit> const &rb_list = dl.get_dremote();
     for (list<remotebit>::const_iterator
 	iter = rb_list.begin(); iter != rb_list.end(); ++iter) {
-      std::string const &dentry = iter->dn;
+      std::string_view dentry = iter->dn;
       leaf_locations.push_back(Location(dir_ino, dentry));
     }
   }
@@ -1074,7 +1046,7 @@ void EMetaBlob::dump(Formatter *f) const
   f->close_section(); // lumps
   
   f->open_array_section("roots");
-  for (list<ceph::shared_ptr<fullbit> >::const_iterator i = roots.begin();
+  for (list<std::shared_ptr<fullbit> >::const_iterator i = roots.begin();
        i != roots.end(); ++i) {
     f->open_object_section("root");
     (*i)->dump(f);
@@ -1157,9 +1129,9 @@ void EMetaBlob::replay(MDSRank *mds, LogSegment *logseg, MDSlaveUpdate *slaveup)
 
   assert(logseg);
 
-  assert(g_conf->mds_kill_journal_replay_at != 1);
+  assert(g_conf()->mds_kill_journal_replay_at != 1);
 
-  for (list<ceph::shared_ptr<fullbit> >::iterator p = roots.begin(); p != roots.end(); ++p) {
+  for (list<std::shared_ptr<fullbit> >::iterator p = roots.begin(); p != roots.end(); ++p) {
     CInode *in = mds->mdcache->get_inode((*p)->inode.ino);
     bool isnew = in ? false:true;
     if (!in)
@@ -1272,10 +1244,10 @@ void EMetaBlob::replay(MDSRank *mds, LogSegment *logseg, MDSlaveUpdate *slaveup)
     lump._decode_bits();
 
     // full dentry+inode pairs
-    for (list<ceph::shared_ptr<fullbit> >::const_iterator pp = lump.get_dfull().begin();
+    for (list<std::shared_ptr<fullbit> >::const_iterator pp = lump.get_dfull().begin();
 	 pp != lump.get_dfull().end();
 	 ++pp) {
-      ceph::shared_ptr<fullbit> p = *pp;
+      std::shared_ptr<fullbit> p = *pp;
       CDentry *dn = dir->lookup_exact_snap(p->dn, p->dnlast);
       if (!dn) {
 	dn = dir->add_null_dentry(p->dn, p->dnfirst, p->dnlast);
@@ -1345,14 +1317,14 @@ void EMetaBlob::replay(MDSRank *mds, LogSegment *logseg, MDSlaveUpdate *slaveup)
       if (p->is_dirty())
 	in->_mark_dirty(logseg);
       if (p->is_dirty_parent())
-	in->_mark_dirty_parent(logseg, p->is_dirty_pool());
+	in->mark_dirty_parent(logseg, p->is_dirty_pool());
       if (p->need_snapflush())
 	logseg->open_files.push_back(&in->item_open_file);
       if (dn->is_auth())
 	in->state_set(CInode::STATE_AUTH);
       else
 	in->state_clear(CInode::STATE_AUTH);
-      assert(g_conf->mds_kill_journal_replay_at != 2);
+      assert(g_conf()->mds_kill_journal_replay_at != 2);
     }
 
     // remote dentries
@@ -1426,7 +1398,7 @@ void EMetaBlob::replay(MDSRank *mds, LogSegment *logseg, MDSlaveUpdate *slaveup)
     }
   }
 
-  assert(g_conf->mds_kill_journal_replay_at != 3);
+  assert(g_conf()->mds_kill_journal_replay_at != 3);
 
   if (renamed_dirino) {
     if (renamed_diri) {
@@ -1597,7 +1569,7 @@ void EMetaBlob::replay(MDSRank *mds, LogSegment *logseg, MDSlaveUpdate *slaveup)
     } else {
       mds->clog->error() << "journal replay sessionmap v " << sessionmapv
 			<< " -(1|2) > table " << mds->sessionmap.get_version();
-      assert(g_conf->mds_wipe_sessions);
+      assert(g_conf()->mds_wipe_sessions);
       mds->sessionmap.wipe();
       mds->sessionmap.set_version(sessionmapv);
     }
@@ -1623,21 +1595,24 @@ void EMetaBlob::replay(MDSRank *mds, LogSegment *logseg, MDSlaveUpdate *slaveup)
   }
 
   // destroyed inodes
-  for (vector<inodeno_t>::iterator p = destroyed_inodes.begin();
-       p != destroyed_inodes.end();
-       ++p) {
-    CInode *in = mds->mdcache->get_inode(*p);
-    if (in) {
-      dout(10) << "EMetaBlob.replay destroyed " << *p << ", dropping " << *in << dendl;
-      CDentry *parent = in->get_parent_dn();
-      mds->mdcache->remove_inode(in);
-      if (parent) {
-        dout(10) << "EMetaBlob.replay unlinked from dentry " << *parent << dendl;
-        assert(parent->get_linkage()->is_null());
+  if (!destroyed_inodes.empty()) {
+    for (vector<inodeno_t>::iterator p = destroyed_inodes.begin();
+	p != destroyed_inodes.end();
+	++p) {
+      CInode *in = mds->mdcache->get_inode(*p);
+      if (in) {
+	dout(10) << "EMetaBlob.replay destroyed " << *p << ", dropping " << *in << dendl;
+	CDentry *parent = in->get_parent_dn();
+	mds->mdcache->remove_inode(in);
+	if (parent) {
+	  dout(10) << "EMetaBlob.replay unlinked from dentry " << *parent << dendl;
+	  assert(parent->get_linkage()->is_null());
+	}
+      } else {
+	dout(10) << "EMetaBlob.replay destroyed " << *p << ", not in cache" << dendl;
       }
-    } else {
-      dout(10) << "EMetaBlob.replay destroyed " << *p << ", not in cache" << dendl;
     }
+    mds->mdcache->open_file_table.note_destroyed_inos(logseg->seq, destroyed_inodes);
   }
 
   // client requests
@@ -1677,7 +1652,7 @@ void EMetaBlob::replay(MDSRank *mds, LogSegment *logseg, MDSlaveUpdate *slaveup)
   // update segment
   update_segment(logseg);
 
-  assert(g_conf->mds_kill_journal_replay_at != 4);
+  assert(g_conf()->mds_kill_journal_replay_at != 4);
 }
 
 // -----------------------
@@ -1746,7 +1721,7 @@ void ESession::replay(MDSRank *mds)
 
 void ESession::encode(bufferlist &bl, uint64_t features) const
 {
-  ENCODE_START(4, 3, bl);
+  ENCODE_START(5, 5, bl);
   encode(stamp, bl);
   encode(client_inst, bl, features);
   encode(open, bl);
@@ -1757,9 +1732,9 @@ void ESession::encode(bufferlist &bl, uint64_t features) const
   ENCODE_FINISH(bl);
 }
 
-void ESession::decode(bufferlist::iterator &bl)
+void ESession::decode(bufferlist::const_iterator &bl)
 {
-  DECODE_START_LEGACY_COMPAT_LEN(4, 3, 3, bl);
+  DECODE_START_LEGACY_COMPAT_LEN(5, 3, 3, bl);
   if (struct_v >= 2)
     decode(stamp, bl);
   decode(client_inst, bl);
@@ -1767,7 +1742,9 @@ void ESession::decode(bufferlist::iterator &bl)
   decode(cmapv, bl);
   decode(inos, bl);
   decode(inotablev, bl);
-  if (struct_v >= 4) {
+  if (struct_v == 4) {
+    decode(client_metadata.kv_map, bl);
+  } else if (struct_v >= 5) {
     decode(client_metadata, bl);
   }
   DECODE_FINISH(bl);
@@ -1781,10 +1758,7 @@ void ESession::dump(Formatter *f) const
   f->dump_stream("inos") << inos;
   f->dump_int("inotable version", inotablev);
   f->open_object_section("client_metadata");
-  for (map<string, string>::const_iterator i = client_metadata.begin();
-      i != client_metadata.end(); ++i) {
-    f->dump_string(i->first.c_str(), i->second);
-  }
+  client_metadata.dump(f);
   f->close_section();  // client_metadata
 }
 
@@ -1798,14 +1772,15 @@ void ESession::generate_test_instances(list<ESession*>& ls)
 
 void ESessions::encode(bufferlist &bl, uint64_t features) const
 {
-  ENCODE_START(1, 1, bl);
+  ENCODE_START(2, 1, bl);
   encode(client_map, bl, features);
   encode(cmapv, bl);
   encode(stamp, bl);
+  encode(client_metadata_map, bl);
   ENCODE_FINISH(bl);
 }
 
-void ESessions::decode_old(bufferlist::iterator &bl)
+void ESessions::decode_old(bufferlist::const_iterator &bl)
 {
   using ceph::decode;
   decode(client_map, bl);
@@ -1814,13 +1789,14 @@ void ESessions::decode_old(bufferlist::iterator &bl)
     decode(stamp, bl);
 }
 
-void ESessions::decode_new(bufferlist::iterator &bl)
+void ESessions::decode_new(bufferlist::const_iterator &bl)
 {
-  DECODE_START(1, bl);
+  DECODE_START(2, bl);
   decode(client_map, bl);
   decode(cmapv, bl);
-  if (!bl.end())
-    decode(stamp, bl);
+  decode(stamp, bl);
+  if (struct_v >= 2)
+    decode(client_metadata_map, bl);
   DECODE_FINISH(bl);
 }
 
@@ -1857,9 +1833,8 @@ void ESessions::replay(MDSRank *mds)
   } else {
     dout(10) << "ESessions.replay sessionmap " << mds->sessionmap.get_version()
 	     << " < " << cmapv << dendl;
-    mds->sessionmap.open_sessions(client_map);
+    mds->sessionmap.replay_open_sessions(client_map, client_metadata_map);
     assert(mds->sessionmap.get_version() == cmapv);
-    mds->sessionmap.set_projected(mds->sessionmap.get_version());
   }
   update_segment();
 }
@@ -1882,7 +1857,7 @@ void ETableServer::encode(bufferlist& bl, uint64_t features) const
   ENCODE_FINISH(bl);
 }
 
-void ETableServer::decode(bufferlist::iterator &bl)
+void ETableServer::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(3, 3, 3, bl);
   if (struct_v >= 2)
@@ -1978,7 +1953,7 @@ void ETableClient::encode(bufferlist& bl, uint64_t features) const
   ENCODE_FINISH(bl);
 }
 
-void ETableClient::decode(bufferlist::iterator &bl)
+void ETableClient::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(3, 3, 3, bl);
   if (struct_v >= 2)
@@ -2066,7 +2041,7 @@ void EUpdate::encode(bufferlist &bl, uint64_t features) const
   ENCODE_FINISH(bl);
 }
  
-void EUpdate::decode(bufferlist::iterator &bl)
+void EUpdate::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(4, 4, 4, bl);
   if (struct_v >= 2)
@@ -2131,13 +2106,15 @@ void EUpdate::replay(MDSRank *mds)
 	       << " < " << cmapv << dendl;
       // open client sessions?
       map<client_t,entity_inst_t> cm;
-      bufferlist::iterator blp = client_map.begin();
+      map<client_t,client_metadata_t> cmm;
+      auto blp = client_map.cbegin();
       using ceph::decode;
       decode(cm, blp);
-      mds->sessionmap.open_sessions(cm);
+      if (!blp.end())
+	decode(cmm, blp);
+      mds->sessionmap.replay_open_sessions(cm, cmm);
 
       assert(mds->sessionmap.get_version() == cmapv);
-      mds->sessionmap.set_projected(mds->sessionmap.get_version());
     }
   }
   update_segment();
@@ -2156,7 +2133,7 @@ void EOpen::encode(bufferlist &bl, uint64_t features) const {
   ENCODE_FINISH(bl);
 } 
 
-void EOpen::decode(bufferlist::iterator &bl) {
+void EOpen::decode(bufferlist::const_iterator &bl) {
   DECODE_START_LEGACY_COMPAT_LEN(3, 3, 3, bl);
   if (struct_v >= 2)
     decode(stamp, bl);
@@ -2239,7 +2216,7 @@ void ECommitted::encode(bufferlist& bl, uint64_t features) const
   ENCODE_FINISH(bl);
 } 
 
-void ECommitted::decode(bufferlist::iterator& bl)
+void ECommitted::decode(bufferlist::const_iterator& bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(3, 3, 3, bl);
   if (struct_v >= 2)
@@ -2266,25 +2243,28 @@ void ECommitted::generate_test_instances(list<ECommitted*>& ls)
 
 void link_rollback::encode(bufferlist &bl) const
 {
-  ENCODE_START(2, 2, bl);
+  ENCODE_START(3, 2, bl);
   encode(reqid, bl);
   encode(ino, bl);
   encode(was_inc, bl);
   encode(old_ctime, bl);
   encode(old_dir_mtime, bl);
   encode(old_dir_rctime, bl);
+  encode(snapbl, bl);
   ENCODE_FINISH(bl);
 }
 
-void link_rollback::decode(bufferlist::iterator &bl)
+void link_rollback::decode(bufferlist::const_iterator &bl)
 {
-  DECODE_START_LEGACY_COMPAT_LEN(2, 2, 2, bl);
+  DECODE_START_LEGACY_COMPAT_LEN(3, 2, 2, bl);
   decode(reqid, bl);
   decode(ino, bl);
   decode(was_inc, bl);
   decode(old_ctime, bl);
   decode(old_dir_mtime, bl);
   decode(old_dir_rctime, bl);
+  if (struct_v >= 3)
+    decode(snapbl, bl);
   DECODE_FINISH(bl);
 }
 
@@ -2305,23 +2285,26 @@ void link_rollback::generate_test_instances(list<link_rollback*>& ls)
 
 void rmdir_rollback::encode(bufferlist& bl) const
 {
-  ENCODE_START(2, 2, bl);
+  ENCODE_START(3, 2, bl);
   encode(reqid, bl);
   encode(src_dir, bl);
   encode(src_dname, bl);
   encode(dest_dir, bl);
   encode(dest_dname, bl);
+  encode(snapbl, bl);
   ENCODE_FINISH(bl);
 }
 
-void rmdir_rollback::decode(bufferlist::iterator& bl)
+void rmdir_rollback::decode(bufferlist::const_iterator& bl)
 {
-  DECODE_START_LEGACY_COMPAT_LEN(2, 2, 2, bl);
+  DECODE_START_LEGACY_COMPAT_LEN(3, 2, 2, bl);
   decode(reqid, bl);
   decode(src_dir, bl);
   decode(src_dname, bl);
   decode(dest_dir, bl);
   decode(dest_dname, bl);
+  if (struct_v >= 3)
+    decode(snapbl, bl);
   DECODE_FINISH(bl);
 }
 
@@ -2353,7 +2336,7 @@ void rename_rollback::drec::encode(bufferlist &bl) const
   ENCODE_FINISH(bl);
 }
 
-void rename_rollback::drec::decode(bufferlist::iterator &bl)
+void rename_rollback::drec::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(2, 2, 2, bl);
   decode(dirfrag, bl);
@@ -2399,23 +2382,29 @@ void rename_rollback::drec::generate_test_instances(list<drec*>& ls)
 
 void rename_rollback::encode(bufferlist &bl) const
 {
-  ENCODE_START(2, 2, bl);
+  ENCODE_START(3, 2, bl);
   encode(reqid, bl);
   encode(orig_src, bl);
   encode(orig_dest, bl);
   encode(stray, bl);
   encode(ctime, bl);
+  encode(srci_snapbl, bl);
+  encode(desti_snapbl, bl);
   ENCODE_FINISH(bl);
 }
 
-void rename_rollback::decode(bufferlist::iterator &bl)
+void rename_rollback::decode(bufferlist::const_iterator &bl)
 {
-  DECODE_START_LEGACY_COMPAT_LEN(2, 2, 2, bl);
+  DECODE_START_LEGACY_COMPAT_LEN(3, 2, 2, bl);
   decode(reqid, bl);
   decode(orig_src, bl);
   decode(orig_dest, bl);
   decode(stray, bl);
   decode(ctime, bl);
+  if (struct_v >= 3) {
+    decode(srci_snapbl, bl);
+    decode(desti_snapbl, bl);
+  }
   DECODE_FINISH(bl);
 }
 
@@ -2456,7 +2445,7 @@ void ESlaveUpdate::encode(bufferlist &bl, uint64_t features) const
   ENCODE_FINISH(bl);
 } 
 
-void ESlaveUpdate::decode(bufferlist::iterator &bl)
+void ESlaveUpdate::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(3, 3, 3, bl);
   if (struct_v >= 2)
@@ -2546,7 +2535,7 @@ void ESubtreeMap::encode(bufferlist& bl, uint64_t features) const
   ENCODE_FINISH(bl);
 }
  
-void ESubtreeMap::decode(bufferlist::iterator &bl)
+void ESubtreeMap::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(6, 5, 5, bl);
   if (struct_v >= 2)
@@ -2690,7 +2679,7 @@ void ESubtreeMap::replay(MDSRank *mds)
       dout(0) << "journal subtrees: " << subtrees << dendl;
       dout(0) << "journal ambig_subtrees: " << ambiguous_subtrees << dendl;
       mds->mdcache->show_subtrees();
-      assert(!g_conf->mds_debug_subtrees || errors == 0);
+      assert(!g_conf()->mds_debug_subtrees || errors == 0);
     }
     return;
   }
@@ -2773,7 +2762,7 @@ void EFragment::replay(MDSRank *mds)
   }
 
   metablob.replay(mds, _segment);
-  if (in && g_conf->mds_debug_frag)
+  if (in && g_conf()->mds_debug_frag)
     in->verify_dirfrags();
 }
 
@@ -2790,7 +2779,7 @@ void EFragment::encode(bufferlist &bl, uint64_t features) const {
   ENCODE_FINISH(bl);
 }
 
-void EFragment::decode(bufferlist::iterator &bl) {
+void EFragment::decode(bufferlist::const_iterator &bl) {
   DECODE_START_LEGACY_COMPAT_LEN(5, 4, 4, bl);
   if (struct_v >= 2)
     decode(stamp, bl);
@@ -2834,7 +2823,7 @@ void dirfrag_rollback::encode(bufferlist &bl) const
   ENCODE_FINISH(bl);
 }
 
-void dirfrag_rollback::decode(bufferlist::iterator &bl)
+void dirfrag_rollback::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START(1, bl);
   decode(fnode, bl);
@@ -2882,7 +2871,7 @@ void EExport::encode(bufferlist& bl, uint64_t features) const
   ENCODE_FINISH(bl);
 }
 
-void EExport::decode(bufferlist::iterator &bl)
+void EExport::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(3, 3, 3, bl);
   if (struct_v >= 2)
@@ -2960,19 +2949,21 @@ void EImportStart::replay(MDSRank *mds)
     dout(10) << "EImportStart.replay sessionmap " << mds->sessionmap.get_version() 
 	     << " < " << cmapv << dendl;
     map<client_t,entity_inst_t> cm;
-    bufferlist::iterator blp = client_map.begin();
+    map<client_t,client_metadata_t> cmm;
+    auto blp = client_map.cbegin();
     using ceph::decode;
     decode(cm, blp);
-    mds->sessionmap.open_sessions(cm);
-    if (mds->sessionmap.get_version() != cmapv)
-    {
+    if (!blp.end())
+      decode(cmm, blp);
+    mds->sessionmap.replay_open_sessions(cm, cmm);
+
+    if (mds->sessionmap.get_version() != cmapv) {
       derr << "sessionmap version " << mds->sessionmap.get_version()
            << " != cmapv " << cmapv << dendl;
       mds->clog->error() << "failure replaying journal (EImportStart)";
       mds->damaged();
       ceph_abort();  // Should be unreachable because damaged() calls respawn()
     }
-    mds->sessionmap.set_projected(mds->sessionmap.get_version());
   }
   update_segment();
 }
@@ -2989,7 +2980,7 @@ void EImportStart::encode(bufferlist &bl, uint64_t features) const {
   ENCODE_FINISH(bl);
 }
 
-void EImportStart::decode(bufferlist::iterator &bl) {
+void EImportStart::decode(bufferlist::const_iterator &bl) {
   DECODE_START_LEGACY_COMPAT_LEN(3, 3, 3, bl);
   if (struct_v >= 2)
     decode(stamp, bl);
@@ -3057,7 +3048,7 @@ void EImportFinish::encode(bufferlist& bl, uint64_t features) const
   ENCODE_FINISH(bl);
 }
 
-void EImportFinish::decode(bufferlist::iterator &bl)
+void EImportFinish::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(3, 3, 3, bl);
   if (struct_v >= 2)
@@ -3090,7 +3081,7 @@ void EResetJournal::encode(bufferlist& bl, uint64_t features) const
   ENCODE_FINISH(bl);
 }
  
-void EResetJournal::decode(bufferlist::iterator &bl)
+void EResetJournal::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START_LEGACY_COMPAT_LEN(2, 2, 2, bl);
   decode(stamp, bl);
@@ -3140,7 +3131,7 @@ void ENoOp::encode(bufferlist &bl, uint64_t features) const
 }
 
 
-void ENoOp::decode(bufferlist::iterator &bl)
+void ENoOp::decode(bufferlist::const_iterator &bl)
 {
   DECODE_START(2, bl);
   decode(pad_size, bl);

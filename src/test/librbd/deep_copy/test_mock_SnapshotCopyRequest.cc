@@ -18,7 +18,7 @@ namespace librbd {
 namespace {
 
 struct MockTestImageCtx : public librbd::MockImageCtx {
-  MockTestImageCtx(librbd::ImageCtx &image_ctx)
+  explicit MockTestImageCtx(librbd::ImageCtx &image_ctx)
     : librbd::MockImageCtx(image_ctx) {
   }
 };
@@ -138,6 +138,10 @@ public:
       .WillRepeatedly(WithArg<0>(Invoke([&mock_image_ctx](uint64_t features) {
               return (mock_image_ctx.features & features) != 0;
             })));
+    EXPECT_CALL(mock_image_ctx, test_features(_))
+      .WillRepeatedly(WithArg<0>(Invoke([&mock_image_ctx](uint64_t features) {
+              return (mock_image_ctx.features & features) != 0;
+            })));
   }
 
   void expect_start_op(librbd::MockExclusiveLock &mock_exclusive_lock) {
@@ -207,7 +211,7 @@ public:
 
   void expect_set_head(MockSetHeadRequest &mock_set_head_request, int r) {
     EXPECT_CALL(mock_set_head_request, send())
-      .WillOnce(Invoke([this, &mock_set_head_request, r]() {
+      .WillOnce(Invoke([&mock_set_head_request, r]() {
             mock_set_head_request.on_finish->complete(r);
           }));
   }
@@ -223,8 +227,8 @@ public:
       librbd::MockTestImageCtx &mock_dst_image_ctx, Context *on_finish,
       librados::snap_t snap_id_end = CEPH_NOSNAP) {
     return new MockSnapshotCopyRequest(&mock_src_image_ctx, &mock_dst_image_ctx,
-                                       snap_id_end, m_work_queue, &m_snap_seqs,
-                                       on_finish);
+                                       snap_id_end, false, m_work_queue,
+                                       &m_snap_seqs, on_finish);
   }
 
   int create_snap(librbd::ImageCtx *image_ctx, const std::string &snap_name,

@@ -17,38 +17,67 @@ class Module(MgrModule):
     activities in its serve() thread.
     """
 
+    # These workloads are things that can be requested to run inside the
+    # serve() function
     WORKLOAD_COMMAND_SPAM = "command_spam"
+    WORKLOAD_THROW_EXCEPTION = "throw_exception"
     SHUTDOWN = "shutdown"
 
-    WORKLOADS = (WORKLOAD_COMMAND_SPAM, )
+    WORKLOADS = (WORKLOAD_COMMAND_SPAM, WORKLOAD_THROW_EXCEPTION)
+
+    # The test code in qa/ relies on these options existing -- they
+    # are of course not really used for anything in the module
+    OPTIONS = [
+            {'name': 'testkey'},
+            {'name': 'testlkey'},
+            {'name': 'testnewline'}
+    ]
 
     COMMANDS = [
             {
                 "cmd": "mgr self-test run",
                 "desc": "Run mgr python interface tests",
-                "perm": "r"
+                "perm": "rw"
             },
             {
                 "cmd": "mgr self-test background start name=workload,type=CephString",
                 "desc": "Activate a background workload (one of {0})".format(
                     ", ".join(WORKLOADS)),
-                "perm": "r"
+                "perm": "rw"
             },
             {
                 "cmd": "mgr self-test background stop",
                 "desc": "Stop background workload if any is running",
+                "perm": "rw"
+            },
+            {
+                "cmd": "mgr self-test config get name=key,type=CephString",
+                "desc": "Peek at a configuration value",
+                "perm": "rw"
+            },
+            {
+                "cmd": "mgr self-test config get_localized name=key,type=CephString",
+                "desc": "Peek at a configuration value (localized variant)",
+                "perm": "rw"
+            },
+            {
+                "cmd": "mgr self-test remote",
+                "desc": "Test inter-module calls",
+                "perm": "r"
+            },
+            {
+                "cmd": "mgr self-test module name=module,type=CephString",
+                "desc": "Run another module's self_test() method",
                 "perm": "r"
             },
             ]
-
-
 
     def __init__(self, *args, **kwargs):
         super(Module, self).__init__(*args, **kwargs)
         self._event = threading.Event()
         self._workload = None
 
-    def handle_command(self, command):
+    def handle_command(self, inbuf, command):
         if command['prefix'] == 'mgr self-test run':
             self._self_test()
             return 0, '', 'Self-test succeeded'
@@ -70,7 +99,20 @@ class Module(MgrModule):
                         was_running)
             else:
                 return 0, '', 'No background workload was running'
-
+        elif command['prefix'] == 'mgr self-test config get':
+            return 0, str(self.get_config(command['key'])), ''
+        elif command['prefix'] == 'mgr self-test config get_localized':
+            return 0, str(self.get_localized_config(command['key'])), ''
+        elif command['prefix'] == 'mgr self-test remote':
+            self._test_remote_calls()
+            return 0, '', 'Successfully called'
+        elif command['prefix'] == 'mgr self-test module':
+            try:
+                r = self.remote(command['module'], "self_test")
+            except RuntimeError as e:
+                return -1, '', "Test failed: {0}".format(e.message)
+            else:
+                return 0, str(r), "Self-test OK"
         else:
             return (-errno.EINVAL, '',
                     "Command not found '{0}'".format(command['prefix']))
@@ -81,6 +123,7 @@ class Module(MgrModule):
         self._self_test_osdmap()
         self._self_test_getters()
         self._self_test_config()
+        self._self_test_store()
         self._self_test_misc()
         self._self_test_perf_counters()
 
@@ -108,10 +151,13 @@ class Module(MgrModule):
                 "osd_stats",
                 "health",
                 "mon_status",
-                "mgr_map"
+                "mgr_map",
+                "ec_profiles"
                 ]
         for obj in objects:
-            self.get(obj)
+            assert self.get(obj) is not None
+
+        assert self.get("__OBJ_DNE__") is None
 
         servers = self.list_servers()
         for server in servers:
@@ -135,11 +181,14 @@ class Module(MgrModule):
         self.set_localized_config("testkey", "testvalue")
         assert self.get_localized_config("testkey") == "testvalue"
 
-        self.set_config_json("testjsonkey", {"testblob": 2})
-        assert self.get_config_json("testjsonkey") == {"testblob": 2}
+    def _self_test_store(self):
+        existing_keys = set(self.get_store_prefix("test").keys())
+        self.set_store("testkey", "testvalue")
+        assert self.get_store("testkey") == "testvalue"
 
-        assert sorted(self.get_config_prefix("test").keys()) == sorted(
-                ["testkey", "testjsonkey"])
+        assert sorted(self.get_store_prefix("test").keys()) == sorted(
+                list({"testkey"} | existing_keys))
+
 
     def _self_test_perf_counters(self):
         self.get_perf_schema("osd", "0")
@@ -178,6 +227,39 @@ class Module(MgrModule):
 
         self.log.info("Finished self-test procedure.")
 
+    def _test_remote_calls(self):
+        # Test making valid call
+        self.remote("influx", "handle_command", "", {"prefix": "influx self-test"})
+
+        # Test calling module that exists but isn't enabled
+        mgr_map = self.get("mgr_map")
+        all_modules = [m['name'] for m in mgr_map['available_modules']]
+        disabled_modules = set(all_modules) - set(mgr_map['modules'])
+        disabled_module = list(disabled_modules)[0]
+        try:
+            self.remote(disabled_module, "handle_command", {"prefix": "influx self-test"})
+        except ImportError:
+            pass
+        else:
+            raise RuntimeError("ImportError not raised for disabled module")
+
+        # Test calling module that doesn't exist
+        try:
+            self.remote("idontexist", "handle_command", {"prefix": "influx self-test"})
+        except ImportError:
+            pass
+        else:
+            raise RuntimeError("ImportError not raised for nonexistent module")
+
+        # Test calling method that doesn't exist
+        try:
+            self.remote("influx", "idontexist", {"prefix": "influx self-test"})
+        except NameError:
+            pass
+        else:
+            raise RuntimeError("KeyError not raised")
+
+
     def shutdown(self):
         self._workload = self.SHUTDOWN
         self._event.set()
@@ -211,6 +293,8 @@ class Module(MgrModule):
             elif self._workload == self.SHUTDOWN:
                 self.log.info("Shutting down...")
                 break
+            elif self._workload == self.WORKLOAD_THROW_EXCEPTION:
+                raise RuntimeError("Synthetic exception in serve")
             else:
                 self.log.info("Waiting for workload request...")
                 self._event.wait()

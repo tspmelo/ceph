@@ -26,7 +26,7 @@
 
 static ostream& _prefix(std::ostream *_dout, const PGLog *pglog)
 {
-  return *_dout << pglog->gen_prefix();
+  return pglog->gen_prefix(*_dout);
 }
 
 //////////////////// PGLog::IndexedLog ////////////////////
@@ -50,14 +50,8 @@ void PGLog::IndexedLog::trim(
   set<string>* trimmed_dups,
   eversion_t *write_from_dups)
 {
-  if (complete_to != log.end() &&
-      complete_to->version <= s) {
-    generic_dout(0) << " bad trim to " << s << " when complete_to is "
-		    << complete_to->version
-		    << " on " << *this << dendl;
-  }
-
   assert(s <= can_rollback_to);
+  generic_dout(20) << " complete_to " << complete_to->version << dendl;
 
   auto earliest_dup_version =
     log.rbegin()->version.version < cct->_conf->osd_pg_log_dups_tracked
@@ -91,12 +85,23 @@ void PGLog::IndexedLog::trim(
       }
     }
 
+    bool reset_complete_to = false;
+    // we are trimming past complete_to, so reset complete_to
+    if (e.version >= complete_to->version)
+      reset_complete_to = true;
     if (rollback_info_trimmed_to_riter == log.rend() ||
 	e.version == rollback_info_trimmed_to_riter->version) {
       log.pop_front();
       rollback_info_trimmed_to_riter = log.rend();
     } else {
       log.pop_front();
+    }
+
+    // reset complete_to to the beginning of the log
+    if (reset_complete_to) {
+      generic_dout(0) << " moving complete_to " << " to "
+                      << log.begin()->version << dendl;
+      complete_to = log.begin();
     }
   }
 
@@ -160,16 +165,23 @@ void PGLog::clear_info_log(
 
 void PGLog::trim(
   eversion_t trim_to,
-  pg_info_t &info)
+  pg_info_t &info,
+  bool transaction_applied,
+  bool async)
 {
+  dout(10) << __func__ << " proposed trim_to = " << trim_to << dendl;
   // trim?
   if (trim_to > log.tail) {
-    // We shouldn't be trimming the log past last_complete
-    assert(trim_to <= info.last_complete);
+    dout(10) << __func__ << " missing = " << missing.num_missing() << dendl;
+    // Don't assert for async_recovery_targets or backfill_targets
+    // or whenever there are missing items
+    if (transaction_applied && !async && (missing.num_missing() == 0))
+      assert(trim_to <= info.last_complete);
 
     dout(10) << "trim " << log << " to " << trim_to << dendl;
     log.trim(cct, trim_to, &trimmed, &trimmed_dups, &write_from_dups);
     info.log_tail = log.tail;
+    dout(10) << " after trim complete_to " << log.complete_to->version << dendl;
   }
 }
 
@@ -192,7 +204,6 @@ void PGLog::proc_replica_log(
 	     << "for divergent objects" << dendl;
     return;
   }
-  assert(olog.head >= log.tail);
 
   /*
     basically what we're doing here is rewinding the remote log,
@@ -230,12 +241,12 @@ void PGLog::proc_replica_log(
    * Furthermore, the event represented by a log tail was necessarily trimmed,
    * thus neither olog.tail nor log.tail can be divergent. It's
    * possible that olog/log contain no actual events between olog.head and
-   * MAX(log.tail, olog.tail), however, since they might have been split out.
+   * max(log.tail, olog.tail), however, since they might have been split out.
    * Thus, if we cannot find an event e such that
    * log.tail <= e.version <= log.head, the last_update must actually be
-   * MAX(log.tail, olog.tail).
+   * max(log.tail, olog.tail).
    */
-  eversion_t limit = MAX(olog.tail, log.tail);
+  eversion_t limit = std::max(olog.tail, log.tail);
   eversion_t lu =
     (first_non_divergent == log.log.rend() ||
      first_non_divergent->version < limit) ?
@@ -390,14 +401,14 @@ void PGLog::merge_log(pg_info_t &oinfo, pg_log_t &olog, pg_shard_t fromosd,
     // find start point in olog
     list<pg_log_entry_t>::iterator to = olog.log.end();
     list<pg_log_entry_t>::iterator from = olog.log.end();
-    eversion_t lower_bound = MAX(olog.tail, orig_tail);
+    eversion_t lower_bound = std::max(olog.tail, orig_tail);
     while (1) {
       if (from == olog.log.begin())
 	break;
       --from;
       dout(20) << "  ? " << *from << dendl;
       if (from->version <= log.head) {
-	lower_bound = MAX(lower_bound, from->version);
+	lower_bound = std::max(lower_bound, from->version);
 	++from;
 	break;
       }
@@ -915,9 +926,10 @@ void PGLog::_write_log_and_missing(
     t.omap_rmkeys(coll, log_oid, to_remove);
 }
 
-void PGLog::rebuild_missing_set_with_deletes(ObjectStore *store,
-					     coll_t pg_coll,
-					     const pg_info_t &info)
+void PGLog::rebuild_missing_set_with_deletes(
+  ObjectStore *store,
+  ObjectStore::CollectionHandle& ch,
+  const pg_info_t &info)
 {
   // save entries not generated from the current log (e.g. added due
   // to repair, EIO handling, or divergent_priors).
@@ -949,7 +961,7 @@ void PGLog::rebuild_missing_set_with_deletes(ObjectStore *store,
 
     bufferlist bv;
     int r = store->getattr(
-	pg_coll,
+      ch,
 	ghobject_t(i->soid, ghobject_t::NO_GEN, info.pgid.shard),
 	OI_ATTR,
 	bv);

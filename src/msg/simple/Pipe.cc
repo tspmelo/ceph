@@ -44,7 +44,7 @@
 #undef dout_prefix
 #define dout_prefix *_dout << *this
 ostream& Pipe::_pipe_prefix(std::ostream &out) const {
-  return out << "-- " << msgr->get_myinst().addr << " >> " << peer_addr << " pipe(" << this
+  return out << "-- " << msgr->get_myaddr() << " >> " << peer_addr << " pipe(" << this
 	     << " sd=" << sd << " :" << port
              << " s=" << state
              << " pgs=" << peer_global_seq
@@ -207,7 +207,7 @@ void Pipe::start_reader()
 void Pipe::maybe_start_delay_thread()
 {
   if (!delay_thread) {
-    auto pos = msgr->cct->_conf->get_val<std::string>("ms_inject_delay_type").find(ceph_entity_type_name(connection_state->peer_type));
+    auto pos = msgr->cct->_conf.get_val<std::string>("ms_inject_delay_type").find(ceph_entity_type_name(connection_state->peer_type));
     if (pos != string::npos) {
       lsubdout(msgr->cct, ms, 1) << "setting up a delay queue on Pipe " << this << dendl;
       delay_thread = new DelayedDelivery(this);
@@ -351,6 +351,10 @@ int Pipe::accept()
   // used for reading in the remote acked seq on connect
   uint64_t newly_acked_seq = 0;
 
+  bool need_challenge = false;
+  bool had_challenge = false;
+  std::unique_ptr<AuthAuthorizerChallenge> authorizer_challenge;
+
   recv_reset();
 
   set_socket_options();
@@ -363,9 +367,9 @@ int Pipe::accept()
   }
 
   // and my addr
-  encode(msgr->my_inst.addr, addrs, 0);  // legacy
+  encode(msgr->my_addr, addrs, 0);  // legacy
 
-  port = msgr->my_inst.addr.get_port();
+  port = msgr->my_addr.get_port();
 
   // and peer's socket addr (they might not know their ip)
   sockaddr_storage ss;
@@ -405,7 +409,7 @@ int Pipe::accept()
     goto fail_unlocked;
   }
   try {
-    bufferlist::iterator ti = addrbl.begin();
+    auto ti = addrbl.cbegin();
     decode(peer_addr, ti);
   } catch (const buffer::error& e) {
     ldout(msgr->cct,2) << __func__ <<  " decode peer_addr failed: " << e.what()
@@ -478,17 +482,28 @@ int Pipe::accept()
     // require signatures for cephx?
     if (connect.authorizer_protocol == CEPH_AUTH_CEPHX) {
       if (peer_type == CEPH_ENTITY_TYPE_OSD ||
-	  peer_type == CEPH_ENTITY_TYPE_MDS) {
+	  peer_type == CEPH_ENTITY_TYPE_MDS ||
+	  peer_type == CEPH_ENTITY_TYPE_MGR) {
 	if (msgr->cct->_conf->cephx_require_signatures ||
 	    msgr->cct->_conf->cephx_cluster_require_signatures) {
 	  ldout(msgr->cct,10) << "using cephx, requiring MSG_AUTH feature bit for cluster" << dendl;
 	  policy.features_required |= CEPH_FEATURE_MSG_AUTH;
+	}
+	if (msgr->cct->_conf->cephx_require_version >= 2 ||
+	    msgr->cct->_conf->cephx_cluster_require_version >= 2) {
+	  ldout(msgr->cct,10) << "using cephx, requiring cephx v2 feature bit for cluster" << dendl;
+	  policy.features_required |= CEPH_FEATUREMASK_CEPHX_V2;
 	}
       } else {
 	if (msgr->cct->_conf->cephx_require_signatures ||
 	    msgr->cct->_conf->cephx_service_require_signatures) {
 	  ldout(msgr->cct,10) << "using cephx, requiring MSG_AUTH feature bit for service" << dendl;
 	  policy.features_required |= CEPH_FEATURE_MSG_AUTH;
+	}
+	if (msgr->cct->_conf->cephx_require_version >= 2 ||
+	    msgr->cct->_conf->cephx_service_require_version >= 2) {
+	  ldout(msgr->cct,10) << "using cephx, requiring cephx v2 feature bit for cluster" << dendl;
+	  policy.features_required |= CEPH_FEATUREMASK_CEPHX_V2;
 	}
       }
     }
@@ -504,14 +519,27 @@ int Pipe::accept()
 
     pipe_lock.Unlock();
 
-    if (!msgr->verify_authorizer(connection_state.get(), peer_type, connect.authorizer_protocol, authorizer,
-				 authorizer_reply, authorizer_valid, session_key) ||
+    need_challenge = HAVE_FEATURE(connect.features, CEPHX_V2);
+    had_challenge = (bool)authorizer_challenge;
+    authorizer_reply.clear();
+    if (!msgr->verify_authorizer(
+	  connection_state.get(), peer_type, connect.authorizer_protocol, authorizer,
+	  authorizer_reply, authorizer_valid, session_key,
+	  need_challenge ? &authorizer_challenge : nullptr) ||
 	!authorizer_valid) {
-      ldout(msgr->cct,0) << "accept: got bad authorizer" << dendl;
       pipe_lock.Lock();
       if (state != STATE_ACCEPTING)
 	goto shutting_down_msgr_unlocked;
-      reply.tag = CEPH_MSGR_TAG_BADAUTHORIZER;
+      if (!had_challenge && need_challenge && authorizer_challenge) {
+	ldout(msgr->cct,0) << "accept: challenging authorizer "
+			   << authorizer_reply.length()
+			   << " bytes" << dendl;
+	assert(authorizer_reply.length());
+	reply.tag = CEPH_MSGR_TAG_CHALLENGE_AUTHORIZER;
+      } else {
+	ldout(msgr->cct,0) << "accept: got bad authorizer" << dendl;
+	reply.tag = CEPH_MSGR_TAG_BADAUTHORIZER;
+      }
       session_security.reset();
       goto reply;
     } 
@@ -611,7 +639,7 @@ int Pipe::accept()
 	}
 
 	// connection race?
-	if (peer_addr < msgr->my_inst.addr ||
+	if (peer_addr < msgr->my_addr ||
 	    existing->policy.server) {
 	  // incoming wins
 	  ldout(msgr->cct,10) << "accept connection race, existing " << existing << ".cseq " << existing->connect_seq
@@ -630,7 +658,7 @@ int Pipe::accept()
 	  // our existing outgoing wins
 	  ldout(msgr->cct,10) << "accept connection race, existing " << existing << ".cseq " << existing->connect_seq
 		   << " == " << connect.connect_seq << ", sending WAIT" << dendl;
-	  assert(peer_addr > msgr->my_inst.addr);
+	  assert(peer_addr > msgr->my_addr);
 	  if (!(existing->state == STATE_CONNECTING))
 	    lderr(msgr->cct) << "accept race bad state, would send wait, existing="
 			     << existing->get_state_name()
@@ -987,7 +1015,7 @@ int Pipe::connect()
   entity_addr_t peer_addr_for_me, socket_addr;
   AuthAuthorizer *authorizer = NULL;
   bufferlist addrbl, myaddrbl;
-  const md_config_t *conf = msgr->cct->_conf;
+  const auto& conf = msgr->cct->_conf;
 
   // close old socket.  this is safe because we stopped the reader thread above.
   if (sd >= 0)
@@ -1071,7 +1099,7 @@ int Pipe::connect()
     goto fail;
   }
   try {
-    bufferlist::iterator p = addrbl.begin();
+    auto p = addrbl.cbegin();
     decode(paddr, p);
     decode(peer_addr_for_me, p);
   }
@@ -1100,7 +1128,7 @@ int Pipe::connect()
 
   msgr->learned_addr(peer_addr_for_me);
 
-  encode(msgr->my_inst.addr, myaddrbl, 0);  // legacy
+  encode(msgr->my_addr, myaddrbl, 0);  // legacy
 
   memset(&msg, 0, sizeof(msg));
   msgvec[0].iov_base = myaddrbl.c_str();
@@ -1113,17 +1141,18 @@ int Pipe::connect()
     ldout(msgr->cct,2) << "connect couldn't write my addr, " << cpp_strerror(rc) << dendl;
     goto fail;
   }
-  ldout(msgr->cct,10) << "connect sent my addr " << msgr->my_inst.addr << dendl;
+  ldout(msgr->cct,10) << "connect sent my addr " << msgr->my_addr << dendl;
 
 
   while (1) {
-    delete authorizer;
-    authorizer = msgr->get_authorizer(peer_type, false);
+    if (!authorizer) {
+      authorizer = msgr->get_authorizer(peer_type, false);
+    }
     bufferlist authorizer_reply;
 
     ceph_msg_connect connect;
     connect.features = policy.features_supported;
-    connect.host_type = msgr->get_myinst().name.type();
+    connect.host_type = msgr->get_myname().type();
     connect.global_seq = gseq;
     connect.connect_seq = cseq;
     connect.protocol_version = msgr->get_proto_version(peer_type, true);
@@ -1185,8 +1214,15 @@ int Pipe::connect()
       authorizer_reply.push_back(bp);
     }
 
+    if (reply.tag == CEPH_MSGR_TAG_CHALLENGE_AUTHORIZER) {
+      authorizer->add_challenge(msgr->cct, authorizer_reply);
+      ldout(msgr->cct,10) << " got authorizer challenge, " << authorizer_reply.length()
+			  << " bytes" << dendl;
+      continue;
+    }
+
     if (authorizer) {
-      bufferlist::iterator iter = authorizer_reply.begin();
+      auto iter = authorizer_reply.cbegin();
       if (!authorizer->verify_reply(iter)) {
         ldout(msgr->cct,0) << "failed verifying authorize reply" << dendl;
 	goto fail;
@@ -1411,8 +1447,10 @@ void Pipe::requeue_sent()
 void Pipe::discard_requeued_up_to(uint64_t seq)
 {
   ldout(msgr->cct, 10) << "discard_requeued_up_to " << seq << dendl;
-  if (out_q.count(CEPH_MSG_PRIO_HIGHEST) == 0)
+  if (out_q.count(CEPH_MSG_PRIO_HIGHEST) == 0) {
+    out_seq = seq;
     return;
+  }
   list<Message*>& rq = out_q[CEPH_MSG_PRIO_HIGHEST];
   while (!rq.empty()) {
     Message *m = rq.front();
@@ -1451,7 +1489,7 @@ void Pipe::discard_out_queue()
 
 void Pipe::fault(bool onread)
 {
-  const md_config_t *conf = msgr->cct->_conf;
+  const auto& conf = msgr->cct->_conf;
   assert(pipe_lock.is_locked());
   cond.Signal();
 
@@ -1633,7 +1671,7 @@ void Pipe::reader()
     }
 
     // get a reference to the AuthSessionHandler while we have the pipe_lock
-    ceph::shared_ptr<AuthSessionHandler> auth_handler = session_security;
+    std::shared_ptr<AuthSessionHandler> auth_handler = session_security;
 
     pipe_lock.Unlock();
 
@@ -1999,7 +2037,7 @@ static void alloc_aligned_buffer(bufferlist& data, unsigned len, unsigned off)
   if (off & ~CEPH_PAGE_MASK) {
     // head
     unsigned head = 0;
-    head = MIN(CEPH_PAGE_SIZE - (off & ~CEPH_PAGE_MASK), left);
+    head = std::min<uint64_t>(CEPH_PAGE_SIZE - (off & ~CEPH_PAGE_MASK), left);
     data.push_back(buffer::create(head));
     left -= head;
   }
@@ -2139,7 +2177,7 @@ int Pipe::read_message(Message **pm, AuthSessionHandler* auth_handler)
 	}
       }
       bufferptr bp = blp.get_current_ptr();
-      int read = MIN(bp.length(), left);
+      int read = std::min(bp.length(), left);
       ldout(msgr->cct,20) << "reader reading nonblocking into " << (void*)bp.c_str() << " len " << bp.length() << dendl;
       ssize_t got = tcp_read_nonblocking(bp.c_str(), read);
       ldout(msgr->cct,30) << "reader read " << got << " of " << read << dendl;
@@ -2374,7 +2412,7 @@ int Pipe::write_message(const ceph_msg_header& header, const ceph_msg_footer& fo
   unsigned left = blist.length();
 
   while (left > 0) {
-    unsigned donow = MIN(left, pb->length()-b_off);
+    unsigned donow = std::min(left, pb->length()-b_off);
     if (donow == 0) {
       ldout(msgr->cct,0) << "donow = " << donow << " left " << left << " pb->length " << pb->length()
                          << " b_off " << b_off << dendl;
@@ -2538,7 +2576,7 @@ ssize_t Pipe::buffered_recv(char *buf, size_t len, int flags)
   size_t left = len;
   ssize_t total_recv = 0;
   if (recv_len > recv_ofs) {
-    int to_read = MIN(recv_len - recv_ofs, left);
+    int to_read = std::min(recv_len - recv_ofs, left);
     memcpy(buf, &recv_buf[recv_ofs], to_read);
     recv_ofs += to_read;
     left -= to_read;
@@ -2573,7 +2611,7 @@ ssize_t Pipe::buffered_recv(char *buf, size_t len, int flags)
   }
 
   recv_len = (size_t)got;
-  got = MIN(left, (size_t)got);
+  got = std::min(left, (size_t)got);
   memcpy(buf, recv_buf, got);
   recv_ofs = got;
   total_recv += got;

@@ -103,8 +103,8 @@ public:
     }
   }
 
-  bool call(std::string command, cmdmap_t& cmdmap, std::string format,
-	    bufferlist& out) override {
+  bool call(std::string_view command, const cmdmap_t& cmdmap,
+	    std::string_view format, bufferlist& out) override {
     Commands::const_iterator i = commands.find(command);
     assert(i != commands.end());
     Formatter *f = Formatter::create(format);
@@ -116,7 +116,8 @@ public:
   }
 
 private:
-  typedef std::map<std::string, ImageDeleterAdminSocketCommand*> Commands;
+  typedef std::map<std::string, ImageDeleterAdminSocketCommand*,
+		   std::less<>> Commands;
   AdminSocket *admin_socket;
   Commands commands;
 };
@@ -355,7 +356,7 @@ template <typename I>
 void ImageDeleter<I>::remove_images() {
   dout(10) << dendl;
 
-  uint64_t max_concurrent_deletions = g_ceph_context->_conf->get_val<uint64_t>(
+  uint64_t max_concurrent_deletions = g_ceph_context->_conf.get_val<uint64_t>(
     "rbd_mirror_concurrent_image_deletions");
 
   Mutex::Locker locker(m_lock);
@@ -413,7 +414,7 @@ void ImageDeleter<I>::handle_remove_image(DeleteInfoRef delete_info,
                  image_deleter::ERROR_RESULT_RETRY_IMMEDIATELY) {
       enqueue_failed_delete(&delete_info, r, m_busy_interval);
     } else {
-      double failed_interval = g_ceph_context->_conf->get_val<double>(
+      double failed_interval = g_ceph_context->_conf.get_val<double>(
         "rbd_mirror_delete_retry_interval");
       enqueue_failed_delete(&delete_info, r, failed_interval);
     }

@@ -1,11 +1,13 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.5.1)
 
 project(ceph CXX C ASM)
-set(VERSION 13.0.1)
+set(VERSION 13.1.0)
 
+if(POLICY CMP0028)
+  cmake_policy(SET CMP0028 NEW)
+endif()
 if(POLICY CMP0046)
-  # Tweak policies (this one disables "missing" dependency warning)
-  cmake_policy(SET CMP0046 OLD)
+  cmake_policy(SET CMP0046 NEW)
 endif()
 if(POLICY CMP0054)
   cmake_policy(SET CMP0054 NEW)
@@ -17,13 +19,7 @@ if(POLICY CMP0065)
   cmake_policy(SET CMP0065 NEW)
 endif()
 if(POLICY CMP0051)
-  # cmake 3.1 and higher include generator expressions in SOURCES property.
-  # in BuildBoost.cmake, get_target_property(<var> <target> SOURCES) is used
-  # to retrieve the source files of a target. in that case, we are only
-  # interested in the *source* files. and i don't want to bother stripping off
-  # the TARGET_OBJECTS elements from the returned SOURCES. so let's stick with
-  # the old behavior now.
-  cmake_policy(SET CMP0051 OLD)
+  cmake_policy(SET CMP0051 NEW)
 endif()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
@@ -96,7 +92,7 @@ CHECK_FUNCTION_EXISTS(getgrouplist HAVE_GETGROUPLIST)
 if(NOT APPLE)
   CHECK_FUNCTION_EXISTS(fdatasync HAVE_FDATASYNC)
 endif()
-CHECK_FUNCTION_EXISTS(strerror_r HAVE_STRERROR_R)
+CHECK_FUNCTION_EXISTS(strerror_r HAVE_Strerror_R)
 CHECK_FUNCTION_EXISTS(name_to_handle_at HAVE_NAME_TO_HANDLE_AT)
 CHECK_FUNCTION_EXISTS(pipe2 HAVE_PIPE2)
 set(CMAKE_REQUIRED_LIBRARIES pthread)
@@ -175,12 +171,20 @@ if(WITH_STATIC_LIBSTDCXX)
     message(FATAL_ERROR "Please use GCC to enable WITH_STATIC_LIBSTDCXX")
   endif()
 endif()
+include(CheckCxxAtomic)
+if(NOT HAVE_CXX11_ATOMIC)
+  set(CMAKE_CXX_STANDARD_LIBRARIES
+    "${CMAKE_CXX_STANDARD_LIBRARIES} ${LIBATOMIC_LINK_FLAGS}")
+endif()
 
 option(WITH_RDMA "Enable RDMA in async messenger" ON)
 if(WITH_RDMA)
-  find_package(rdma REQUIRED)
-  set(HAVE_RDMA ${RDMA_FOUND})
-endif(WITH_RDMA)
+  find_package(verbs REQUIRED)
+  set(HAVE_VERBS ${VERBS_FOUND})
+  find_package(rdmacm REQUIRED)
+  set(HAVE_RDMACM ${RDMACM_FOUND})
+  set(HAVE_RDMA TRUE)
+endif()
 
 find_package(Backtrace)
 
@@ -226,7 +230,7 @@ if(WITH_BLUESTORE)
   set(HAVE_LIBAIO ${AIO_FOUND})
 endif()
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "i386|i686|amd64|x86_64|AMD64")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "i386|i686|amd64|x86_64|AMD64|aarch64")
   option(WITH_SPDK "Enable SPDK" ON)
 else()
   option(WITH_SPDK "Enable SPDK" OFF)
@@ -258,6 +262,12 @@ endif()
 
 option(WITH_BLUEFS "libbluefs library" OFF)
 
+option(WITH_QATZIP "Enable QATZIP" OFF)
+if(WITH_QATZIP)
+  find_package(qatzip REQUIRED)
+  set(HAVE_QATZIP ${QATZIP_FOUND})
+endif(WITH_QATZIP)
+
 # needs mds and? XXX
 option(WITH_LIBCEPHFS "libcephfs client library" ON)
 
@@ -273,13 +283,6 @@ option(WITH_KRBD "Kernel Remote block storage is here" ON)
 if(WITH_KRBD AND WITHOUT_RBD)
   message(FATAL_ERROR "Cannot have WITH_KRBD with WITH_RBD.")
 endif()
-
-# embedded ceph daemon static library
-# NOTE: Ceph is mostly LGPL (see COPYING), which means that
-# static linking brings with it restrictions. Please be sure
-# to look at the LGPL license carefully before linking this library to
-# your code. See http://www.gnu.org/licenses/gpl-faq.html#LGPLStaticVsDynamic.
-option(WITH_EMBEDDED "build the embedded ceph daemon library" ON)
 
 option(WITH_LEVELDB "LevelDB is here" ON)
 if(WITH_LEVELDB)
@@ -298,7 +301,7 @@ if(WITH_BROTLI)
   set(HAVE_BROTLI TRUE)
 endif()
 
-option(WITH_LZ4 "LZ4 compression support" OFF)
+option(WITH_LZ4 "LZ4 compression support" ON)
 if(WITH_LZ4)
   find_package(LZ4 1.7 REQUIRED)
   set(HAVE_LZ4 ${LZ4_FOUND})
@@ -311,19 +314,19 @@ if(ALLOCATOR)
     set(HAVE_LIBTCMALLOC ON)
   elseif(${ALLOCATOR} STREQUAL "jemalloc")
     find_package(JeMalloc REQUIRED)
-    set(HAVE_LIBJEMALLOC ${JEMALLOC_FOUND})
     set(HAVE_JEMALLOC 1)
+  elseif(NOT ALLOCATOR STREQUAL "libc")
+    message(FATAL_ERROR "Unsupported allocator selected: ${ALLOCATOR}")
   endif()
 else(ALLOCATOR)
   find_package(gperftools)
-  set(HAVE_LIBTCMALLOC ${GPERFTOOLS_FOUND})
-  if(NOT GPERFTOOLS_FOUND)
+  set(HAVE_LIBTCMALLOC ${gperftools_FOUND})
+  if(NOT gperftools_FOUND)
     find_package(JeMalloc)
-    set(HAVE_LIBJEMALLOC ${JEMALLOC_FOUND})
-  endif(NOT GPERFTOOLS_FOUND)
-  if(GPERFTOOLS_FOUND)
+  endif()
+  if(gperftools_FOUND)
     set(ALLOCATOR tcmalloc)
-  elseif(JEMALLOC_FOUND)
+  elseif(JeMalloc_FOUND)
     set(ALLOCATOR jemalloc)
   else()
     if(NOT FREEBSD)
@@ -331,7 +334,7 @@ else(ALLOCATOR)
       message(WARNING "tcmalloc and jemalloc not found, falling back to libc")
     endif()
     set(ALLOCATOR "libc")
-  endif(GPERFTOOLS_FOUND)
+  endif(gperftools_FOUND)
 endif(ALLOCATOR)
 
 
@@ -344,31 +347,14 @@ set(CMAKE_REQUIRED_INCLUDES ${CURL_INCLUDE_DIRS})
 set(CMAKE_REQUIRED_LIBRARIES ${CURL_LIBRARIES})
 CHECK_SYMBOL_EXISTS(curl_multi_wait curl/curl.h HAVE_CURL_MULTI_WAIT)
 
-# nss or cryptopp?
-option(WITH_NSS "Use NSS crypto and SSL implementations" ON)
-if (${WITH_NSS})
-  find_package(NSS REQUIRED)
-    set(USE_NSS 1)
-    find_package(NSPR REQUIRED)
-    set(CRYPTO_LIBS ${NSS_LIBRARIES} ${NSPR_LIBRARIES})
-else ()
-  find_package(cryptopp REQUIRED)
-    set(CRYPTO_LIBS ${CRYPTOPP_LIBRARIES})
-    set(USE_CRYPTOPP 1)
-endif (${WITH_NSS})
-
-option(WITH_SSL "SSL build selected" ON)
-if(USE_NSS)
-  #nss
-  set(SSL_LIBRARIES ${NSS_LIBRARIES})
-  message(STATUS "SSL with NSS selected (Libs: ${SSL_LIBRARIES})")
-else(USE_NSS)
-  #openssl
-  find_package(OpenSSL REQUIRED)
-  set(USE_OPENSSL ON)
-  set(SSL_LIBRARIES ${OPENSSL_LIBRARIES})
-  message(STATUS "SSL with OpenSSL selected (Libs: ${SSL_LIBRARIES})")
-endif(USE_NSS)
+find_package(NSS REQUIRED)
+find_package(NSPR REQUIRED)
+find_package(OpenSSL REQUIRED)
+# TODO: use NSS only for validation of the OpenSSL-based implementations
+set(USE_NSS 1)
+set(USE_OPENSSL 1)
+set(CRYPTO_LIBS ${NSS_LIBRARIES} ${NSPR_LIBRARIES} ${OPENSSL_LIBRARIES})
+set(SSL_LIBRARIES ${NSS_LIBRARIES} ${OPENSSL_LIBRARIES})
 
 option(WITH_XIO "Enable XIO messaging" OFF)
 if(WITH_XIO)
@@ -404,6 +390,8 @@ endif()
 option(WITH_RADOSGW "Rados Gateway is enabled" ON)
 option(WITH_RADOSGW_FCGI_FRONTEND "Rados Gateway's FCGI frontend is enabled" OFF)
 option(WITH_RADOSGW_BEAST_FRONTEND "Rados Gateway's Beast frontend is enabled" ON)
+option(WITH_RADOSGW_BEAST_OPENSSL "Rados Gateway's Beast frontend uses OpenSSL" ON)
+
 if(WITH_RADOSGW)
   find_package(EXPAT REQUIRED)
   if(WITH_RADOSGW_FCGI_FRONTEND)
@@ -413,15 +401,32 @@ if(WITH_RADOSGW)
     message(WARNING "disabling WITH_RADOSGW_BEAST_FRONTEND, which depends on WITH_BOOST_CONTEXT")
     set(WITH_RADOSGW_BEAST_FRONTEND OFF)
   endif()
-endif(WITH_RADOSGW)
+  find_package(OATH REQUIRED)
 
+# https://curl.haxx.se/docs/install.html mentions the
+# configure flags for various ssl backends
+  execute_process(
+    COMMAND
+  "sh" "-c"
+  "curl-config --configure | grep with-ssl"
+  RESULT_VARIABLE NO_CURL_SSL_LINK
+  ERROR_VARIABLE CURL_CONFIG_ERRORS
+  )
+  if (CURL_CONFIG_ERRORS)
+    message(WARNING "unable to run curl-config; rgw cannot make ssl requests to external systems reliably")
+  endif()
 
-if (WITH_RADOSGW)
-  if (NOT DEFINED OPENSSL_FOUND)
-    message(STATUS "Looking for openssl anyways, because radosgw selected")
+  if (WITH_RADOSGW_BEAST_FRONTEND AND WITH_RADOSGW_BEAST_OPENSSL)
+    find_package(OpenSSL REQUIRED)
+  else()
     find_package(OpenSSL)
   endif()
+
   if (OPENSSL_FOUND)
+    if (NOT NO_CURL_SSL_LINK)
+      message(STATUS "libcurl is linked with openssl: explicitly setting locks")
+      set(WITH_CURL_OPENSSL ON)
+    endif() # CURL_SSL_LINK
     execute_process(
       COMMAND
 	"sh" "-c"
@@ -454,7 +459,7 @@ if (WITH_RADOSGW)
     message(STATUS "crypto soname: ${LIBCRYPTO_SONAME}")
   else()
     message(WARNING "ssl not found: rgw civetweb may fail to dlopen libssl libcrypto")
-  endif()
+  endif()  # OPENSSL_FOUND
 endif (WITH_RADOSGW)
 
 #option for CephFS
@@ -463,9 +468,15 @@ option(WITH_CEPHFS "CephFS is enabled" ON)
 #option for Mgr
 option(WITH_MGR "ceph-mgr is enabled" ON)
 if(WITH_MGR)
-  set(Python_ADDITIONAL_VERSIONS 2.7)
-  find_package(PythonInterp 2.7 REQUIRED)
-  find_package(PythonLibs 2.7 REQUIRED)
+  # Please specify 3 or 3.[0-7] if you want to build with python3 support.
+  # FindPyhonInterp and FindPythonLibs think they belong to different families.
+  set(MGR_PYTHON_VERSION "2.7" CACHE
+    STRING "minimal required version of python runtime for running mgr plugins. ")
+  find_package(PythonInterp ${MGR_PYTHON_VERSION} REQUIRED)
+  find_package(PythonLibs ${MGR_PYTHON_VERSION} REQUIRED)
+  set(MGR_PYTHON_EXECUTABLE ${PYTHON_EXECUTABLE})
+  set(MGR_PYTHON_LIBRARIES ${PYTHON_LIBRARIES})
+  set(MGR_PYTHON_VERSION_MAJOR ${PYTHON_VERSION_MAJOR})
   # Boost dependency check deferred to Boost section
 endif(WITH_MGR)
 
@@ -516,10 +527,16 @@ option(PG_DEBUG_REFS "PG Ref debugging is enabled" OFF)
 
 option(WITH_TESTS "enable the build of ceph-test package scripts/binaries" ON)
 
-option(WITH_FIO "Support for fio engines" OFF)
-if(WITH_FIO)
+# fio
+option(WITH_FIO "build with fio plugin enabled" OFF)
+option(WITH_SYSTEM_FIO "require and build with system fio" OFF)
+if(WITH_SYSTEM_FIO)
   find_package(fio REQUIRED)
-endif(WITH_FIO)
+elseif(WITH_FIO)
+  set(FIO_INCLUDE_DIR ${CMAKE_BINARY_DIR}/src/fio)
+  include(BuildFIO)
+  build_fio()
+endif()
 
 if(LINUX)
   add_definitions(-D__linux__)
@@ -572,13 +589,16 @@ if (WITH_SYSTEM_ROCKSDB)
   find_package(rocksdb 5.8 REQUIRED)
 endif()
 
+option(WITH_SEASTAR "Build seastar components")
+set(HAVE_SEASTAR ${WITH_SEASTAR})
+
 # Boost
 option(WITH_SYSTEM_BOOST "require and build with system Boost" OFF)
 
 # Boost::thread depends on Boost::atomic, so list it explicitly.
 set(BOOST_COMPONENTS
-  atomic thread system regex random program_options date_time iostreams
-  filesystem)
+  atomic chrono thread system regex random program_options date_time
+  iostreams)
 set(BOOST_HEADER_COMPONENTS container)
 
 if(WITH_MGR)
@@ -586,6 +606,9 @@ if(WITH_MGR)
 endif()
 if(WITH_BOOST_CONTEXT)
   list(APPEND BOOST_COMPONENTS context coroutine)
+endif()
+if(WITH_SEASTAR)
+  list(APPEND BOOST_COMPONENTS filesystem timer)
 endif()
 
 set(Boost_USE_MULTITHREADED ON)
@@ -596,21 +619,37 @@ if(WITH_SYSTEM_BOOST)
   else()
     set(Boost_USE_STATIC_LIBS ON)
   endif()
-  find_package(Boost 1.66 COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
+  find_package(Boost 1.67 COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
 else()
   set(BOOST_J 1 CACHE STRING
     "max jobs for Boost build") # override w/-DBOOST_J=<n>
   set(Boost_USE_STATIC_LIBS ON)
   include(BuildBoost)
-  build_boost(1.66
+  build_boost(1.67
     COMPONENTS ${BOOST_COMPONENTS} ${BOOST_HEADER_COMPONENTS})
   include_directories(BEFORE SYSTEM ${Boost_INCLUDE_DIRS})
 endif()
 set(Boost_USE_MULTITHREADED ON)
 
+# dashboard angular2 frontend
+option(WITH_MGR_DASHBOARD_FRONTEND "Build the mgr/dashboard frontend using `npm`" ON)
+
 include_directories(SYSTEM ${PROJECT_BINARY_DIR}/include)
 
 find_package(Threads REQUIRED)
+
+execute_process(
+  COMMAND ./librarytest.sh ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_FLAGS}
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  OUTPUT_VARIABLE CXX_STDLIB
+  )
+
+if(CXX_STDLIB STREQUAL "libstdc++" OR CXX_STDLIB STREQUAL "libc++")
+  message(STATUS "We are using ${CXX_STDLIB}.")
+else()
+  message(FATAL_ERROR
+    "Unable to determine C++ standard library, got ${CXX_STDLIB}.")
+endif()
 
 option(WITH_SELINUX "build SELinux policy" OFF)
 if(WITH_SELINUX)
@@ -638,7 +677,7 @@ if(WITH_MANPAGE)
   add_subdirectory(man)
 endif(WITH_MANPAGE)
 
-option(WITH_SYSTEMD "install systemd target and service files" OFF)
+option(WITH_SYSTEMD "install systemd target and service files" ON)
 if(WITH_SYSTEMD)
   add_subdirectory(systemd)
 endif()

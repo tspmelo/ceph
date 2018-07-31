@@ -46,13 +46,16 @@ ostream& operator<<(ostream &out, const Inode &in)
       << " open=" << in.open_by_mode
       << " mode=" << oct << in.mode << dec
       << " size=" << in.size << "/" << in.max_size
+      << " nlink=" << in.nlink
+      << " btime=" << in.btime
       << " mtime=" << in.mtime
+      << " ctime=" << in.ctime
       << " caps=" << ccap_string(in.caps_issued());
   if (!in.caps.empty()) {
     out << "(";
     bool first = true;
     for (const auto &pair : in.caps) {
-      if (first)
+      if (!first)
         out << ',';
       out << pair.first << '=' << ccap_string(pair.second.issued);
       first = false;
@@ -200,6 +203,12 @@ int Inode::caps_issued(int *implemented) const
       i |= cap.implemented;
     }
   }
+  // exclude caps issued by non-auth MDS, but are been revoking by
+  // the auth MDS. The non-auth MDS should be revoking/exporting
+  // these caps, but the message is delayed.
+  if (auth_cap)
+    c &= ~auth_cap->implemented | auth_cap->issued;
+
   if (implemented)
     *implemented = i;
   return c;
@@ -213,9 +222,27 @@ void Inode::try_touch_cap(mds_rank_t mds)
   }
 }
 
-bool Inode::caps_issued_mask(unsigned mask)
+/**
+ * caps_issued_mask - check whether we have all of the caps in the mask
+ * @mask: mask to check against
+ * @allow_impl: whether the caller can also use caps that are implemented but not issued
+ *
+ * This is the bog standard "check whether we have the required caps" operation.
+ * Typically, we only check against the capset that is currently "issued".
+ * In other words, we ignore caps that have been revoked but not yet released.
+ *
+ * Some callers (particularly those doing attribute retrieval) can also make
+ * use of the full set of "implemented" caps to satisfy requests from the
+ * cache.
+ *
+ * Those callers should refrain from taking new references to implemented
+ * caps!
+ */
+bool Inode::caps_issued_mask(unsigned mask, bool allow_impl)
 {
   int c = snap_caps;
+  int i = 0;
+
   if ((c & mask) == mask)
     return true;
   // prefer auth cap
@@ -234,8 +261,13 @@ bool Inode::caps_issued_mask(unsigned mask)
 	return true;
       }
       c |= cap.issued;
+      i |= cap.implemented;
     }
   }
+
+  if (allow_impl)
+    c |= i;
+
   if ((c & mask) == mask) {
     // bah.. touch them all
     for (auto &pair : caps) {
@@ -513,7 +545,7 @@ void Inode::dump(Formatter *f) const
 void Cap::dump(Formatter *f) const
 {
   f->dump_int("mds", session->mds_num);
-  f->dump_stream("ino") << inode->ino;
+  f->dump_stream("ino") << inode.ino;
   f->dump_unsigned("cap_id", cap_id);
   f->dump_stream("issued") << ccap_string(issued);
   if (implemented != issued)

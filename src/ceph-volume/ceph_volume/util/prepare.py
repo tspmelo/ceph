@@ -6,6 +6,7 @@ the single-call helper
 """
 import os
 import logging
+import json
 from ceph_volume import process, conf
 from ceph_volume.util import system, constants
 
@@ -13,33 +14,80 @@ logger = logging.getLogger(__name__)
 
 
 def create_key():
-    stdout, stderr, returncode = process.call(['ceph-authtool', '--gen-print-key'])
+    stdout, stderr, returncode = process.call(
+        ['ceph-authtool', '--gen-print-key'],
+        show_command=True)
     if returncode != 0:
         raise RuntimeError('Unable to generate a new auth key')
     return ' '.join(stdout).strip()
 
 
-def write_keyring(osd_id, secret):
-    # FIXME this only works for cephx, but there will be other types of secrets
-    # later
-    osd_keyring = '/var/lib/ceph/osd/%s-%s/keyring' % (conf.cluster, osd_id)
+def write_keyring(osd_id, secret, keyring_name='keyring', name=None):
+    """
+    Create a keyring file with the ``ceph-authtool`` utility. Constructs the
+    path over well-known conventions for the OSD, and allows any other custom
+    ``name`` to be set.
+
+    :param osd_id: The ID for the OSD to be used
+    :param secret: The key to be added as (as a string)
+    :param name: Defaults to 'osd.{ID}' but can be used to add other client
+                 names, specifically for 'lockbox' type of keys
+    :param keyring_name: Alternative keyring name, for supporting other
+                         types of keys like for lockbox
+    """
+    osd_keyring = '/var/lib/ceph/osd/%s-%s/%s' % (conf.cluster, osd_id, keyring_name)
+    name = name or 'osd.%s' % str(osd_id)
     process.run(
         [
             'ceph-authtool', osd_keyring,
             '--create-keyring',
-            '--name', 'osd.%s' % str(osd_id),
+            '--name', name,
             '--add-key', secret
         ])
     system.chown(osd_keyring)
-    # TODO: do the restorecon dance on the osd_keyring path
 
 
-def create_id(fsid, json_secrets):
+def create_id(fsid, json_secrets, osd_id=None):
     """
     :param fsid: The osd fsid to create, always required
     :param json_secrets: a json-ready object with whatever secrets are wanted
                          to be passed to the monitor
+    :param osd_id: Reuse an existing ID from an OSD that's been destroyed, if the
+                   id does not exist in the cluster a new ID will be created
     """
+    bootstrap_keyring = '/var/lib/ceph/bootstrap-osd/%s.keyring' % conf.cluster
+    cmd = [
+        'ceph',
+        '--cluster', conf.cluster,
+        '--name', 'client.bootstrap-osd',
+        '--keyring', bootstrap_keyring,
+        '-i', '-',
+        'osd', 'new', fsid
+    ]
+    if osd_id is not None:
+        if osd_id_available(osd_id):
+            cmd.append(osd_id)
+        else:
+            raise RuntimeError("The osd ID {} is already in use or does not exist.".format(osd_id))
+    stdout, stderr, returncode = process.call(
+        cmd,
+        stdin=json_secrets,
+        show_command=True
+    )
+    if returncode != 0:
+        raise RuntimeError('Unable to create a new OSD id')
+    return ' '.join(stdout).strip()
+
+
+def osd_id_available(osd_id):
+    """
+    Checks to see if an osd ID exists and if it's available for
+    reuse. Returns True if it is, False if it isn't.
+
+    :param osd_id: The osd ID to check
+    """
+    if osd_id is None:
+        return False
     bootstrap_keyring = '/var/lib/ceph/bootstrap-osd/%s.keyring' % conf.cluster
     stdout, stderr, returncode = process.call(
         [
@@ -47,14 +95,21 @@ def create_id(fsid, json_secrets):
             '--cluster', conf.cluster,
             '--name', 'client.bootstrap-osd',
             '--keyring', bootstrap_keyring,
-            '-i', '-',
-            'osd', 'new', fsid
+            'osd',
+            'tree',
+            '-f', 'json',
         ],
-        stdin=json_secrets
+        show_command=True
     )
     if returncode != 0:
-        raise RuntimeError('Unable to create a new OSD id')
-    return ' '.join(stdout).strip()
+        raise RuntimeError('Unable check if OSD id exists: %s' % osd_id)
+
+    output = json.loads(''.join(stdout).strip())
+    osds = output['nodes']
+    osd = [osd for osd in osds if str(osd['id']) == str(osd_id)]
+    if osd and osd[0].get('status') == "destroyed":
+        return True
+    return False
 
 
 def mount_tmpfs(path):
@@ -64,6 +119,9 @@ def mount_tmpfs(path):
         'tmpfs', 'tmpfs',
         path
     ])
+
+    # Restore SELinux context
+    system.set_context(path)
 
 
 def create_osd_path(osd_id, tmpfs=False):
@@ -95,7 +153,60 @@ def format_device(device):
     process.run(command)
 
 
-def mount_osd(device, osd_id):
+def _normalize_mount_flags(flags, extras=None):
+    """
+    Mount flag options have to be a single string, separated by a comma. If the
+    flags are separated by spaces, or with commas and spaces in ceph.conf, the
+    mount options will be passed incorrectly.
+
+    This will help when parsing ceph.conf values return something like::
+
+        ["rw,", "exec,"]
+
+    Or::
+
+        [" rw ,", "exec"]
+
+    :param flags: A list of flags, or a single string of mount flags
+    :param extras: Extra set of mount flags, useful when custom devices like VDO need
+                   ad-hoc mount configurations
+    """
+    # Instead of using set(), we append to this new list here, because set()
+    # will create an arbitrary order on the items that is made worst when
+    # testing with tools like tox that includes a randomizer seed. By
+    # controlling the order, it is easier to correctly assert the expectation
+    unique_flags = []
+    if isinstance(flags, list):
+        if extras:
+            flags.extend(extras)
+
+        # ensure that spaces and commas are removed so that they can join
+        # correctly, remove duplicates
+        for f in flags:
+            if f and f not in unique_flags:
+                unique_flags.append(f.strip().strip(','))
+        return ','.join(unique_flags)
+
+    # split them, clean them, and join them back again
+    flags = flags.strip().split(' ')
+    if extras:
+        flags.extend(extras)
+
+    # remove possible duplicates
+    for f in flags:
+        if f and f not in unique_flags:
+            unique_flags.append(f.strip().strip(','))
+    flags = ','.join(unique_flags)
+    # Before returning, split them again, since strings can be mashed up
+    # together, preventing removal of duplicate entries
+    return ','.join(set(flags.split(',')))
+
+
+def mount_osd(device, osd_id, **kw):
+    extras = []
+    is_vdo = kw.get('is_vdo', '0')
+    if is_vdo == '1':
+        extras = ['discard']
     destination = '/var/lib/ceph/osd/%s-%s' % (conf.cluster, osd_id)
     command = ['mount', '-t', 'xfs', '-o']
     flags = conf.ceph.get_list(
@@ -104,10 +215,15 @@ def mount_osd(device, osd_id):
         default=constants.mount.get('xfs'),
         split=' ',
     )
-    command.append(flags)
+    command.append(
+        _normalize_mount_flags(flags, extras=extras)
+    )
     command.append(device)
     command.append(destination)
     process.run(command)
+
+    # Restore SELinux context
+    system.set_context(destination)
 
 
 def _link_device(device, device_type, osd_id):
@@ -187,7 +303,6 @@ def osd_mkfs_bluestore(osd_id, fsid, keyring=None, wal=False, db=False):
     base_command = [
         'ceph-osd',
         '--cluster', conf.cluster,
-        # undocumented flag, sets the `type` file to contain 'bluestore'
         '--osd-objectstore', 'bluestore',
         '--mkfs',
         '-i', osd_id,
@@ -218,10 +333,12 @@ def osd_mkfs_bluestore(osd_id, fsid, keyring=None, wal=False, db=False):
 
     command = base_command + supplementary_command
 
-    process.call(command, stdin=keyring)
+    _, _, returncode = process.call(command, stdin=keyring, show_command=True)
+    if returncode != 0:
+        raise RuntimeError('Command failed with exit code %s: %s' % (returncode, ' '.join(command)))
 
 
-def osd_mkfs_filestore(osd_id, fsid):
+def osd_mkfs_filestore(osd_id, fsid, keyring):
     """
     Create the files for the OSD to function. A normal call will look like:
 
@@ -241,17 +358,22 @@ def osd_mkfs_filestore(osd_id, fsid):
     system.chown(journal)
     system.chown(path)
 
-    process.run([
+    command = [
         'ceph-osd',
         '--cluster', conf.cluster,
-        # undocumented flag, sets the `type` file to contain 'filestore'
         '--osd-objectstore', 'filestore',
         '--mkfs',
         '-i', osd_id,
         '--monmap', monmap,
+        '--keyfile', '-', # goes through stdin
         '--osd-data', path,
         '--osd-journal', journal,
         '--osd-uuid', fsid,
         '--setuser', 'ceph',
         '--setgroup', 'ceph'
-    ])
+    ]
+    _, _, returncode = process.call(
+        command, stdin=keyring, terminal_verbose=True, show_command=True
+    )
+    if returncode != 0:
+        raise RuntimeError('Command failed with exit code %s: %s' % (returncode, ' '.join(command)))

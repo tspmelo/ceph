@@ -47,7 +47,7 @@ void SessionMap::register_perfcounters()
   PerfCountersBuilder plb(g_ceph_context, "mds_sessions",
       l_mdssm_first, l_mdssm_last);
   plb.add_u64(l_mdssm_session_count, "session_count",
-      "Session count", "sess", PerfCountersBuilder::PRIO_USEFUL);
+      "Session count", "sess", PerfCountersBuilder::PRIO_INTERESTING);
   plb.add_u64_counter(l_mdssm_session_add, "session_add",
       "Sessions added");
   plb.add_u64_counter(l_mdssm_session_remove, "session_remove",
@@ -99,6 +99,9 @@ public:
     sessionmap->_load_finish(r, header_r, values_r, first, header_bl, session_vals,
       more_session_vals);
   }
+  void print(ostream& out) const override {
+    out << "session_load";
+  }
 };
 }
 
@@ -109,7 +112,7 @@ public:
 void SessionMapStore::decode_header(
       bufferlist &header_bl)
 {
-  bufferlist::iterator q = header_bl.begin();
+  auto q = header_bl.cbegin();
   DECODE_START(1, q)
   decode(version, q);
   DECODE_FINISH(q);
@@ -143,7 +146,7 @@ void SessionMapStore::decode_values(std::map<std::string, bufferlist> &session_v
     Session *s = get_or_add_session(inst);
     if (s->is_closed())
       s->set_state(Session::STATE_OPEN);
-    bufferlist::iterator q = i->second.begin();
+    auto q = i->second.cbegin();
     s->decode(q);
   }
 }
@@ -222,7 +225,7 @@ void SessionMap::_load_finish(
     object_locator_t oloc(mds->mdsmap->get_metadata_pool());
     C_IO_SM_Load *c = new C_IO_SM_Load(this, false);
     ObjectOperation op;
-    op.omap_get_vals(last_key, "", g_conf->mds_sessionmap_keys_per_op,
+    op.omap_get_vals(last_key, "", g_conf()->mds_sessionmap_keys_per_op,
 		     &c->session_vals, &c->more_session_vals, &c->values_r);
     mds->objecter->read(oid, oloc, op, CEPH_NOSNAP, NULL, 0,
         new C_OnFinisher(c, mds->finisher));
@@ -265,7 +268,7 @@ void SessionMap::load(MDSInternalContextBase *onload)
 
   ObjectOperation op;
   op.omap_get_header(&c->header_bl, &c->header_r);
-  op.omap_get_vals("", "", g_conf->mds_sessionmap_keys_per_op,
+  op.omap_get_vals("", "", g_conf()->mds_sessionmap_keys_per_op,
 		   &c->session_vals, &c->more_session_vals, &c->values_r);
 
   mds->objecter->read(oid, oloc, op, CEPH_NOSNAP, NULL, 0, new C_OnFinisher(c, mds->finisher));
@@ -278,6 +281,9 @@ public:
   explicit C_IO_SM_LoadLegacy(SessionMap *cm) : SessionMapIOContext(cm) {}
   void finish(int r) override {
     sessionmap->_load_legacy_finish(r, bl);
+  }
+  void print(ostream& out) const override {
+    out << "session_load_legacy";
   }
 };
 }
@@ -303,7 +309,7 @@ void SessionMap::load_legacy()
 
 void SessionMap::_load_legacy_finish(int r, bufferlist &bl)
 { 
-  bufferlist::iterator blp = bl.begin();
+  auto blp = bl.cbegin();
   if (r < 0) {
     derr << "_load_finish got " << cpp_strerror(r) << dendl;
     assert(0 == "failed to load sessionmap");
@@ -345,6 +351,9 @@ public:
     } else {
       sessionmap->_save_finish(version);
     }
+  }
+  void print(ostream& out) const override {
+    out << "session_save";
   }
 };
 }
@@ -450,7 +459,7 @@ void SessionMap::_save_finish(version_t v)
 /**
  * Deserialize sessions, and update by_state index
  */
-void SessionMap::decode_legacy(bufferlist::iterator &p)
+void SessionMap::decode_legacy(bufferlist::const_iterator &p)
 {
   // Populate `sessions`
   SessionMapStore::decode_legacy(p);
@@ -478,7 +487,7 @@ uint64_t SessionMap::set_state(Session *session, int s) {
   return session->get_state_seq();
 }
 
-void SessionMapStore::decode_legacy(bufferlist::iterator& p)
+void SessionMapStore::decode_legacy(bufferlist::const_iterator& p)
 {
   utime_t now = ceph_clock_now();
   uint64_t pre;
@@ -508,7 +517,7 @@ void SessionMapStore::decode_legacy(bufferlist::iterator& p)
     decode(n, p);
     
     while (n-- && !p.end()) {
-      bufferlist::iterator p2 = p;
+      auto p2 = p;
       Session *s = new Session;
       s->info.decode(p);
       if (session_map.count(s->info.inst.name)) {
@@ -631,7 +640,7 @@ void SessionMap::_mark_dirty(Session *s)
   if (dirty_sessions.count(s->info.inst.name))
     return;
 
-  if (dirty_sessions.size() >= g_conf->mds_sessionmap_keys_per_op) {
+  if (dirty_sessions.size() >= g_conf()->mds_sessionmap_keys_per_op) {
     // Pre-empt the usual save() call from journal segment trim, in
     // order to avoid building up an oversized OMAP update operation
     // from too many sessions modified at once
@@ -690,6 +699,9 @@ public:
       on_safe->complete(r);
     }
   }
+  void print(ostream& out) const override {
+    out << "session_save_one";
+  }
 };
 }
 
@@ -736,7 +748,7 @@ void SessionMap::save_if_dirty(const std::set<entity_name_t> &tgt_sessions,
   dout(4) << __func__ << ": writing " << write_sessions.size() << dendl;
 
   // Batch writes into mds_sessionmap_keys_per_op
-  const uint32_t kpo = g_conf->mds_sessionmap_keys_per_op;
+  const uint32_t kpo = g_conf()->mds_sessionmap_keys_per_op;
   map<string, bufferlist> to_set;
   for (uint32_t i = 0; i < write_sessions.size(); ++i) {
     const entity_name_t &session_id = write_sessions[i];
@@ -766,8 +778,8 @@ void SessionMap::save_if_dirty(const std::set<entity_name_t> &tgt_sessions,
       object_locator_t oloc(mds->mdsmap->get_metadata_pool());
       MDSInternalContextBase *on_safe = gather_bld->new_sub();
       mds->objecter->mutate(oid, oloc, op, snapc,
-			    ceph::real_clock::now(),
-			    0, new C_OnFinisher(
+			    ceph::real_clock::now(), 0,
+			    new C_OnFinisher(
 			      new C_IO_SM_Save_One(this, on_safe),
 			      mds->finisher));
     }
@@ -843,7 +855,7 @@ void Session::clear_recalled_at()
   recall_release_count = 0;
 }
 
-void Session::set_client_metadata(map<string, string> const &meta)
+void Session::set_client_metadata(const client_metadata_t& meta)
 {
   info.client_metadata = meta;
 
@@ -882,7 +894,7 @@ void Session::_update_human_name()
   }
 }
 
-void Session::decode(bufferlist::iterator &p)
+void Session::decode(bufferlist::const_iterator &p)
 {
   info.decode(p);
 
@@ -972,7 +984,7 @@ int SessionFilter::parse(
        * Strict boolean parser.  Allow true/false/0/1.
        * Anything else is -EINVAL.
        */
-      auto is_true = [](const std::string &bstr, bool *out) -> bool
+      auto is_true = [](std::string_view bstr, bool *out) -> bool
       {
         assert(out != nullptr);
 
@@ -1011,10 +1023,11 @@ bool SessionFilter::match(
   for (const auto &m : metadata) {
     const auto &k = m.first;
     const auto &v = m.second;
-    if (session.info.client_metadata.count(k) == 0) {
+    auto it = session.info.client_metadata.find(k);
+    if (it == session.info.client_metadata.end()) {
       return false;
     }
-    if (session.info.client_metadata.at(k) != v) {
+    if (it->second != v) {
       return false;
     }
   }

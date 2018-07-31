@@ -36,14 +36,14 @@
 #undef dout_prefix
 #define dout_prefix _prefix(_dout, this)
 static ostream& _prefix(std::ostream *_dout, PGBackend *pgb) {
-  return *_dout << pgb->get_parent()->gen_dbg_prefix();
+  return pgb->get_parent()->gen_dbg_prefix(*_dout);
 }
 
 void PGBackend::recover_delete_object(const hobject_t &oid, eversion_t v,
 				      RecoveryHandle *h)
 {
-  assert(get_parent()->get_actingbackfill_shards().size() > 0);
-  for (const auto& shard : get_parent()->get_actingbackfill_shards()) {
+  assert(get_parent()->get_acting_recovery_backfill_shards().size() > 0);
+  for (const auto& shard : get_parent()->get_acting_recovery_backfill_shards()) {
     if (shard == get_parent()->whoami_shard())
       continue;
     if (get_parent()->get_shard_missing(shard).is_missing(oid)) {
@@ -159,7 +159,7 @@ void PGBackend::handle_recovery_delete_reply(OpRequestRef op)
     recovery_info.version = p.second;
     get_parent()->on_peer_recover(m->from, oid, recovery_info);
     bool peers_recovered = true;
-    for (const auto& shard : get_parent()->get_actingbackfill_shards()) {
+    for (const auto& shard : get_parent()->get_acting_recovery_backfill_shards()) {
       if (shard == get_parent()->whoami_shard())
 	continue;
       if (get_parent()->get_shard_missing(shard).is_missing(oid)) {
@@ -380,7 +380,6 @@ int PGBackend::objects_list_partial(
 int PGBackend::objects_list_range(
   const hobject_t &start,
   const hobject_t &end,
-  snapid_t seq,
   vector<hobject_t> *ls,
   vector<ghobject_t> *gen_obs)
 {
@@ -532,26 +531,25 @@ void PGBackend::trim_rollback_object(
 
 PGBackend *PGBackend::build_pg_backend(
   const pg_pool_t &pool,
-  const OSDMapRef curmap,
+  const map<string,string>& profile,
   Listener *l,
   coll_t coll,
   ObjectStore::CollectionHandle &ch,
   ObjectStore *store,
   CephContext *cct)
 {
+  ErasureCodeProfile ec_profile = profile;
   switch (pool.type) {
   case pg_pool_t::TYPE_REPLICATED: {
     return new ReplicatedBackend(l, coll, ch, store, cct);
   }
   case pg_pool_t::TYPE_ERASURE: {
     ErasureCodeInterfaceRef ec_impl;
-    ErasureCodeProfile profile = curmap->get_erasure_code_profile(pool.erasure_code_profile);
-    assert(profile.count("plugin"));
     stringstream ss;
     ceph::ErasureCodePluginRegistry::instance().factory(
       profile.find("plugin")->second,
-      cct->_conf->get_val<std::string>("erasure_code_dir"),
-      profile,
+      cct->_conf.get_val<std::string>("erasure_code_dir"),
+      ec_profile,
       &ec_impl,
       &ss);
     assert(ec_impl);
@@ -570,58 +568,53 @@ PGBackend *PGBackend::build_pg_backend(
   }
 }
 
-/*
- * pg lock may or may not be held
- */
-void PGBackend::be_scan_list(
-  ScrubMap &map, const vector<hobject_t> &ls, bool deep, uint32_t seed,
-  ThreadPool::TPHandle &handle)
+int PGBackend::be_scan_list(
+  ScrubMap &map,
+  ScrubMapBuilder &pos)
 {
-  dout(10) << __func__ << " scanning " << ls.size() << " objects"
-           << (deep ? " deeply" : "") << dendl;
-  int i = 0;
-  for (vector<hobject_t>::const_iterator p = ls.begin();
-       p != ls.end();
-       ++p, i++) {
-    handle.reset_tp_timeout();
-    hobject_t poid = *p;
+  dout(10) << __func__ << " " << pos << dendl;
+  assert(!pos.done());
+  assert(pos.pos < pos.ls.size());
+  hobject_t& poid = pos.ls[pos.pos];
 
-    struct stat st;
-    int r = store->stat(
+  struct stat st;
+  int r = store->stat(
+    ch,
+    ghobject_t(
+      poid, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard),
+    &st,
+    true);
+  if (r == 0) {
+    ScrubMap::object &o = map.objects[poid];
+    o.size = st.st_size;
+    assert(!o.negative);
+    store->getattrs(
       ch,
       ghobject_t(
 	poid, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard),
-      &st,
-      true);
-    if (r == 0) {
-      ScrubMap::object &o = map.objects[poid];
-      o.size = st.st_size;
-      assert(!o.negative);
-      store->getattrs(
-	ch,
-	ghobject_t(
-	  poid, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard),
-	o.attrs);
+      o.attrs);
 
-      // calculate the CRC32 on deep scrubs
-      if (deep) {
-	be_deep_scrub(*p, seed, o, handle, &map);
-      }
-
-      dout(25) << __func__ << "  " << poid << dendl;
-    } else if (r == -ENOENT) {
-      dout(25) << __func__ << "  " << poid << " got " << r
-	       << ", skipping" << dendl;
-    } else if (r == -EIO) {
-      dout(25) << __func__ << "  " << poid << " got " << r
-	       << ", stat_error" << dendl;
-      ScrubMap::object &o = map.objects[poid];
-      o.stat_error = true;
-    } else {
-      derr << __func__ << " got: " << cpp_strerror(r) << dendl;
-      ceph_abort();
+    if (pos.deep) {
+      r = be_deep_scrub(poid, map, pos, o);
     }
+    dout(25) << __func__ << "  " << poid << dendl;
+  } else if (r == -ENOENT) {
+    dout(25) << __func__ << "  " << poid << " got " << r
+	     << ", skipping" << dendl;
+  } else if (r == -EIO) {
+    dout(25) << __func__ << "  " << poid << " got " << r
+	     << ", stat_error" << dendl;
+    ScrubMap::object &o = map.objects[poid];
+    o.stat_error = true;
+  } else {
+    derr << __func__ << " got: " << cpp_strerror(r) << dendl;
+    ceph_abort();
   }
+  if (r == -EINPROGRESS) {
+    return -EINPROGRESS;
+  }
+  pos.next_object();
+  return 0;
 }
 
 bool PGBackend::be_compare_scrub_objects(
@@ -674,7 +667,7 @@ bool PGBackend::be_compare_scrub_objects(
         errorstream << "data_digest 0x" << std::hex << candidate.digest
 		    << " != data_digest 0x" << auth_oi.data_digest << std::dec
 		    << " from auth oi " << auth_oi;
-        shard_result.set_data_digest_mismatch_oi();
+        shard_result.set_data_digest_mismatch_info();
       }
     }
     if (auth_oi.is_omap_digest() && candidate.omap_digest_present) {
@@ -685,7 +678,7 @@ bool PGBackend::be_compare_scrub_objects(
         errorstream << "omap_digest 0x" << std::hex << candidate.omap_digest
 		    << " != omap_digest 0x" << auth_oi.omap_digest << std::dec
 		    << " from auth oi " << auth_oi;
-        shard_result.set_omap_digest_mismatch_oi();
+        shard_result.set_omap_digest_mismatch_info();
       }
     }
   }
@@ -699,7 +692,7 @@ bool PGBackend::be_compare_scrub_objects(
     errorstream << "size " << candidate.size
 		<< " != size " << oi_size
 		<< " from auth oi " << auth_oi;
-    shard_result.set_size_mismatch_oi();
+    shard_result.set_size_mismatch_info();
   }
   if (auth.size != candidate.size) {
     if (error != CLEAN)
@@ -714,7 +707,7 @@ bool PGBackend::be_compare_scrub_objects(
        i != auth.attrs.end();
        ++i) {
     // We check system keys seperately
-    if (i->first == OI_ATTR || i->first == SS_ATTR)
+    if (i->first == OI_ATTR || i->first[0] != '_')
       continue;
     if (!candidate.attrs.count(i->first)) {
       if (error != CLEAN)
@@ -734,7 +727,7 @@ bool PGBackend::be_compare_scrub_objects(
        i != candidate.attrs.end();
        ++i) {
     // We check system keys seperately
-    if (i->first == OI_ATTR || i->first == SS_ATTR)
+    if (i->first == OI_ATTR || i->first[0] != '_')
       continue;
     if (!auth.attrs.count(i->first)) {
       if (error != CLEAN)
@@ -766,7 +759,7 @@ map<pg_shard_t, ScrubMap *>::const_iterator
   inconsistent_obj_wrapper &object_error)
 {
   eversion_t auth_version;
-  bufferlist first_bl;
+  bufferlist first_oi_bl, first_ss_bl, first_hk_bl;
 
   // Create list of shards with primary first so it will be auth copy all
   // other things being equal.
@@ -809,7 +802,7 @@ map<pg_shard_t, ScrubMap *>::const_iterator
     bufferlist bl;
     map<string, bufferptr>::iterator k;
     SnapSet ss;
-    bufferlist ss_bl;
+    bufferlist ss_bl, hk_bl;
 
     if (i->second.stat_error) {
       shard_info.set_stat_error();
@@ -824,17 +817,48 @@ map<pg_shard_t, ScrubMap *>::const_iterator
     if (obj.is_head()) {
       k = i->second.attrs.find(SS_ATTR);
       if (k == i->second.attrs.end()) {
-	shard_info.set_ss_attr_missing();
-	error_string += " ss_attr_missing";
+	shard_info.set_snapset_missing();
+	error_string += " snapset_missing";
       } else {
         ss_bl.push_back(k->second);
         try {
-	  bufferlist::iterator bliter = ss_bl.begin();
+	  auto bliter = ss_bl.cbegin();
 	  decode(ss, bliter);
+	  if (first_ss_bl.length() == 0) {
+	    first_ss_bl.append(ss_bl);
+	  } else if (!object_error.has_snapset_inconsistency() && !ss_bl.contents_equal(first_ss_bl)) {
+	    object_error.set_snapset_inconsistency();
+	    error_string += " snapset_inconsistency";
+	  }
         } catch (...) {
 	  // invalid snapset, probably corrupt
-	  shard_info.set_ss_attr_corrupted();
-	  error_string += " ss_attr_corrupted";
+	  shard_info.set_snapset_corrupted();
+	  error_string += " snapset_corrupted";
+        }
+      }
+    }
+
+    if (parent->get_pool().is_erasure()) {
+      ECUtil::HashInfo hi;
+      k = i->second.attrs.find(ECUtil::get_hinfo_key());
+      if (k == i->second.attrs.end()) {
+	shard_info.set_hinfo_missing();
+	error_string += " hinfo_key_missing";
+      } else {
+	hk_bl.push_back(k->second);
+        try {
+	  auto bliter = hk_bl.cbegin();
+	  decode(hi, bliter);
+	  if (first_hk_bl.length() == 0) {
+	    first_hk_bl.append(hk_bl);
+	  } else if (!object_error.has_hinfo_inconsistency() && !hk_bl.contents_equal(first_hk_bl)) {
+	    object_error.set_hinfo_inconsistency();
+	    error_string += " hinfo_inconsistency";
+	  }
+        } catch (...) {
+	  // invalid snapset, probably corrupt
+	  shard_info.set_hinfo_corrupted();
+	  error_string += " hinfo_corrupted";
         }
       }
     }
@@ -842,35 +866,35 @@ map<pg_shard_t, ScrubMap *>::const_iterator
     k = i->second.attrs.find(OI_ATTR);
     if (k == i->second.attrs.end()) {
       // no object info on object, probably corrupt
-      shard_info.set_oi_attr_missing();
-      error_string += " oi_attr_missing";
+      shard_info.set_info_missing();
+      error_string += " info_missing";
       goto out;
     }
     bl.push_back(k->second);
     try {
-      bufferlist::iterator bliter = bl.begin();
+      auto bliter = bl.cbegin();
       decode(oi, bliter);
     } catch (...) {
       // invalid object info, probably corrupt
-      shard_info.set_oi_attr_corrupted();
-      error_string += " oi_attr_corrupted";
+      shard_info.set_info_corrupted();
+      error_string += " info_corrupted";
       goto out;
     }
 
     // This is automatically corrected in PG::_repair_oinfo_oid()
     assert(oi.soid == obj);
 
-    if (first_bl.length() == 0) {
-      first_bl.append(bl);
-    } else if (!object_error.has_object_info_inconsistency() && !bl.contents_equal(first_bl)) {
+    if (first_oi_bl.length() == 0) {
+      first_oi_bl.append(bl);
+    } else if (!object_error.has_object_info_inconsistency() && !bl.contents_equal(first_oi_bl)) {
       object_error.set_object_info_inconsistency();
       error_string += " object_info_inconsistency";
     }
 
     if (i->second.size != be_get_ondisk_size(oi.size)) {
       dout(5) << __func__ << " size " << i->second.size << " oi size " << oi.size << dendl;
-      shard_info.set_obj_size_oi_mismatch();
-      error_string += " obj_size_oi_mismatch";
+      shard_info.set_obj_size_info_mismatch();
+      error_string += " obj_size_info_mismatch";
     }
 
     // Don't use this particular shard due to previous errors
@@ -1034,23 +1058,19 @@ void PGBackend::be_compare_scrubmaps(
 	FORCE = 2,
       } update = NO;
 
-      if (auth_object.digest_present && auth_object.omap_digest_present &&
-	  (!auth_oi.is_data_digest() || !auth_oi.is_omap_digest())) {
-	dout(20) << __func__ << " missing digest on " << *k << dendl;
+      if (auth_object.digest_present && !auth_oi.is_data_digest()) {
+	dout(20) << __func__ << " missing data digest on " << *k << dendl;
 	update = MAYBE;
       }
-      if (auth_object.digest_present && auth_object.omap_digest_present &&
-	  cct->_conf->osd_debug_scrub_chance_rewrite_digest &&
-	  (((unsigned)rand() % 100) >
-	   cct->_conf->osd_debug_scrub_chance_rewrite_digest)) {
-	dout(20) << __func__ << " randomly updating digest on " << *k << dendl;
+      if (auth_object.omap_digest_present && !auth_oi.is_omap_digest()) {
+	dout(20) << __func__ << " missing omap digest on " << *k << dendl;
 	update = MAYBE;
       }
 
       // recorded digest != actual digest?
       if (auth_oi.is_data_digest() && auth_object.digest_present &&
 	  auth_oi.data_digest != auth_object.digest) {
-        assert(shard_map[auth->first].has_data_digest_mismatch_oi());
+        assert(shard_map[auth->first].has_data_digest_mismatch_info());
 	errorstream << pgid << " recorded data digest 0x"
 		    << std::hex << auth_oi.data_digest << " != on disk 0x"
 		    << auth_object.digest << std::dec << " on " << auth_oi.soid
@@ -1060,7 +1080,7 @@ void PGBackend::be_compare_scrubmaps(
       }
       if (auth_oi.is_omap_digest() && auth_object.omap_digest_present &&
 	  auth_oi.omap_digest != auth_object.omap_digest) {
-        assert(shard_map[auth->first].has_omap_digest_mismatch_oi());
+        assert(shard_map[auth->first].has_omap_digest_mismatch_info());
 	errorstream << pgid << " recorded omap digest 0x"
 		    << std::hex << auth_oi.omap_digest << " != on disk 0x"
 		    << auth_object.omap_digest << std::dec
@@ -1073,13 +1093,14 @@ void PGBackend::be_compare_scrubmaps(
 	utime_t age = now - auth_oi.local_mtime;
 	if (update == FORCE ||
 	    age > cct->_conf->osd_deep_scrub_update_digest_min_age) {
-	  dout(20) << __func__ << " will update digest on " << *k << dendl;
           boost::optional<uint32_t> data_digest, omap_digest;
-          if (auth_oi.is_data_digest()) {
+          if (auth_object.digest_present) {
             data_digest = auth_object.digest;
+	    dout(20) << __func__ << " will update data digest on " << *k << dendl;
           }
-          if (auth_oi.is_omap_digest()) {
+          if (auth_object.omap_digest_present) {
             omap_digest = auth_object.omap_digest;
+	    dout(20) << __func__ << " will update omap digest on " << *k << dendl;
           }
 	  missing_digest[*k] = make_pair(data_digest, omap_digest);
 	} else {
@@ -1120,7 +1141,10 @@ void PGBackend::be_large_omap_check(const map<pg_shard_t,ScrubMap*> &maps,
   // Iterate through objects and check large omap object flag
   for (const auto& k : master_set) {
     for (const auto& map : maps) {
-      ScrubMap::object& obj = map.second->objects[k];
+      auto it = map.second->objects.find(k);
+      if (it == map.second->objects.end())
+        continue;
+      ScrubMap::object& obj = it->second;
       if (obj.large_omap_object_found) {
         large_omap_objects++;
         warnstream << "Large omap object found. Object: " << k << " Key count: "

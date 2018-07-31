@@ -32,7 +32,7 @@ using std::chrono::seconds;
 class Journaler::C_DelayFlush : public Context {
   Journaler *journaler;
   public:
-  C_DelayFlush(Journaler *j) : journaler(j) {}
+  explicit C_DelayFlush(Journaler *j) : journaler(j) {}
   void finish(int r) override {
     journaler->_do_delayed_flush();
   }
@@ -84,13 +84,17 @@ void Journaler::_set_layout(file_layout_t const *l)
 {
   layout = *l;
 
-  assert(layout.pool_id == pg_pool);
+  if (layout.pool_id != pg_pool) {
+    // user can reset pool id through cephfs-journal-tool
+    lderr(cct) << "may got older pool id from header layout" << dendl;
+    ceph_abort();
+  }
   last_written.layout = layout;
   last_committed.layout = layout;
 
   // prefetch intelligently.
   // (watch out, this is big if you use big objects or weird striping)
-  uint64_t periods = cct->_conf->get_val<uint64_t>("journaler_prefetch_periods");
+  uint64_t periods = cct->_conf.get_val<uint64_t>("journaler_prefetch_periods");
   fetch_len = layout.get_period() * periods;
 }
 
@@ -224,7 +228,7 @@ void Journaler::_finish_reread_head(int r, bufferlist& bl, Context *finish)
   // unpack header
   if (r == 0) {
     Header h;
-    bufferlist::iterator p = bl.begin();
+    auto p = bl.cbegin();
     try {
       decode(h, p);
     } catch (const buffer::error &e) {
@@ -271,7 +275,7 @@ void Journaler::_finish_read_head(int r, bufferlist& bl)
   // unpack header
   bool corrupt = false;
   Header h;
-  bufferlist::iterator p = bl.begin();
+  auto p = bl.cbegin();
   try {
     decode(h, p);
 
@@ -627,19 +631,16 @@ void Journaler::_do_flush(unsigned amount)
       ldout(cct, 10) << "_do_flush wanted to do " << flush_pos << "~" << len
 		     << " already too close to prezero_pos " << prezero_pos
 		     << ", zeroing first" << dendl;
-      waiting_for_zero = true;
+      waiting_for_zero_pos = flush_pos + len;
       return;
     }
     if (static_cast<uint64_t>(newlen) < len) {
       ldout(cct, 10) << "_do_flush wanted to do " << flush_pos << "~" << len
 		     << " but hit prezero_pos " << prezero_pos
 		     << ", will do " << flush_pos << "~" << newlen << dendl;
+      waiting_for_zero_pos = flush_pos + len;
       len = newlen;
-    } else {
-      waiting_for_zero = false;
     }
-  } else {
-    waiting_for_zero = false;
   }
   ldout(cct, 10) << "_do_flush flushing " << flush_pos << "~" << len << dendl;
 
@@ -760,7 +761,7 @@ void Journaler::_flush(C_OnFinisher *onsafe)
 
 bool Journaler::_write_head_needed()
 {
-  return last_wrote_head + seconds(cct->_conf->get_val<int64_t>("journaler_write_head_interval"))
+  return last_wrote_head + seconds(cct->_conf.get_val<int64_t>("journaler_write_head_interval"))
       < ceph::real_clock::now();
 }
 
@@ -781,7 +782,7 @@ void Journaler::_issue_prezero()
 {
   assert(prezeroing_pos >= flush_pos);
 
-  uint64_t num_periods = cct->_conf->get_val<uint64_t>("journaler_prezero_periods");
+  uint64_t num_periods = cct->_conf.get_val<uint64_t>("journaler_prezero_periods");
   /*
    * issue zero requests based on write_pos, even though the invariant
    * is that we zero ahead of flush_pos.
@@ -844,8 +845,15 @@ void Journaler::_finish_prezero(int r, uint64_t start, uint64_t len)
       pending_zero.erase(b);
     }
 
-    if (waiting_for_zero) {
-      _do_flush();
+    if (waiting_for_zero_pos > flush_pos) {
+      _do_flush(waiting_for_zero_pos - flush_pos);
+    }
+
+    if (prezero_pos == prezeroing_pos &&
+	!waitfor_prezero.empty()) {
+      list<Context*> ls;
+      ls.swap(waitfor_prezero);
+      finish_contexts(cct, ls, 0);
     }
   } else {
     pending_zero.insert(start, len);
@@ -856,6 +864,17 @@ void Journaler::_finish_prezero(int r, uint64_t start, uint64_t len)
 		 << dendl;
 }
 
+void Journaler::wait_for_prezero(Context *onfinish)
+{
+  assert(onfinish);
+  lock_guard l(lock);
+
+  if (prezero_pos == prezeroing_pos) {
+    finisher->queue(onfinish, 0);
+    return;
+  }
+  waitfor_prezero.push_back(wrap_finisher(onfinish));
+}
 
 
 /***************** READING *******************/
@@ -1392,7 +1411,7 @@ bool JournalStream::readable(bufferlist &read_buf, uint64_t *need) const
 
   uint32_t entry_size = 0;
   uint64_t entry_sentinel = 0;
-  bufferlist::iterator p = read_buf.begin();
+  auto p = read_buf.cbegin();
 
   // Do we have enough data to decode an entry prefix?
   if (format >= JOURNAL_FORMAT_RESILIENT) {
@@ -1452,7 +1471,7 @@ size_t JournalStream::read(bufferlist &from, bufferlist *entry,
   uint32_t entry_size = 0;
 
   // Consume envelope prefix: entry_size and entry_sentinel
-  bufferlist::iterator from_ptr = from.begin();
+  auto from_ptr = from.cbegin();
   if (format >= JOURNAL_FORMAT_RESILIENT) {
     uint64_t entry_sentinel = 0;
     decode(entry_sentinel, from_ptr);

@@ -344,7 +344,7 @@ ceph_get_server(BaseMgrModule *self, PyObject *args)
 static PyObject*
 ceph_get_mgr_id(BaseMgrModule *self, PyObject *args)
 {
-  return PyString_FromString(g_conf->name.get_id().c_str());
+  return PyString_FromString(g_conf()->name.get_id().c_str());
 }
 
 static PyObject*
@@ -369,15 +369,15 @@ ceph_config_get(BaseMgrModule *self, PyObject *args)
 }
 
 static PyObject*
-ceph_config_get_prefix(BaseMgrModule *self, PyObject *args)
+ceph_store_get_prefix(BaseMgrModule *self, PyObject *args)
 {
   char *prefix = nullptr;
-  if (!PyArg_ParseTuple(args, "s:ceph_config_get", &prefix)) {
+  if (!PyArg_ParseTuple(args, "s:ceph_store_get_prefix", &prefix)) {
     derr << "Invalid args!" << dendl;
     return nullptr;
   }
 
-  return self->py_modules->get_config_prefix(self->this_module->get_name(),
+  return self->py_modules->get_store_prefix(self->this_module->get_name(),
       prefix);
 }
 
@@ -394,6 +394,47 @@ ceph_config_set(BaseMgrModule *self, PyObject *args)
     val = value;
   }
   self->py_modules->set_config(self->this_module->get_name(), key, val);
+
+  Py_RETURN_NONE;
+}
+
+
+static PyObject*
+ceph_store_get(BaseMgrModule *self, PyObject *args)
+{
+  char *what = nullptr;
+  if (!PyArg_ParseTuple(args, "s:ceph_store_get", &what)) {
+    derr << "Invalid args!" << dendl;
+    return nullptr;
+  }
+
+  std::string value;
+  bool found = self->py_modules->get_store(self->this_module->get_name(),
+      what, &value);
+  if (found) {
+    dout(10) << "ceph_store_get " << what << " found: " << value.c_str() << dendl;
+    return PyString_FromString(value.c_str());
+  } else {
+    dout(4) << "ceph_store_get " << what << " not found " << dendl;
+    Py_RETURN_NONE;
+  }
+}
+
+
+
+static PyObject*
+ceph_store_set(BaseMgrModule *self, PyObject *args)
+{
+  char *key = nullptr;
+  char *value = nullptr;
+  if (!PyArg_ParseTuple(args, "sz:ceph_store_set", &key, &value)) {
+    return nullptr;
+  }
+  boost::optional<string> val;
+  if (value) {
+    val = value;
+  }
+  self->py_modules->set_store(self->this_module->get_name(), key, val);
 
   Py_RETURN_NONE;
 }
@@ -512,6 +553,53 @@ ceph_have_mon_connection(BaseMgrModule *self, PyObject *args)
   }
 }
 
+static PyObject *
+ceph_dispatch_remote(BaseMgrModule *self, PyObject *args)
+{
+  char *other_module = nullptr;
+  char *method = nullptr;
+  PyObject *remote_args = nullptr;
+  PyObject *remote_kwargs = nullptr;
+  if (!PyArg_ParseTuple(args, "ssOO:ceph_dispatch_remote",
+        &other_module, &method, &remote_args, &remote_kwargs)) {
+    return nullptr;
+  }
+
+  // Early error handling, because if the module doesn't exist then we
+  // won't be able to use its thread state to set python error state
+  // inside dispatch_remote().
+  if (!self->py_modules->module_exists(other_module)) {
+    derr << "no module '" << other_module << "'" << dendl;
+    PyErr_SetString(PyExc_ImportError, "Module not found");
+    return nullptr;
+  }
+
+  // Drop GIL from calling python thread state, it will be taken
+  // both for checking for method existence and for executing method.
+  PyThreadState *tstate = PyEval_SaveThread();
+
+  if (!self->py_modules->method_exists(other_module, method)) {
+    PyEval_RestoreThread(tstate);
+    PyErr_SetString(PyExc_NameError, "Method not found");
+    return nullptr;
+  }
+
+  std::string err;
+  auto result = self->py_modules->dispatch_remote(other_module, method,
+      remote_args, remote_kwargs, &err);
+
+  PyEval_RestoreThread(tstate);
+
+  if (result == nullptr) {
+    std::stringstream ss;
+    ss << "Remote method threw exception: " << err;
+    PyErr_SetString(PyExc_RuntimeError, ss.str().c_str());
+    derr << ss.str() << dendl;
+  }
+
+  return result;
+}
+
 
 PyMethodDef BaseMgrModule_methods[] = {
   {"_ceph_get", (PyCFunction)ceph_state_get, METH_VARARGS,
@@ -538,11 +626,17 @@ PyMethodDef BaseMgrModule_methods[] = {
   {"_ceph_get_config", (PyCFunction)ceph_config_get, METH_VARARGS,
    "Get a configuration value"},
 
-  {"_ceph_get_config_prefix", (PyCFunction)ceph_config_get_prefix, METH_VARARGS,
-   "Get all configuration values with a given prefix"},
+  {"_ceph_get_store_prefix", (PyCFunction)ceph_store_get_prefix, METH_VARARGS,
+   "Get all KV store values with a given prefix"},
 
   {"_ceph_set_config", (PyCFunction)ceph_config_set, METH_VARARGS,
    "Set a configuration value"},
+
+  {"_ceph_get_store", (PyCFunction)ceph_store_get, METH_VARARGS,
+   "Get a stored field"},
+
+  {"_ceph_set_store", (PyCFunction)ceph_store_set, METH_VARARGS,
+   "Set a stored field"},
 
   {"_ceph_get_counter", (PyCFunction)get_counter, METH_VARARGS,
     "Get a performance counter"},
@@ -568,6 +662,9 @@ PyMethodDef BaseMgrModule_methods[] = {
   {"_ceph_have_mon_connection", (PyCFunction)ceph_have_mon_connection,
     METH_NOARGS, "Find out whether this mgr daemon currently has "
                  "a connection to a monitor"},
+
+  {"_ceph_dispatch_remote", (PyCFunction)ceph_dispatch_remote,
+    METH_VARARGS, "Dispatch a call to another module"},
 
   {NULL, NULL, 0, NULL}
 };
@@ -597,11 +694,11 @@ BaseMgrModule_init(BaseMgrModule *self, PyObject *args, PyObject *kwds)
         return -1;
     }
 
-    self->py_modules = (ActivePyModules*)PyCapsule_GetPointer(
-        py_modules_capsule, nullptr);
+    self->py_modules = static_cast<ActivePyModules*>(PyCapsule_GetPointer(
+        py_modules_capsule, nullptr));
     assert(self->py_modules);
-    self->this_module = (ActivePyModule*)PyCapsule_GetPointer(
-        this_module_capsule, nullptr);
+    self->this_module = static_cast<ActivePyModule*>(PyCapsule_GetPointer(
+        this_module_capsule, nullptr));
     assert(self->this_module);
 
     return 0;

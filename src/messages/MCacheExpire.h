@@ -15,6 +15,8 @@
 #ifndef CEPH_MCACHEEXPIRE_H
 #define CEPH_MCACHEEXPIRE_H
 
+#include <string_view>
+
 #include "mds/mdstypes.h"
 
 class MCacheExpire : public Message {
@@ -49,7 +51,7 @@ public:
       encode(dirs, bl);
       encode(dentries, bl);
     }
-    void decode(bufferlist::iterator &bl) {
+    void decode(bufferlist::const_iterator &bl) {
       using ceph::decode;
       decode(inodes, bl);
       decode(dirs, bl);
@@ -78,7 +80,7 @@ public:
   void add_dir(dirfrag_t r, dirfrag_t df, unsigned nonce) {
     realms[r].dirs[df] = nonce;
   }
-  void add_dentry(dirfrag_t r, dirfrag_t df, const string& dn, snapid_t last, unsigned nonce) {
+  void add_dentry(dirfrag_t r, dirfrag_t df, std::string_view dn, snapid_t last, unsigned nonce) {
     realms[r].dentries[df][pair<string,snapid_t>(dn,last)] = nonce;
   }
 
@@ -91,7 +93,7 @@ public:
 
   void decode_payload() override {
     using ceph::decode;
-    bufferlist::iterator p = payload.begin();
+    auto p = payload.cbegin();
     decode(from, p);
     decode(realms, p);
   }

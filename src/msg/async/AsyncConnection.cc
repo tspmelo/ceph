@@ -33,7 +33,9 @@
 #undef dout_prefix
 #define dout_prefix _conn_prefix(_dout)
 ostream& AsyncConnection::_conn_prefix(std::ostream *_dout) {
-  return *_dout << "-- " << async_msgr->get_myinst().addr << " >> " << peer_addr << " conn(" << this
+  return *_dout << "-- " << async_msgr->get_myaddrs() << " >> "
+		<< target_addr << " conn(" << this
+		<< (msgr2 ? " msgr2" : " legacy")
                 << " :" << port
                 << " s=" << get_state_name(state)
                 << " pgs=" << peer_global_seq
@@ -45,7 +47,7 @@ ostream& AsyncConnection::_conn_prefix(std::ostream *_dout) {
 // Notes:
 // 1. Don't dispatch any event when closed! It may cause AsyncConnection alive even if AsyncMessenger dead
 
-const int AsyncConnection::TCP_PREFETCH_MIN_SIZE = 512;
+const uint32_t AsyncConnection::TCP_PREFETCH_MIN_SIZE = 512;
 const int ASYNC_COALESCE_THRESHOLD = 256;
 
 class C_time_wakeup : public EventCallback {
@@ -107,7 +109,7 @@ static void alloc_aligned_buffer(bufferlist& data, unsigned len, unsigned off)
   if (off & ~CEPH_PAGE_MASK) {
     // head
     alloc_len += CEPH_PAGE_SIZE;
-    head = MIN(CEPH_PAGE_SIZE - (off & ~CEPH_PAGE_MASK), left);
+    head = std::min<uint64_t>(CEPH_PAGE_SIZE - (off & ~CEPH_PAGE_MASK), left);
     left -= head;
   }
   alloc_len += left;
@@ -117,18 +119,21 @@ static void alloc_aligned_buffer(bufferlist& data, unsigned len, unsigned off)
   data.push_back(std::move(ptr));
 }
 
-AsyncConnection::AsyncConnection(CephContext *cct, AsyncMessenger *m, DispatchQueue *q,
-                                 Worker *w)
+AsyncConnection::AsyncConnection(
+  CephContext *cct, AsyncMessenger *m, DispatchQueue *q,
+  Worker *w, bool m2)
   : Connection(cct, m), delay_state(NULL), async_msgr(m), conn_id(q->get_id()),
     logger(w->get_perf_counter()), global_seq(0), connect_seq(0), peer_global_seq(0),
     state(STATE_NONE), state_after_send(STATE_NONE), port(-1),
     dispatch_queue(q), can_write(WriteStatus::NOWRITE),
     keepalive(false), recv_buf(NULL),
-    recv_max_prefetch(MAX(msgr->cct->_conf->ms_tcp_prefetch_max_size, TCP_PREFETCH_MIN_SIZE)),
+    recv_max_prefetch(std::max<int64_t>(msgr->cct->_conf->ms_tcp_prefetch_max_size, TCP_PREFETCH_MIN_SIZE)),
     recv_start(0), recv_end(0),
     last_active(ceph::coarse_mono_clock::now()),
     inactive_timeout_us(cct->_conf->ms_tcp_read_timeout*1000*1000),
-    msg_left(0), cur_msg_size(0), got_bad_auth(false), authorizer(NULL), replacing(false),
+    msg_left(0), cur_msg_size(0), got_bad_auth(false),
+    authorizer(NULL),
+    msgr2(m2), replacing(false),
     is_reset_from_peer(false), once_ready(false), state_buffer(NULL), state_offset(0),
     worker(w), center(&w->center)
 {
@@ -157,7 +162,7 @@ AsyncConnection::~AsyncConnection()
 void AsyncConnection::maybe_start_delay_thread()
 {
   if (!delay_state) {
-    async_msgr->cct->_conf->with_val<std::string>(
+    async_msgr->cct->_conf.with_val<std::string>(
       "ms_inject_delay_type",
       [this](const string& s) {
 	if (s.find(ceph_entity_type_name(peer_type)) != string::npos) {
@@ -255,7 +260,7 @@ ssize_t AsyncConnection::read_until(unsigned len, char *p)
   ssize_t r = 0;
   uint64_t left = len - state_offset;
   if (recv_end > recv_start) {
-    uint64_t to_read = MIN(recv_end - recv_start, left);
+    uint64_t to_read = std::min<uint64_t>(recv_end - recv_start, left);
     memcpy(p, recv_buf+recv_start, to_read);
     recv_start += to_read;
     left -= to_read;
@@ -619,7 +624,7 @@ void AsyncConnection::process()
         {
           while (msg_left > 0) {
             bufferptr bp = data_blp.get_current_ptr();
-            unsigned read = MIN(bp.length(), msg_left);
+            unsigned read = std::min(bp.length(), msg_left);
             r = read_until(read, bp.c_str());
             if (r < 0) {
               ldout(async_msgr->cct, 1) << __func__ << " read data error " << dendl;
@@ -944,7 +949,7 @@ ssize_t AsyncConnection::_process_connection()
 
         bufferlist bl;
         bl.append(state_buffer+banner_len, sizeof(ceph_entity_addr)*2);
-        bufferlist::iterator p = bl.begin();
+        auto p = bl.cbegin();
         try {
           decode(paddr, p);
           decode(peer_addr_for_me, p);
@@ -954,15 +959,16 @@ ssize_t AsyncConnection::_process_connection()
         }
         ldout(async_msgr->cct, 20) << __func__ <<  " connect read peer addr "
                              << paddr << " on socket " << cs.fd() << dendl;
-        if (peer_addr != paddr) {
-          if (paddr.is_blank_ip() && peer_addr.get_port() == paddr.get_port() &&
-              peer_addr.get_nonce() == paddr.get_nonce()) {
+        if (peer_addrs.legacy_addr() != paddr) {
+          if (paddr.is_blank_ip() &&
+	      peer_addrs.legacy_addr().get_port() == paddr.get_port() &&
+              peer_addrs.legacy_addr().get_nonce() == paddr.get_nonce()) {
             ldout(async_msgr->cct, 0) << __func__ <<  " connect claims to be " << paddr
-                                << " not " << peer_addr
+                                << " not " << peer_addrs
                                 << " - presumably this is the same node!" << dendl;
           } else {
             ldout(async_msgr->cct, 10) << __func__ << " connect claims to be "
-				       << paddr << " not " << peer_addr << dendl;
+				       << paddr << " not " << peer_addrs << dendl;
 	    goto fail;
           }
         }
@@ -970,7 +976,8 @@ ssize_t AsyncConnection::_process_connection()
         ldout(async_msgr->cct, 20) << __func__ << " connect peer addr for me is " << peer_addr_for_me << dendl;
         lock.unlock();
         async_msgr->learned_addr(peer_addr_for_me);
-        if (async_msgr->cct->_conf->ms_inject_internal_delays) {
+        if (async_msgr->cct->_conf->ms_inject_internal_delays
+            && async_msgr->cct->_conf->ms_inject_socket_failures) {
           if (rand() % async_msgr->cct->_conf->ms_inject_socket_failures == 0) {
             ldout(msgr->cct, 10) << __func__ << " sleep for "
                                  << async_msgr->cct->_conf->ms_inject_internal_delays << dendl;
@@ -987,17 +994,19 @@ ssize_t AsyncConnection::_process_connection()
           return 0;
         }
 
-        encode(async_msgr->get_myaddr(), myaddrbl, 0); // legacy
+        encode(async_msgr->get_myaddrs().legacy_addr(), myaddrbl, 0); // legacy
         r = try_send(myaddrbl);
         if (r == 0) {
           state = STATE_CONNECTING_SEND_CONNECT_MSG;
           ldout(async_msgr->cct, 10) << __func__ << " connect sent my addr "
-              << async_msgr->get_myaddr() << dendl;
+				     << async_msgr->get_myaddrs().legacy_addr()
+				     << dendl;
         } else if (r > 0) {
           state = STATE_WAIT_SEND;
           state_after_send = STATE_CONNECTING_SEND_CONNECT_MSG;
           ldout(async_msgr->cct, 10) << __func__ << " connect send my addr done: "
-              << async_msgr->get_myaddr() << dendl;
+				     << async_msgr->get_myaddrs().legacy_addr()
+				     << dendl;
         } else {
           ldout(async_msgr->cct, 2) << __func__ << " connect couldn't write my addr, "
               << cpp_strerror(r) << dendl;
@@ -1009,14 +1018,13 @@ ssize_t AsyncConnection::_process_connection()
 
     case STATE_CONNECTING_SEND_CONNECT_MSG:
       {
-        if (!got_bad_auth) {
-          delete authorizer;
+        if (!authorizer) {
           authorizer = async_msgr->get_authorizer(peer_type, false);
         }
         bufferlist bl;
 
         connect_msg.features = policy.features_supported;
-        connect_msg.host_type = async_msgr->get_myinst().name.type();
+        connect_msg.host_type = async_msgr->get_myname().type();
         connect_msg.global_seq = global_seq;
         connect_msg.connect_seq = connect_seq;
         connect_msg.protocol_version = async_msgr->get_proto_version(peer_type, true);
@@ -1090,7 +1098,15 @@ ssize_t AsyncConnection::_process_connection()
           }
 
           authorizer_reply.append(state_buffer, connect_reply.authorizer_len);
-          bufferlist::iterator iter = authorizer_reply.begin();
+
+	  if (connect_reply.tag == CEPH_MSGR_TAG_CHALLENGE_AUTHORIZER) {
+	    ldout(async_msgr->cct,10) << __func__ << " connect got auth challenge" << dendl;
+	    authorizer->add_challenge(async_msgr->cct, authorizer_reply);
+	    state = STATE_CONNECTING_SEND_CONNECT_MSG;
+	    break;
+	  }
+
+          auto iter = authorizer_reply.cbegin();
           if (authorizer && !authorizer->verify_reply(iter)) {
             ldout(async_msgr->cct, 0) << __func__ << " failed verifying authorize reply" << dendl;
             goto fail;
@@ -1204,8 +1220,9 @@ ssize_t AsyncConnection::_process_connection()
 
         bl.append(CEPH_BANNER, strlen(CEPH_BANNER));
 
-        encode(async_msgr->get_myaddr(), bl, 0); // legacy
-        port = async_msgr->get_myaddr().get_port();
+	auto legacy = async_msgr->get_myaddrs().legacy_addr();
+        encode(legacy, bl, 0); // legacy
+        port = legacy.get_port();
         encode(socket_addr, bl, 0); // legacy
         ldout(async_msgr->cct, 1) << __func__ << " sd=" << cs.fd() << " " << socket_addr << dendl;
 
@@ -1246,7 +1263,7 @@ ssize_t AsyncConnection::_process_connection()
 
         addr_bl.append(state_buffer+strlen(CEPH_BANNER), sizeof(ceph_entity_addr));
         try {
-          bufferlist::iterator ti = addr_bl.begin();
+          auto ti = addr_bl.cbegin();
           decode(peer_addr, ti);
         } catch (const buffer::error& e) {
 	  lderr(async_msgr->cct) << __func__ <<  " decode peer_addr failed " << dendl;
@@ -1263,6 +1280,7 @@ ssize_t AsyncConnection::_process_connection()
                              << " (socket is " << socket_addr << ")" << dendl;
         }
         set_peer_addr(peer_addr);  // so that connection_state gets set up
+	target_addr = peer_addr;
         state = STATE_ACCEPTING_WAIT_CONNECT_MSG;
         break;
       }
@@ -1471,11 +1489,17 @@ ssize_t AsyncConnection::handle_connect_msg(ceph_msg_connect &connect, bufferlis
   // require signatures for cephx?
   if (connect.authorizer_protocol == CEPH_AUTH_CEPHX) {
     if (peer_type == CEPH_ENTITY_TYPE_OSD ||
-        peer_type == CEPH_ENTITY_TYPE_MDS) {
+        peer_type == CEPH_ENTITY_TYPE_MDS ||
+	peer_type == CEPH_ENTITY_TYPE_MGR) {
       if (async_msgr->cct->_conf->cephx_require_signatures ||
           async_msgr->cct->_conf->cephx_cluster_require_signatures) {
         ldout(async_msgr->cct, 10) << __func__ << " using cephx, requiring MSG_AUTH feature bit for cluster" << dendl;
         policy.features_required |= CEPH_FEATURE_MSG_AUTH;
+      }
+      if (async_msgr->cct->_conf->cephx_require_version >= 2 ||
+	  async_msgr->cct->_conf->cephx_cluster_require_version >= 2) {
+        ldout(async_msgr->cct, 10) << __func__ << " using cephx, requiring cephx v2 feature bit for cluster" << dendl;
+        policy.features_required |= CEPH_FEATUREMASK_CEPHX_V2;
       }
     } else {
       if (async_msgr->cct->_conf->cephx_require_signatures ||
@@ -1483,8 +1507,14 @@ ssize_t AsyncConnection::handle_connect_msg(ceph_msg_connect &connect, bufferlis
         ldout(async_msgr->cct, 10) << __func__ << " using cephx, requiring MSG_AUTH feature bit for service" << dendl;
         policy.features_required |= CEPH_FEATURE_MSG_AUTH;
       }
+      if (async_msgr->cct->_conf->cephx_require_version >= 2 ||
+	  async_msgr->cct->_conf->cephx_service_require_version >= 2) {
+        ldout(async_msgr->cct, 10) << __func__ << " using cephx, requiring cephx v2 feature bit for service" << dendl;
+        policy.features_required |= CEPH_FEATUREMASK_CEPHX_V2;
+      }
     }
   }
+
   uint64_t feat_missing = policy.features_required & ~(uint64_t)connect.features;
   if (feat_missing) {
     ldout(async_msgr->cct, 1) << __func__ << " peer missing required features "
@@ -1495,19 +1525,33 @@ ssize_t AsyncConnection::handle_connect_msg(ceph_msg_connect &connect, bufferlis
   lock.unlock();
 
   bool authorizer_valid;
-  if (!async_msgr->verify_authorizer(this, peer_type, connect.authorizer_protocol, authorizer_bl,
-                               authorizer_reply, authorizer_valid, session_key) || !authorizer_valid) {
+  bool need_challenge = HAVE_FEATURE(connect.features, CEPHX_V2);
+  bool had_challenge = (bool)authorizer_challenge;
+  if (!async_msgr->verify_authorizer(
+	this, peer_type, connect.authorizer_protocol, authorizer_bl,
+	authorizer_reply, authorizer_valid, session_key,
+	need_challenge ? &authorizer_challenge : nullptr) ||
+      !authorizer_valid) {
     lock.lock();
-    ldout(async_msgr->cct,0) << __func__ << ": got bad authorizer" << dendl;
+    char tag;
+    if (need_challenge && !had_challenge && authorizer_challenge) {
+      ldout(async_msgr->cct,0) << __func__ << ": challenging authorizer"
+			       << dendl;
+      assert(authorizer_reply.length());
+      tag = CEPH_MSGR_TAG_CHALLENGE_AUTHORIZER;
+    } else {
+      ldout(async_msgr->cct,0) << __func__ << ": got bad authorizer" << dendl;
+      tag = CEPH_MSGR_TAG_BADAUTHORIZER;
+    }
     session_security.reset();
-    return _reply_accept(CEPH_MSGR_TAG_BADAUTHORIZER, connect, reply, authorizer_reply);
+    return _reply_accept(tag, connect, reply, authorizer_reply);
   }
 
   // We've verified the authorizer for this AsyncConnection, so set up the session security structure.  PLR
   ldout(async_msgr->cct, 10) << __func__ << " accept setting up session_security." << dendl;
 
   // existing?
-  AsyncConnectionRef existing = async_msgr->lookup_conn(peer_addr);
+  AsyncConnectionRef existing = async_msgr->lookup_conn(peer_addrs);
 
   inject_delay();
 
@@ -1563,7 +1607,7 @@ ssize_t AsyncConnection::handle_connect_msg(ceph_msg_connect &connect, bufferlis
       goto replace;
     }
 
-    ldout(async_msgr->cct, 0) << __func__ << " accept connect_seq " << connect.connect_seq
+    ldout(async_msgr->cct, 1) << __func__ << " accept connect_seq " << connect.connect_seq
                               << " vs existing csq=" << existing->connect_seq << " existing_state="
                               << get_state_name(existing->state) << dendl;
 
@@ -1607,7 +1651,8 @@ ssize_t AsyncConnection::handle_connect_msg(ceph_msg_connect &connect, bufferlis
       }
 
       // connection race?
-      if (peer_addr < async_msgr->get_myaddr() || existing->policy.server) {
+      if (peer_addrs.legacy_addr() < async_msgr->get_myaddrs().legacy_addr() ||
+	  existing->policy.server) {
         // incoming wins
         ldout(async_msgr->cct, 10) << __func__ << " accept connection race, existing " << existing
                              << ".cseq " << existing->connect_seq << " == " << connect.connect_seq
@@ -1618,7 +1663,7 @@ ssize_t AsyncConnection::handle_connect_msg(ceph_msg_connect &connect, bufferlis
         ldout(async_msgr->cct,10) << __func__ << " accept connection race, existing "
                             << existing << ".cseq " << existing->connect_seq
                             << " == " << connect.connect_seq << ", sending WAIT" << dendl;
-        assert(peer_addr > async_msgr->get_myaddr());
+        assert(peer_addrs.legacy_addr() > async_msgr->get_myaddrs().legacy_addr());
         existing->lock.unlock();
         return _reply_accept(CEPH_MSGR_TAG_WAIT, connect, reply, authorizer_reply);
       }
@@ -1651,7 +1696,6 @@ ssize_t AsyncConnection::handle_connect_msg(ceph_msg_connect &connect, bufferlis
     existing = NULL;
     goto open;
   }
-  ceph_abort();
 
  replace:
   ldout(async_msgr->cct, 10) << __func__ << " accept replacing " << existing << dendl;
@@ -1698,6 +1742,8 @@ ssize_t AsyncConnection::handle_connect_msg(ceph_msg_connect &connect, bufferlis
     existing->recv_start = existing->recv_end = 0;
     // there shouldn't exist any buffer
     assert(recv_start == recv_end);
+
+    existing->authorizer_challenge.reset();
 
     auto deactivate_existing = std::bind(
         [existing, new_worker, new_center, connect, reply, authorizer_reply](ConnectedSocket &cs) mutable {
@@ -1818,7 +1864,7 @@ ssize_t AsyncConnection::handle_connect_msg(ceph_msg_connect &connect, bufferlis
   lock.lock();
   replacing = false;
   if (r < 0) {
-    ldout(async_msgr->cct, 1) << __func__ << " existing race replacing process for addr=" << peer_addr
+    ldout(async_msgr->cct, 1) << __func__ << " existing race replacing process for addr=" << peer_addrs
                               << " just fail later one(this)" << dendl;
     goto fail_registered;
   }
@@ -1868,12 +1914,14 @@ void AsyncConnection::_connect()
 
 void AsyncConnection::accept(ConnectedSocket socket, entity_addr_t &addr)
 {
-  ldout(async_msgr->cct, 10) << __func__ << " sd=" << socket.fd() << dendl;
+  ldout(async_msgr->cct, 10) << __func__ << " sd=" << socket.fd()
+			     << " on " << addr << dendl;
   assert(socket.fd() >= 0);
 
   std::lock_guard<std::mutex> l(lock);
   cs = std::move(socket);
   socket_addr = addr;
+  target_addr = addr; // until we know better
   state = STATE_ACCEPTING;
   // rescheduler connection in order to avoid lock dep
   center->dispatch_event_external(read_handler);
@@ -1883,8 +1931,8 @@ int AsyncConnection::send_message(Message *m)
 {
   FUNCTRACE(async_msgr->cct);
   lgeneric_subdout(async_msgr->cct, ms,
-		   1) << "-- " << async_msgr->get_myaddr() << " --> "
-		      << get_peer_addr() << " -- "
+		   1) << "-- " << async_msgr->get_myaddrs() << " --> "
+		      << get_peer_addrs() << " -- "
 		      << *m << " -- " << m << " con "
 		      << m->get_connection().get()
 		      << dendl;
@@ -1901,7 +1949,7 @@ int AsyncConnection::send_message(Message *m)
   else if (m->get_type() == CEPH_MSG_OSD_OPREPLY)
     OID_EVENT_TRACE_WITH_MSG(m, "SEND_MSG_OSD_OPREPLY_BEGIN", true);
 
-  if (async_msgr->get_myaddr() == get_peer_addr()) { //loopback connection
+  if (async_msgr->get_myaddrs() == get_peer_addrs()) { //loopback connection
     ldout(async_msgr->cct, 20) << __func__ << " " << *m << " local" << dendl;
     std::lock_guard<std::mutex> l(write_lock);
     if (can_write != WriteStatus::CLOSED) {
@@ -1971,8 +2019,10 @@ void AsyncConnection::discard_requeued_up_to(uint64_t seq)
 {
   ldout(async_msgr->cct, 10) << __func__ << " " << seq << dendl;
   std::lock_guard<std::mutex> l(write_lock);
-  if (out_q.count(CEPH_MSG_PRIO_HIGHEST) == 0)
+  if (out_q.count(CEPH_MSG_PRIO_HIGHEST) == 0) {
+    out_seq = seq;
     return;
+  }
   list<pair<bufferlist, Message*> >& rq = out_q[CEPH_MSG_PRIO_HIGHEST];
   while (!rq.empty()) {
     pair<bufferlist, Message*> p = rq.front();
@@ -2299,15 +2349,21 @@ void AsyncConnection::handle_ack(uint64_t seq)
 {
   ldout(async_msgr->cct, 15) << __func__ << " got ack seq " << seq << dendl;
   // trim sent list
-  std::lock_guard<std::mutex> l(write_lock);
-  while (!sent.empty() && sent.front()->get_seq() <= seq) {
+  static const int max_pending = 128;
+  int i = 0;
+  Message *pending[max_pending];
+  write_lock.lock();
+  while (!sent.empty() && sent.front()->get_seq() <= seq && i < max_pending) {
     Message* m = sent.front();
     sent.pop_front();
+    pending[i++] = m;
     ldout(async_msgr->cct, 10) << __func__ << " got ack seq "
                                << seq << " >= " << m->get_seq() << " on "
                                << m << " " << *m << dendl;
-    m->put();
   }
+  write_lock.unlock();
+  for (int k = 0; k < i; k++)
+    pending[k]->put();
 }
 
 void AsyncConnection::DelayedDelivery::do_request(uint64_t id)

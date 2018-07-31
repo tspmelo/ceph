@@ -42,7 +42,7 @@ struct XorMergeOperator : public KeyValueDB::MergeOperator {
 
 void BitmapFreelistManager::setup_merge_operator(KeyValueDB *db, string prefix)
 {
-  ceph::shared_ptr<XorMergeOperator> merge_op(new XorMergeOperator);
+  std::shared_ptr<XorMergeOperator> merge_op(new XorMergeOperator);
   db->set_merge_operator(prefix, merge_op);
 }
 
@@ -62,8 +62,8 @@ int BitmapFreelistManager::create(uint64_t new_size, uint64_t granularity,
 				  KeyValueDB::Transaction txn)
 {
   bytes_per_block = granularity;
-  assert(ISP2(bytes_per_block));
-  size = P2ALIGN(new_size, bytes_per_block);
+  assert(isp2(bytes_per_block));
+  size = p2align(new_size, bytes_per_block);
   blocks_per_key = cct->_conf->bluestore_freelist_blocks_per_key;
 
   _init_misc();
@@ -118,25 +118,25 @@ int BitmapFreelistManager::init()
     string k = it->key();
     if (k == "bytes_per_block") {
       bufferlist bl = it->value();
-      bufferlist::iterator p = bl.begin();
+      auto p = bl.cbegin();
       decode(bytes_per_block, p);
       dout(10) << __func__ << " bytes_per_block 0x" << std::hex
 	       << bytes_per_block << std::dec << dendl;
     } else if (k == "blocks") {
       bufferlist bl = it->value();
-      bufferlist::iterator p = bl.begin();
+      auto p = bl.cbegin();
       decode(blocks, p);
       dout(10) << __func__ << " blocks 0x" << std::hex << blocks << std::dec
 	       << dendl;
     } else if (k == "size") {
       bufferlist bl = it->value();
-      bufferlist::iterator p = bl.begin();
+      auto p = bl.cbegin();
       decode(size, p);
       dout(10) << __func__ << " size 0x" << std::hex << size << std::dec
 	       << dendl;
     } else if (k == "blocks_per_key") {
       bufferlist bl = it->value();
-      bufferlist::iterator p = bl.begin();
+      auto p = bl.cbegin();
       decode(blocks_per_key, p);
       dout(10) << __func__ << " blocks_per_key 0x" << std::hex << blocks_per_key
 	       << std::dec << dendl;

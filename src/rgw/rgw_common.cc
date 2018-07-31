@@ -72,6 +72,7 @@ rgw_http_errors rgw_http_s3_errors({
     { ERR_TOO_MANY_BUCKETS, {400, "TooManyBuckets" }},
     { ERR_MALFORMED_XML, {400, "MalformedXML" }},
     { ERR_AMZ_CONTENT_SHA256_MISMATCH, {400, "XAmzContentSHA256Mismatch" }},
+    { ERR_MALFORMED_DOC, {400, "MalformedPolicyDocument"}},
     { ERR_INVALID_TAG, {400, "InvalidTag"}},
     { ERR_MALFORMED_ACL_ERROR, {400, "MalformedACLError" }},
     { ERR_INVALID_ENCRYPTION_ALGORITHM, {400, "InvalidEncryptionAlgorithmError" }},
@@ -83,6 +84,7 @@ rgw_http_errors rgw_http_s3_errors({
     { ERR_USER_SUSPENDED, {403, "UserSuspended" }},
     { ERR_REQUEST_TIME_SKEWED, {403, "RequestTimeTooSkewed" }},
     { ERR_QUOTA_EXCEEDED, {403, "QuotaExceeded" }},
+    { ERR_MFA_REQUIRED, {403, "AccessDenied" }},
     { ENOENT, {404, "NoSuchKey" }},
     { ERR_NO_SUCH_BUCKET, {404, "NoSuchBucket" }},
     { ERR_NO_SUCH_WEBSITE_CONFIGURATION, {404, "NoSuchWebsiteConfiguration" }},
@@ -91,6 +93,7 @@ rgw_http_errors rgw_http_s3_errors({
     { ERR_NO_SUCH_LC, {404, "NoSuchLifecycleConfiguration"}},
     { ERR_NO_SUCH_BUCKET_POLICY, {404, "NoSuchBucketPolicy"}},
     { ERR_NO_SUCH_USER, {404, "NoSuchUser"}},
+    { ERR_NO_ROLE_FOUND, {404, "NoSuchEntity"}},
     { ERR_NO_SUCH_SUBUSER, {404, "NoSuchSubUser"}},
     { ERR_METHOD_NOT_ALLOWED, {405, "MethodNotAllowed" }},
     { ETIMEDOUT, {408, "RequestTimeout" }},
@@ -99,6 +102,8 @@ rgw_http_errors rgw_http_s3_errors({
     { ERR_EMAIL_EXIST, {409, "EmailExists" }},
     { ERR_KEY_EXIST, {409, "KeyExists"}},
     { ERR_TAG_CONFLICT, {409, "OperationAborted"}},
+    { ERR_ROLE_EXISTS, {409, "EntityAlreadyExists"}},
+    { ERR_DELETE_CONFLICT, {409, "DeleteConflict"}},
     { ERR_INVALID_SECRET_KEY, {400, "InvalidSecretKey"}},
     { ERR_INVALID_KEY_TYPE, {400, "InvalidKeyType"}},
     { ERR_INVALID_CAP, {400, "InvalidCapability"}},
@@ -133,7 +138,11 @@ rgw_http_errors rgw_http_swift_errors({
 
 int rgw_perf_start(CephContext *cct)
 {
-  PerfCountersBuilder plb(cct, cct->_conf->name.to_str(), l_rgw_first, l_rgw_last);
+  PerfCountersBuilder plb(cct, "rgw", l_rgw_first, l_rgw_last);
+
+  // RGW emits comparatively few metrics, so let's be generous
+  // and mark them all USEFUL to get transmission to ceph-mgr by default.
+  plb.set_prio_default(PerfCountersBuilder::PRIO_USEFUL);
 
   plb.add_u64_counter(l_rgw_req, "req", "Requests");
   plb.add_u64_counter(l_rgw_failed_req, "failed_req", "Aborted requests");
@@ -267,47 +276,36 @@ void req_info::rebuild_from(req_info& src)
 }
 
 
-req_state::req_state(CephContext* _cct, RGWEnv* e, RGWUserInfo* u)
-  : cct(_cct), cio(NULL), op(OP_UNKNOWN), user(u), has_acl_header(false),
-    info(_cct, e)
+req_state::req_state(CephContext* _cct, RGWEnv* e, RGWUserInfo* u, uint64_t id)
+  : cct(_cct), user(u),
+    info(_cct, e), id(id)
 {
   enable_ops_log = e->get_enable_ops_log();
   enable_usage_log = e->get_enable_usage_log();
   defer_to_bucket_acls = e->get_defer_to_bucket_acls();
-  content_started = false;
-  format = 0;
-  formatter = NULL;
-  expect_cont = false;
 
-  obj_size = 0;
-  prot_flags = 0;
-
-  system_request = false;
-
-  time = ceph_clock_now();
-  perm_mask = 0;
-  bucket_instance_shard_id = -1;
-  content_length = 0;
-  bucket_exists = false;
-  has_bad_meta = false;
-  length = NULL;
-  local_source = false;
-
-  obj_ctx = NULL;
+  time = Clock::now();
 }
 
 req_state::~req_state() {
   delete formatter;
 }
 
-bool search_err(rgw_http_errors& errs, int err_no, bool is_website_redirect, int& http_ret, string& code)
+std::ostream& req_state::gen_prefix(std::ostream& out) const
+{
+  auto p = out.precision();
+  return out << "req " << id << ' '
+      << std::setprecision(3) << std::fixed << time_elapsed() // '0.123s'
+      << std::setprecision(p) << std::defaultfloat << ' ';
+}
+
+bool search_err(rgw_http_errors& errs, int err_no, int& http_ret, string& code)
 {
   auto r = errs.find(err_no);
   if (r != errs.end()) {
-    if (! is_website_redirect)
-      http_ret = r->second.first;
-     code = r->second.second;
-     return true;
+    http_ret = r->second.first;
+    code = r->second.second;
+    return true;
   }
   return false;
 }
@@ -320,17 +318,14 @@ void set_req_state_err(struct rgw_err& err,	/* out */
     err_no = -err_no;
 
   err.ret = -err_no;
-  bool is_website_redirect = false;
 
   if (prot_flags & RGW_REST_SWIFT) {
-    if (search_err(rgw_http_swift_errors, err_no, is_website_redirect, err.http_ret, err.err_code))
+    if (search_err(rgw_http_swift_errors, err_no, err.http_ret, err.err_code))
       return;
   }
 
   //Default to searching in s3 errors
-  is_website_redirect |= (prot_flags & RGW_REST_WEBSITE)
-		&& err_no == ERR_WEBSITE_REDIRECT && err.is_clear();
-  if (search_err(rgw_http_s3_errors, err_no, is_website_redirect, err.http_ret, err.err_code))
+  if (search_err(rgw_http_s3_errors, err_no, err.http_ret, err.err_code))
       return;
   dout(0) << "WARNING: set_req_state_err err_no=" << err_no
 	<< " resorting to 500" << dendl;
@@ -1439,23 +1434,22 @@ static bool char_needs_url_encoding(char c)
   return false;
 }
 
-void url_encode(const string& src, string& dst)
+void url_encode(const string& src, string& dst, bool encode_slash)
 {
   const char *p = src.c_str();
   for (unsigned i = 0; i < src.size(); i++, p++) {
-    if (char_needs_url_encoding(*p)) {
+    if ((!encode_slash && *p == 0x2F) || !char_needs_url_encoding(*p)) {
+      dst.append(p, 1);
+    }else {
       rgw_uri_escape_char(*p, dst);
-      continue;
     }
-
-    dst.append(p, 1);
   }
 }
 
-std::string url_encode(const std::string& src)
+std::string url_encode(const std::string& src, bool encode_slash)
 {
   std::string dst;
-  url_encode(src, dst);
+  url_encode(src, dst, encode_slash);
 
   return dst;
 }
@@ -1734,7 +1728,8 @@ bool RGWUserCaps::is_valid_cap_type(const string& tp)
                                     "bilog",
                                     "mdlog",
                                     "datalog",
-                                    "opstate" };
+                                    "opstate",
+                                    "roles"};
 
   for (unsigned int i = 0; i < sizeof(cap_type) / sizeof(char *); ++i) {
     if (tp.compare(cap_type[i]) == 0) {
@@ -1745,56 +1740,11 @@ bool RGWUserCaps::is_valid_cap_type(const string& tp)
   return false;
 }
 
-static ssize_t unescape_str(const string& s, ssize_t ofs, char esc_char, char special_char, string *dest)
-{
-  const char *src = s.c_str();
-  char dest_buf[s.size() + 1];
-  char *destp = dest_buf;
-  bool esc = false;
-
-  dest_buf[0] = '\0';
-
-  for (size_t i = ofs; i < s.size(); i++) {
-    char c = src[i];
-    if (!esc && c == esc_char) {
-      esc = true;
-      continue;
-    }
-    if (!esc && c == special_char) {
-      *destp = '\0';
-      *dest = dest_buf;
-      return (ssize_t)i + 1;
-    }
-    *destp++ = c;
-    esc = false;
-  }
-  *destp = '\0';
-  *dest = dest_buf;
-  return string::npos;
-}
-
-static void escape_str(const string& s, char esc_char, char special_char, string *dest)
-{
-  const char *src = s.c_str();
-  char dest_buf[s.size() * 2 + 1];
-  char *destp = dest_buf;
-
-  for (size_t i = 0; i < s.size(); i++) {
-    char c = src[i];
-    if (c == esc_char || c == special_char) {
-      *destp++ = esc_char;
-    }
-    *destp++ = c;
-  }
-  *destp++ = '\0';
-  *dest = dest_buf;
-}
-
 void rgw_pool::from_str(const string& s)
 {
-  size_t pos = unescape_str(s, 0, '\\', ':', &name);
+  size_t pos = rgw_unescape_str(s, 0, '\\', ':', &name);
   if (pos != string::npos) {
-    pos = unescape_str(s, pos, '\\', ':', &ns);
+    pos = rgw_unescape_str(s, pos, '\\', ':', &ns);
     /* ignore return; if pos != string::npos it means that we had a colon
      * in the middle of ns that wasn't escaped, we're going to stop there
      */
@@ -1804,16 +1754,16 @@ void rgw_pool::from_str(const string& s)
 string rgw_pool::to_str() const
 {
   string esc_name;
-  escape_str(name, '\\', ':', &esc_name);
+  rgw_escape_str(name, '\\', ':', &esc_name);
   if (ns.empty()) {
     return esc_name;
   }
   string esc_ns;
-  escape_str(ns, '\\', ':', &esc_ns);
+  rgw_escape_str(ns, '\\', ':', &esc_ns);
   return esc_name + ":" + esc_ns;
 }
 
-void rgw_raw_obj::decode_from_rgw_obj(bufferlist::iterator& bl)
+void rgw_raw_obj::decode_from_rgw_obj(bufferlist::const_iterator& bl)
 {
   using ceph::decode;
   rgw_obj old_obj;

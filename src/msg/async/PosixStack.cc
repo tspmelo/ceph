@@ -73,7 +73,7 @@ class PosixConnectedSocketImpl final : public ConnectedSocketImpl {
   }
 
   // return the sent length
-  // < 0 means error occured
+  // < 0 means error occurred
   static ssize_t do_sendmsg(int fd, struct msghdr &msg, unsigned len, bool more)
   {
     size_t sent = 0;
@@ -116,7 +116,7 @@ class PosixConnectedSocketImpl final : public ConnectedSocketImpl {
     while (left_pbrs) {
       struct msghdr msg;
       struct iovec msgvec[IOV_MAX];
-      uint64_t size = MIN(left_pbrs, IOV_MAX);
+      uint64_t size = std::min<uint64_t>(left_pbrs, IOV_MAX);
       left_pbrs -= size;
       memset(&msg, 0, sizeof(msg));
       msg.msg_iovlen = size;
@@ -169,7 +169,9 @@ class PosixServerSocketImpl : public ServerSocketImpl {
   int _fd;
 
  public:
-  explicit PosixServerSocketImpl(NetHandler &h, int f): handler(h), _fd(f) {}
+  explicit PosixServerSocketImpl(NetHandler &h, int f, int type)
+    : ServerSocketImpl(type),
+      handler(h), _fd(f) {}
   int accept(ConnectedSocket *sock, const SocketOptions &opts, entity_addr_t *out, Worker *w) override;
   void abort_accept() override {
     ::close(_fd);
@@ -203,6 +205,7 @@ int PosixServerSocketImpl::accept(ConnectedSocket *sock, const SocketOptions &op
 
   assert(NULL != out); //out should not be NULL in accept connection
 
+  out->set_type(addr_type);
   out->set_sockaddr((sockaddr*)&ss);
   handler.set_priority(sd, opt.priority, out->get_family());
 
@@ -255,7 +258,7 @@ int PosixWorker::listen(entity_addr_t &sa, const SocketOptions &opt,
 
   *sock = ServerSocket(
           std::unique_ptr<PosixServerSocketImpl>(
-              new PosixServerSocketImpl(net, listen_sd)));
+	    new PosixServerSocketImpl(net, listen_sd, sa.get_type())));
   return 0;
 }
 

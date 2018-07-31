@@ -30,7 +30,7 @@ template<typename T>
 void test_encode_decode(T v) {
   bufferlist bl;
   encode(v, bl);
-  bufferlist::iterator p = bl.begin();
+  auto p = bl.cbegin();
   T out;
   decode(out, p);
   ASSERT_EQ(v, out);
@@ -67,7 +67,7 @@ template<typename T>
 void test_encode_decode_featured(T v) {
   bufferlist bl;
   encode(v, bl, 123);
-  bufferlist::iterator p = bl.begin();
+  auto p = bl.cbegin();
   T out;
   decode(out, p);
   ASSERT_EQ(v, out);
@@ -123,7 +123,7 @@ struct denc_counter_t {
     p.append("a", 1);
     ++counts.num_encode;
   }
-  void decode(buffer::ptr::iterator &p) {
+  void decode(buffer::ptr::const_iterator &p) {
     p.advance(1);
     ++counts.num_decode;
   }
@@ -139,7 +139,7 @@ struct denc_counter_bounded_t {
     p.append("a", 1);
     ++counts.num_encode;
   }
-  void decode(buffer::ptr::iterator &p) {
+  void decode(buffer::ptr::const_iterator &p) {
     p.advance(1);
     ++counts.num_decode;
   }
@@ -186,12 +186,12 @@ struct legacy_t {
     using ceph::encode;
     encode(a, bl);
   }
-  void decode(bufferlist::iterator& p) {
+  void decode(bufferlist::const_iterator& p) {
     using ceph::decode;
     decode(a, p);
   }
   legacy_t() {}
-  legacy_t(int32_t i) : a(i) {}
+  explicit legacy_t(int32_t i) : a(i) {}
   friend bool operator<(const legacy_t& l, const legacy_t& r) {
     return l.a < r.a;
   }
@@ -582,6 +582,44 @@ TEST(denc, optional)
   }
 }
 
+TEST(denc, stdoptional)
+{
+  {
+    cout << "std::optional<uint64_t>" << std::endl;
+    std::optional<uint64_t> s = 97, t = std::nullopt;
+    counts.reset();
+    test_denc(s);
+    test_denc(t);
+  }
+  {
+    cout << "std::optional<std::string>" << std::endl;
+    std::optional<std::string> s = std::string("Meow"), t = std::nullopt;
+    counts.reset();
+    test_denc(s);
+    test_denc(t);
+  }
+  {
+    size_t s = 0;
+    denc(std::nullopt, s);
+    ASSERT_NE(s, 0u);
+
+    // encode
+    bufferlist bl;
+    {
+      auto a = bl.get_contiguous_appender(s);
+      denc(std::nullopt, a);
+    }
+    ASSERT_LE(bl.length(), s);
+
+    bl.rebuild();
+    std::optional<uint32_t> out = 5;
+    auto bpi = bl.front().begin();
+    denc(out, bpi);
+    ASSERT_FALSE(!!out);
+    ASSERT_EQ(bpi.get_pos(), bl.c_str() + bl.length());
+  }
+}
+
 // unlike legacy_t, Legacy supports denc() also.
 struct Legacy {
   static unsigned n_denc;
@@ -591,7 +629,7 @@ struct Legacy {
     n_denc++;
     denc(v.value, p);
   }
-  void decode(buffer::list::iterator& p) {
+  void decode(buffer::list::const_iterator& p) {
     n_decode++;
     using ceph::decode;
     decode(value, p);
@@ -638,7 +676,7 @@ TEST(denc, no_copy_if_segmented_and_lengthy)
     bufferlist segmented = Legacy::encode_n(N_COPIES, segs);
     ASSERT_GT(segmented.get_num_buffers(), 1u);
     ASSERT_LT(segmented.length(), CEPH_PAGE_SIZE);
-    auto p = segmented.begin();
+    auto p = segmented.cbegin();
     vector<Legacy> v;
     // denc() is shared by encode() and decode(), so reset() right before
     // decode()
@@ -655,7 +693,7 @@ TEST(denc, no_copy_if_segmented_and_lengthy)
     bufferlist segmented = Legacy::encode_n(N_COPIES, segs);
     ASSERT_EQ(segmented.get_num_buffers(), 1u);
     ASSERT_GT(segmented.length(), CEPH_PAGE_SIZE);
-    auto p = segmented.begin();
+    auto p = segmented.cbegin();
     vector<Legacy> v;
     Legacy::reset();
     decode(v, p);
@@ -673,7 +711,7 @@ TEST(denc, no_copy_if_segmented_and_lengthy)
     segmented.append(small_bl);
     ASSERT_GT(segmented.get_num_buffers(), 1u);
     ASSERT_GT(segmented.length(), CEPH_PAGE_SIZE);
-    auto p = segmented.begin();
+    auto p = segmented.cbegin();
     p.advance(large_bl.length());
     ASSERT_LT(segmented.length() - p.get_off(), CEPH_PAGE_SIZE);
     vector<Legacy> v;
@@ -691,7 +729,7 @@ TEST(denc, no_copy_if_segmented_and_lengthy)
     segmented.append(large_bl);
     ASSERT_GT(segmented.get_num_buffers(), 1u);
     ASSERT_GT(segmented.length(), CEPH_PAGE_SIZE);
-    auto p = segmented.begin();
+    auto p = segmented.cbegin();
     p.advance(small_bl.length());
     ASSERT_GT(segmented.length() - p.get_off(), CEPH_PAGE_SIZE);
     vector<Legacy> v;

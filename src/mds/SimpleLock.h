@@ -43,7 +43,6 @@ inline const char *get_lock_type_name(int t) {
   }
 }
 
-#include "include/memory.h"
 
 struct MutationImpl;
 typedef boost::intrusive_ptr<MutationImpl> MutationRef;
@@ -177,14 +176,15 @@ protected:
 private:
   int num_rdlock;
 
+  // XXX not in mempool
   struct unstable_bits_t {
     set<__s32> gather_set;  // auth+rep.  >= 0 is mds, < 0 is client
 
     // local state
-    int num_wrlock, num_xlock;
+    int num_wrlock = 0, num_xlock = 0;
     MutationRef xlock_by;
-    client_t xlock_by_client;
-    client_t excl_client;
+    client_t xlock_by_client = -1;
+    client_t excl_client = -1;
 
     bool empty() {
       return
@@ -196,11 +196,7 @@ private:
 	excl_client == -1;
     }
 
-    unstable_bits_t() : num_wrlock(0),
-			num_xlock(0),
-			xlock_by(),
-			xlock_by_client(-1),
-			excl_client(-1) {}
+    unstable_bits_t() {}
   };
 
   mutable std::unique_ptr<unstable_bits_t> _unstable;
@@ -572,7 +568,7 @@ public:
       encode(empty_gather_set, bl);
     ENCODE_FINISH(bl);
   }
-  void decode(bufferlist::iterator& p) {
+  void decode(bufferlist::const_iterator& p) {
     DECODE_START(2, p);
     decode(state, p);
     set<__s32> g;
@@ -586,14 +582,14 @@ public:
     using ceph::encode;
     encode(s, bl);
   }
-  void decode_state(bufferlist::iterator& p, bool is_new=true) {
+  void decode_state(bufferlist::const_iterator& p, bool is_new=true) {
     using ceph::decode;
     __s16 s;
     decode(s, p);
     if (is_new)
       state = s;
   }
-  void decode_state_rejoin(bufferlist::iterator& p, list<MDSInternalContextBase*>& waiters, bool survivor) {
+  void decode_state_rejoin(bufferlist::const_iterator& p, list<MDSInternalContextBase*>& waiters, bool survivor) {
     __s16 s;
     using ceph::decode;
     decode(s, p);

@@ -98,6 +98,9 @@ public:
       return r;
     }
 
+    // TODO support clone v2 child namespaces
+    m_pool_ioctx.set_namespace(image_ctx.md_ctx.get_namespace());
+
     librados::ObjectReadOperation op;
     cls_client::get_children_start(&op, m_pspec);
 
@@ -116,7 +119,7 @@ protected:
     CephContext *cct = image_ctx.cct;
 
     if (r == 0) {
-      bufferlist::iterator it = m_children_bl.begin();
+      auto it = m_children_bl.cbegin();
       r= cls_client::get_children_finish(&it, &m_children);
     }
 

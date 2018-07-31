@@ -117,17 +117,14 @@
 /* Define if you have tcmalloc */
 #cmakedefine HAVE_LIBTCMALLOC
 
-/* Define if you have jemalloc */
-#cmakedefine HAVE_LIBJEMALLOC
-
 /* Define if have curl_multi_wait() */
 #cmakedefine HAVE_CURL_MULTI_WAIT 1
 
-/* Define if using CryptoPP. */
-#cmakedefine USE_CRYPTOPP
-
 /* Define if using NSS. */
 #cmakedefine USE_NSS
+
+/* Define if using OpenSSL. */
+#cmakedefine USE_OPENSSL
 
 /* Accelio conditional compilation */
 #cmakedefine HAVE_XIO
@@ -141,9 +138,6 @@
 
 /* define if bluestore enabled */
 #cmakedefine WITH_BLUESTORE
-
-/* define if embedded enabled */
-#cmakedefine WITH_EMBEDDED
 
 /* define if cephfs enabled */
 #cmakedefine WITH_CEPHFS
@@ -168,6 +162,9 @@
 
 /* define if radosgw's beast frontend enabled */
 #cmakedefine WITH_RADOSGW_BEAST_FRONTEND
+
+/* define if radosgw has openssl support */
+#cmakedefine WITH_CURL_OPENSSL
 
 /* define if HAVE_THREAD_SAFE_RES_QUERY */
 #cmakedefine HAVE_THREAD_SAFE_RES_QUERY
@@ -325,7 +322,7 @@
 /* Define if endian type is little endian */
 #cmakedefine CEPH_LITTLE_ENDIAN
 
-#cmakedefine PYTHON_EXECUTABLE "@PYTHON_EXECUTABLE@"
+#cmakedefine PYTHON_EXECUTABLE "@MGR_PYTHON_EXECUTABLE@"
 
 /* Define to 1 if you have the `getprogname' function. */
 #cmakedefine HAVE_GETPROGNAME 1
@@ -335,5 +332,17 @@
 
 /* Defined if boost::context is available */
 #cmakedefine HAVE_BOOST_CONTEXT
+
+/* Defined if OpenSSL is available for the rgw beast frontend */
+#cmakedefine WITH_RADOSGW_BEAST_OPENSSL
+
+/* Defined if std::map::merge() is supported */
+#cmakedefine HAVE_STDLIB_MAP_SPLICING
+
+/* Defined if Intel QAT compress/decompress is supported */
+#cmakedefine HAVE_QATZIP
+
+/* Define if seastar is available. */
+#cmakedefine HAVE_SEASTAR
 
 #endif /* CONFIG_H */

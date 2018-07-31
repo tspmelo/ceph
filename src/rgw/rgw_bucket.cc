@@ -182,8 +182,7 @@ int rgw_link_bucket(RGWRados* const store,
                     const rgw_user& user_id,
                     rgw_bucket& bucket,
                     ceph::real_time creation_time,
-                    bool update_entrypoint,
-                    bool update_stats)
+                    bool update_entrypoint)
 {
   int ret;
   string& tenant_name = bucket.tenant;
@@ -216,7 +215,7 @@ int rgw_link_bucket(RGWRados* const store,
   rgw_get_buckets_obj(user_id, buckets_obj_id);
 
   rgw_raw_obj obj(store->get_zone_params().user_uid_pool, buckets_obj_id);
-  ret = store->cls_user_add_bucket(obj, new_bucket, update_stats);
+  ret = store->cls_user_add_bucket(obj, new_bucket);
   if (ret < 0) {
     ldout(store->ctx(), 0) << "ERROR: error adding bucket to directory: "
                            << cpp_strerror(-ret) << dendl;
@@ -820,20 +819,19 @@ int RGWBucket::link(RGWBucketAdminOpState& op_state, std::string *err_msg)
   rgw_bucket bucket = op_state.get_bucket();
 
   const rgw_pool& root_pool = store->get_zone_params().domain_root;
-  rgw_raw_obj obj(root_pool, bucket.name);
+  std::string bucket_entry;
+  rgw_make_bucket_entry_name(tenant, bucket_name, bucket_entry);
+  rgw_raw_obj obj(root_pool, bucket_entry);
   RGWObjVersionTracker objv_tracker;
 
   map<string, bufferlist> attrs;
   RGWBucketInfo bucket_info;
 
-  string key = bucket.name + ":" + bucket_id;
   RGWObjectCtx obj_ctx(store);
-  int r = store->get_bucket_instance_info(obj_ctx, key, bucket_info, NULL, &attrs);
+  int r = store->get_bucket_instance_info(obj_ctx, bucket, bucket_info, NULL, &attrs);
   if (r < 0) {
     return r;
   }
-
-  rgw_user user_id = op_state.get_user_id();
 
   map<string, bufferlist>::iterator aiter = attrs.find(RGW_ATTR_ACL);
   if (aiter != attrs.end()) {
@@ -841,7 +839,7 @@ int RGWBucket::link(RGWBucketAdminOpState& op_state, std::string *err_msg)
     RGWAccessControlPolicy policy;
     ACLOwner owner;
     try {
-     bufferlist::iterator iter = aclbl.begin();
+     auto iter = aclbl.cbegin();
      decode(policy, iter);
      owner = policy.get_owner();
     } catch (buffer::error& err) {
@@ -882,15 +880,15 @@ int RGWBucket::link(RGWBucketAdminOpState& op_state, std::string *err_msg)
     aclbl.clear();
     policy_instance.encode(aclbl);
 
-    string oid_bucket_instance = RGW_BUCKET_INSTANCE_MD_PREFIX + key;
-    rgw_raw_obj obj_bucket_instance(root_pool, oid_bucket_instance);
+    rgw_raw_obj obj_bucket_instance;
+    store->get_bucket_instance_obj(bucket, obj_bucket_instance);
     r = store->system_obj_set_attr(NULL, obj_bucket_instance, RGW_ATTR_ACL, aclbl, &objv_tracker);
     if (r < 0) {
       return r;
     }
 
     r = rgw_link_bucket(store, user_info.user_id, bucket_info.bucket,
-                        ceph::real_time(),true, op_state.will_update_stats());
+                        ceph::real_time());
     if (r < 0) {
       return r;
     }
@@ -1147,19 +1145,18 @@ int RGWBucket::check_object_index(RGWBucketAdminOpState& op_state,
   while (is_truncated) {
     map<string, rgw_bucket_dir_entry> result;
 
-    int r = store->cls_bucket_list(bucket_info, RGW_NO_SHARD, marker, prefix, 1000, true,
-                                   result, &is_truncated, &marker,
-                                   bucket_object_check_filter);
+    int r = store->cls_bucket_list_ordered(bucket_info, RGW_NO_SHARD,
+					   marker, prefix, 1000, true,
+					   result, &is_truncated, &marker,
+					   bucket_object_check_filter);
     if (r == -ENOENT) {
       break;
     } else if (r < 0 && r != -ENOENT) {
       set_err_msg(err_msg, "ERROR: failed operation r=" + cpp_strerror(-r));
     }
 
-
     dump_bucket_index(result, formatter);
     flusher.flush();
-
   }
 
   formatter->close_section();
@@ -1198,7 +1195,7 @@ int RGWBucket::check_index(RGWBucketAdminOpState& op_state,
 int RGWBucket::policy_bl_to_stream(bufferlist& bl, ostream& o)
 {
   RGWAccessControlPolicy_S3 policy(g_ceph_context);
-  bufferlist::iterator iter = bl.begin();
+  auto iter = bl.cbegin();
   try {
     policy.decode(iter);
   } catch (buffer::error& err) {
@@ -1211,7 +1208,7 @@ int RGWBucket::policy_bl_to_stream(bufferlist& bl, ostream& o)
 
 static int policy_decode(RGWRados *store, bufferlist& bl, RGWAccessControlPolicy& policy)
 {
-  bufferlist::iterator iter = bl.begin();
+  auto iter = bl.cbegin();
   try {
     policy.decode(iter);
   } catch (buffer::error& err) {
@@ -1916,7 +1913,7 @@ int RGWDataChangesLog::list_entries(int shard, const real_time& start_time, cons
     log_entry.log_id = iter->id;
     real_time rt = iter->timestamp.to_real_time();
     log_entry.log_timestamp = rt;
-    bufferlist::iterator liter = iter->data.begin();
+    auto liter = iter->data.cbegin();
     try {
       decode(log_entry.entry, liter);
     } catch (buffer::error& err) {
@@ -2242,7 +2239,7 @@ public:
     delete info;
   }
 
-  string get_marker(void *handle) {
+  string get_marker(void *handle) override {
     list_keys_info *info = static_cast<list_keys_info *>(handle);
     return info->store->list_raw_objs_get_cursor(info->ctx);
   }
@@ -2444,7 +2441,7 @@ public:
     delete info;
   }
 
-  string get_marker(void *handle) {
+  string get_marker(void *handle) override {
     list_keys_info *info = static_cast<list_keys_info *>(handle);
     return info->store->list_raw_objs_get_cursor(info->ctx);
   }

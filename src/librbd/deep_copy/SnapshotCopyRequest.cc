@@ -7,8 +7,10 @@
 #include "common/errno.h"
 #include "common/WorkQueue.h"
 #include "librbd/ExclusiveLock.h"
+#include "librbd/ObjectMap.h"
 #include "librbd/Operations.h"
 #include "librbd/Utils.h"
+#include "osdc/Striper.h"
 
 #define dout_subsys ceph_subsys_rbd
 #undef dout_prefix
@@ -44,12 +46,12 @@ template <typename I>
 SnapshotCopyRequest<I>::SnapshotCopyRequest(I *src_image_ctx,
                                             I *dst_image_ctx,
                                             librados::snap_t snap_id_end,
-                                            ContextWQ *work_queue,
+                                            bool flatten, ContextWQ *work_queue,
                                             SnapSeqs *snap_seqs,
                                             Context *on_finish)
   : RefCountedObject(dst_image_ctx->cct, 1), m_src_image_ctx(src_image_ctx),
     m_dst_image_ctx(dst_image_ctx), m_snap_id_end(snap_id_end),
-    m_work_queue(work_queue), m_snap_seqs_result(snap_seqs),
+    m_flatten(flatten), m_work_queue(work_queue), m_snap_seqs_result(snap_seqs),
     m_snap_seqs(*snap_seqs), m_on_finish(on_finish), m_cct(dst_image_ctx->cct),
     m_lock(unique_lock_name("SnapshotCopyRequest::m_lock", this)) {
   // snap ids ordered from oldest to newest
@@ -133,7 +135,9 @@ void SnapshotCopyRequest<I>::send_snap_unprotect() {
       bool src_unprotected;
       r = m_src_image_ctx->is_snap_unprotected(snap_seq_it->first,
                                                &src_unprotected);
-      ldout(m_cct, 20) << "m_src_image_ctx->is_snap_unprotected("<< snap_seq_it->first << "): r=" << r << ", src_unprotected=" << src_unprotected << dendl;
+      ldout(m_cct, 20) << "m_src_image_ctx->is_snap_unprotected("
+                       << snap_seq_it->first << "): r=" << r
+                       << ", src_unprotected=" << src_unprotected << dendl;
       if (r == -ENOENT) {
         src_unprotected = true;
         r = 0;
@@ -351,7 +355,7 @@ void SnapshotCopyRequest<I>::send_snap_create() {
   m_snap_namespace = snap_info_it->second.snap_namespace;
   librbd::ParentSpec parent_spec;
   uint64_t parent_overlap = 0;
-  if (snap_info_it->second.parent.spec.pool_id != -1) {
+  if (!m_flatten && snap_info_it->second.parent.spec.pool_id != -1) {
     parent_spec = m_dst_parent_spec;
     parent_overlap = snap_info_it->second.parent.overlap;
   }
@@ -517,12 +521,14 @@ void SnapshotCopyRequest<I>::send_set_head() {
 
   uint64_t size;
   ParentSpec parent_spec;
-  uint64_t parent_overlap;
+  uint64_t parent_overlap = 0;
   {
     RWLock::RLocker src_locker(m_src_image_ctx->snap_lock);
     size = m_src_image_ctx->size;
-    parent_spec = m_src_image_ctx->parent_md.spec;
-    parent_overlap = m_src_image_ctx->parent_md.overlap;
+    if (!m_flatten) {
+      parent_spec = m_src_image_ctx->parent_md.spec;
+      parent_overlap = m_src_image_ctx->parent_md.overlap;
+    }
   }
 
   auto ctx = create_context_callback<
@@ -542,6 +548,54 @@ void SnapshotCopyRequest<I>::handle_set_head(int r) {
     return;
   }
 
+  if (handle_cancellation()) {
+    return;
+  }
+
+  send_resize_object_map();
+}
+
+template <typename I>
+void SnapshotCopyRequest<I>::send_resize_object_map() {
+  int r = 0;
+
+  if (m_snap_id_end == CEPH_NOSNAP &&
+      m_dst_image_ctx->test_features(RBD_FEATURE_OBJECT_MAP)) {
+    RWLock::RLocker owner_locker(m_dst_image_ctx->owner_lock);
+    RWLock::RLocker snap_locker(m_dst_image_ctx->snap_lock);
+
+    if (m_dst_image_ctx->object_map != nullptr &&
+        Striper::get_num_objects(m_dst_image_ctx->layout,
+                                 m_dst_image_ctx->size) !=
+          m_dst_image_ctx->object_map->size()) {
+
+      ldout(m_cct, 20) << dendl;
+
+      auto finish_op_ctx = start_lock_op(m_dst_image_ctx->owner_lock);
+      if (finish_op_ctx != nullptr) {
+        auto ctx = new FunctionContext([this, finish_op_ctx](int r) {
+            handle_resize_object_map(r);
+            finish_op_ctx->complete(0);
+          });
+
+        m_dst_image_ctx->object_map->aio_resize(m_dst_image_ctx->size,
+                                                OBJECT_NONEXISTENT, ctx);
+        return;
+      }
+
+      lderr(m_cct) << "lost exclusive lock" << dendl;
+      r = -EROFS;
+    }
+  }
+
+  finish(r);
+}
+
+template <typename I>
+void SnapshotCopyRequest<I>::handle_resize_object_map(int r) {
+  ldout(m_cct, 20) << "r=" << r << dendl;
+
+  assert(r == 0);
   finish(0);
 }
 
@@ -592,6 +646,12 @@ int SnapshotCopyRequest<I>::validate_parent(I *image_ctx,
 template <typename I>
 Context *SnapshotCopyRequest<I>::start_lock_op() {
   RWLock::RLocker owner_locker(m_dst_image_ctx->owner_lock);
+  return start_lock_op(m_dst_image_ctx->owner_lock);
+}
+
+template <typename I>
+Context *SnapshotCopyRequest<I>::start_lock_op(RWLock &owner_lock) {
+  assert(m_dst_image_ctx->owner_lock.is_locked());
   if (m_dst_image_ctx->exclusive_lock == nullptr) {
     return new FunctionContext([](int r) {});
   }

@@ -48,19 +48,6 @@ target_link_libraries(ceph_test_keyvaluedb
 install(TARGETS ceph_test_keyvaluedb
   DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-# ceph_test_objectstore_workloadgen
-add_executable(ceph_test_objectstore_workloadgen
-  workload_generator.cc
-  TestObjectStoreState.cc
-  )
-target_link_libraries(ceph_test_objectstore_workloadgen
-  os
-  global
-  ${EXTRALIBS}
-  ${BLKID_LIBRARIES}
-  ${CMAKE_DL_LIBS}
-  )
-
 # ceph_test_filestore_idempotent
 add_executable(ceph_test_filestore_idempotent
   test_idempotent.cc
@@ -108,13 +95,6 @@ add_ceph_unittest(unittest_rocksdb_option)
 target_link_libraries(unittest_rocksdb_option global os ${BLKID_LIBRARIES})
 
 if(WITH_BLUESTORE)
-  # unittest_bit_alloc
-  add_executable(unittest_bit_alloc
-    BitAllocator_test.cc
-    $<TARGET_OBJECTS:unit-main>
-    )
-  add_ceph_unittest(unittest_bit_alloc)
-  target_link_libraries(unittest_bit_alloc os global)
 
   add_executable(unittest_alloc
     Allocator_test.cc
@@ -122,6 +102,24 @@ if(WITH_BLUESTORE)
     )
   add_ceph_unittest(unittest_alloc)
   target_link_libraries(unittest_alloc os global)
+
+
+  add_executable(unittest_alloc_bench
+    Allocator_bench.cc
+    $<TARGET_OBJECTS:unit-main>
+    )
+  set_target_properties(unittest_alloc_bench PROPERTIES COMPILE_FLAGS ${UNITTEST_CXX_FLAGS})
+  target_link_libraries(unittest_alloc_bench ${UNITTEST_LIBS} os global)
+
+  add_executable(unittest_fastbmap_allocator
+    fastbmap_allocator_test.cc
+    $<TARGET_OBJECTS:unit-main>
+    )
+  add_ceph_unittest(unittest_fastbmap_allocator)
+  target_link_libraries(unittest_fastbmap_allocator os global)
+
+  set_target_properties(unittest_fastbmap_allocator PROPERTIES COMPILE_FLAGS
+  ${UNITTEST_CXX_FLAGS})
 
   # unittest_bluefs
   add_executable(unittest_bluefs

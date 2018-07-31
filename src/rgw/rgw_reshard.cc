@@ -292,6 +292,19 @@ int RGWBucketReshard::create_new_bucket_instance(int new_num_shards,
   return ::create_new_bucket_instance(store, new_num_shards, bucket_info, bucket_attrs, new_bucket_info);
 }
 
+int RGWBucketReshard::cancel()
+{
+  int ret = lock_bucket();
+  if (ret < 0) {
+    return ret;
+  }
+
+  ret = clear_resharding();
+
+  unlock_bucket();
+  return 0;
+}
+
 class BucketInfoReshardUpdate
 {
   RGWRados *store;
@@ -345,7 +358,7 @@ public:
 
 int RGWBucketReshard::do_reshard(
 		   int num_shards,
-		   const RGWBucketInfo& new_bucket_info,
+		   RGWBucketInfo& new_bucket_info,
 		   int max_entries,
                    bool verbose,
                    ostream *out,
@@ -469,16 +482,9 @@ int RGWBucketReshard::do_reshard(
     return EIO;
   }
 
-  RGWBucketAdminOpState bucket_op;
-
-  bucket_op.set_bucket_name(new_bucket_info.bucket.name);
-  bucket_op.set_bucket_id(new_bucket_info.bucket.bucket_id);
-  bucket_op.set_user_id(new_bucket_info.owner);
-  bucket_op.set_update_stats(false);
-  string err;
-  ret = RGWBucketAdminOp::link(store, bucket_op, &err);
+  ret = rgw_link_bucket(store, new_bucket_info.owner, new_bucket_info.bucket, bucket_info.creation_time);
   if (ret < 0) {
-    lderr(store->ctx()) << "failed to link new bucket instance (bucket_id=" << new_bucket_info.bucket.bucket_id << ": " << err << "; " << cpp_strerror(-ret) << ")" << dendl;
+    lderr(store->ctx()) << "failed to link new bucket instance (bucket_id=" << new_bucket_info.bucket.bucket_id << ": " << cpp_strerror(-ret) << ")" << dendl;
     return -ret;
   }
 
@@ -669,7 +675,10 @@ int RGWReshard::get(cls_rgw_reshard_entry& entry)
 
   int ret = cls_rgw_reshard_get(store->reshard_pool_ctx, logshard_oid, entry);
   if (ret < 0) {
-    lderr(store->ctx()) << "ERROR: failed to get entry from reshard log, oid=" << logshard_oid << " tenant=" << entry.tenant << " bucket=" << entry.bucket_name << dendl;
+    if (ret != -ENOENT) {
+      lderr(store->ctx()) << "ERROR: failed to get entry from reshard log, oid=" << logshard_oid << " tenant=" << entry.tenant <<
+	" bucket=" << entry.bucket_name << dendl;
+    }
     return ret;
   }
 

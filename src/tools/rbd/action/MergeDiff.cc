@@ -66,7 +66,7 @@ static int parse_diff_header(int fd, __u8 *tag, string *from, string *to, uint64
 
       bufferlist bl;
       bl.append(buf, 8);
-      bufferlist::iterator p = bl.begin();
+      auto p = bl.cbegin();
       decode(*size, p);
     } else {
       break;
@@ -102,7 +102,7 @@ static int parse_diff_body(int fd, __u8 *tag, uint64_t *offset, uint64_t *length
 
   bufferlist bl;
   bl.append(buf, 16);
-  bufferlist::iterator p = bl.begin();
+  auto p = bl.cbegin();
   decode(*offset, p);
   decode(*length, p);
 
@@ -414,7 +414,8 @@ void get_arguments(po::options_description *positional,
   at::add_no_progress_option(options);
 }
 
-int execute(const po::variables_map &vm) {
+int execute(const po::variables_map &vm,
+            const std::vector<std::string> &ceph_global_init_args) {
   std::string first_diff = utils::get_positional_argument(vm, 0);
   if (first_diff.empty()) {
     std::cerr << "rbd: first diff was not specified" << std::endl;

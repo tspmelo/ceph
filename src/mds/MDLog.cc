@@ -94,7 +94,7 @@ class C_MDL_WriteError : public MDSIOContextBase {
   void finish(int r) override {
     MDSRank *mds = get_mds();
     // assume journal is reliable, so don't choose action based on
-    // g_conf->mds_action_on_write_error.
+    // g_conf()->mds_action_on_write_error.
     if (r == -EBLACKLISTED) {
       derr << "we have been blacklisted (fenced), respawning..." << dendl;
       mds->respawn();
@@ -111,7 +111,11 @@ class C_MDL_WriteError : public MDSIOContextBase {
   }
 
   public:
-  explicit C_MDL_WriteError(MDLog *m) : mdlog(m) {}
+  explicit C_MDL_WriteError(MDLog *m) :
+    MDSIOContextBase(false), mdlog(m) {}
+  void print(ostream& out) const override {
+    out << "mdlog_write_error";
+  }
 };
 
 
@@ -161,7 +165,7 @@ void MDLog::create(MDSInternalContextBase *c)
   assert(journaler->is_readonly());
   journaler->set_write_error_handler(new C_MDL_WriteError(this));
   journaler->set_writeable();
-  journaler->create(&mds->mdcache->default_log_layout, g_conf->mds_journal_format);
+  journaler->create(&mds->mdcache->default_log_layout, g_conf()->mds_journal_format);
   journaler->write_head(gather.new_sub());
 
   // Async write JournalPointer to RADOS
@@ -307,11 +311,11 @@ void MDLog::_submit_entry(LogEvent *le, MDSLogContextBase *c)
     // disambiguate imports. Because the ESubtreeMap reflects the subtree
     // state when all EImportFinish events are replayed.
   } else if (ls->end/period != ls->offset/period ||
-	     ls->num_events >= g_conf->mds_log_events_per_segment) {
+	     ls->num_events >= g_conf()->mds_log_events_per_segment) {
     dout(10) << "submit_entry also starting new segment: last = "
 	     << ls->seq  << "/" << ls->offset << ", event seq = " << event_seq << dendl;
     _start_new_segment();
-  } else if (g_conf->mds_debug_subtrees &&
+  } else if (g_conf()->mds_debug_subtrees &&
 	     le->get_type() != EVENT_SUBTREEMAP_TEST) {
     // debug: journal this every time to catch subtree replay bugs.
     // use a different event id so it doesn't get interpreted as a
@@ -351,7 +355,7 @@ void MDLog::_submit_thread()
   submit_mutex.Lock();
 
   while (!mds->is_daemon_stopping()) {
-    if (g_conf->mds_log_pause) {
+    if (g_conf()->mds_log_pause) {
       submit_cond.Wait(submit_mutex);
       continue;
     }
@@ -566,10 +570,21 @@ void MDLog::_journal_segment_subtree_map(MDSInternalContextBase *onsync)
   _submit_entry(sle, new C_MDL_Flushed(this, onsync));
 }
 
+class C_OFT_Committed : public MDSInternalContext {
+  MDLog *mdlog;
+  uint64_t seq;
+public:
+  C_OFT_Committed(MDLog *l, uint64_t s) :
+    MDSInternalContext(l->mds), mdlog(l), seq(s) {}
+  void finish(int ret) override {
+    mdlog->trim_expired_segments();
+  }
+};
+
 void MDLog::trim(int m)
 {
-  unsigned max_segments = g_conf->mds_log_max_segments;
-  int max_events = g_conf->mds_log_max_events;
+  unsigned max_segments = g_conf()->mds_log_max_segments;
+  int max_events = g_conf()->mds_log_max_events;
   if (m >= 0)
     max_events = m;
 
@@ -579,8 +594,8 @@ void MDLog::trim(int m)
   }
 
   // Clamp max_events to not be smaller than events per segment
-  if (max_events > 0 && max_events <= g_conf->mds_log_events_per_segment) {
-    max_events = g_conf->mds_log_events_per_segment + 1;
+  if (max_events > 0 && max_events <= g_conf()->mds_log_events_per_segment) {
+    max_events = g_conf()->mds_log_events_per_segment + 1;
   }
 
   submit_mutex.Lock();
@@ -636,6 +651,7 @@ void MDLog::trim(int m)
 	      << journaler->get_write_safe_pos() << " < end " << ls->end << dendl;
       break;
     }
+
     if (expiring_segments.count(ls)) {
       dout(5) << "trim already expiring segment " << ls->seq << "/" << ls->offset
 	      << ", " << ls->num_events << " events" << dendl;
@@ -654,6 +670,18 @@ void MDLog::trim(int m)
 
       submit_mutex.Lock();
       p = segments.lower_bound(last_seq + 1);
+    }
+  }
+
+  if (!capped &&
+      !mds->mdcache->open_file_table.is_any_committing()) {
+    uint64_t last_seq = get_last_segment_seq();
+    if (mds->mdcache->open_file_table.is_any_dirty() ||
+	last_seq > mds->mdcache->open_file_table.get_committed_log_seq()) {
+      submit_mutex.Unlock();
+      mds->mdcache->open_file_table.commit(new C_OFT_Committed(this, last_seq),
+					   last_seq, CEPH_MSG_PRIO_HIGH);
+      submit_mutex.Lock();
     }
   }
 
@@ -689,8 +717,16 @@ int MDLog::trim_all()
            << "/" << expired_segments.size() << dendl;
 
   uint64_t last_seq = 0;
-  if (!segments.empty())
+  if (!segments.empty()) {
     last_seq = get_last_segment_seq();
+    if (!mds->mdcache->open_file_table.is_any_committing() &&
+	last_seq > mds->mdcache->open_file_table.get_committing_log_seq()) {
+      submit_mutex.Unlock();
+      mds->mdcache->open_file_table.commit(new C_OFT_Committed(this, last_seq),
+					   last_seq, CEPH_MSG_PRIO_DEFAULT);
+      submit_mutex.Lock();
+    }
+  }
 
   map<uint64_t,LogSegment*>::iterator p = segments.begin();
   while (p != segments.end() &&
@@ -770,6 +806,8 @@ void MDLog::_trim_expired_segments()
 {
   assert(submit_mutex.is_locked_by_me());
 
+  uint64_t oft_committed_seq = mds->mdcache->open_file_table.get_committed_log_seq();
+
   // trim expired segments?
   bool trimmed = false;
   while (!segments.empty()) {
@@ -777,6 +815,12 @@ void MDLog::_trim_expired_segments()
     if (!expired_segments.count(ls)) {
       dout(10) << "_trim_expired_segments waiting for " << ls->seq << "/" << ls->offset
 	       << " to expire" << dendl;
+      break;
+    }
+
+    if (!capped && ls->seq >= oft_committed_seq) {
+      dout(10) << "_trim_expired_segments open file table committedseq " << oft_committed_seq
+	       << " <= " << ls->seq << "/" << ls->offset << dendl;
       break;
     }
     
@@ -898,7 +942,7 @@ void MDLog::replay(MDSInternalContextBase *c)
 void MDLog::_recovery_thread(MDSInternalContextBase *completion)
 {
   assert(journaler == NULL);
-  if (g_conf->mds_journal_format > JOURNAL_FORMAT_MAX) {
+  if (g_conf()->mds_journal_format > JOURNAL_FORMAT_MAX) {
       dout(0) << "Configuration value for mds_journal_format is out of bounds, max is "
               << JOURNAL_FORMAT_MAX << dendl;
 
@@ -1026,7 +1070,7 @@ void MDLog::_recovery_thread(MDSInternalContextBase *completion)
       }
       completion->complete(-EINVAL);
     }
-  } else if (mds->is_standby_replay() || front_journal->get_stream_format() >= g_conf->mds_journal_format) {
+  } else if (mds->is_standby_replay() || front_journal->get_stream_format() >= g_conf()->mds_journal_format) {
     /* The journal is of configured format, or we are in standbyreplay and will
      * tolerate replaying old journals until we have to go active. Use front_journal as
      * our journaler attribute and complete */
@@ -1077,7 +1121,7 @@ void MDLog::_reformat_journal(JournalPointer const &jp_in, Journaler *old_journa
   dout(4) << "Writing new journal header " << jp.back << dendl;
   file_layout_t new_layout = old_journal->get_layout();
   new_journal->set_writeable();
-  new_journal->create(&new_layout, g_conf->mds_journal_format);
+  new_journal->create(&new_layout, g_conf()->mds_journal_format);
 
   /* Write the new journal header to RADOS */
   C_SaferCond write_head_wait;
@@ -1350,7 +1394,7 @@ void MDLog::_replay_thread()
       mds->clog->error() << "corrupt journal event at " << pos << "~"
                          << bl.length() << " / "
                          << journaler->get_write_pos();
-      if (g_conf->mds_log_skip_corrupt_events) {
+      if (g_conf()->mds_log_skip_corrupt_events) {
         continue;
       } else {
         mds->damaged_unlocked();
@@ -1429,6 +1473,9 @@ void MDLog::standby_trim_segments()
   dout(10) << "standby_trim_segments" << dendl;
   uint64_t expire_pos = journaler->get_expire_pos();
   dout(10) << " expire_pos=" << expire_pos << dendl;
+
+  mds->mdcache->open_file_table.trim_destroyed_inos(expire_pos);
+
   bool removed_segment = false;
   while (have_any_segments()) {
     LogSegment *seg = get_oldest_segment();

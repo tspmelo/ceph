@@ -188,13 +188,13 @@ class SharedDriverQueueData {
     logger = b.create_perf_counters();
     g_ceph_context->get_perfcounters_collection()->add(logger);
     bdev->queue_number++;
-    if(bdev->queue_number.load() == 1)
+    if (bdev->queue_number.load() == 1)
       reap_io = true;
   }
 
   ~SharedDriverQueueData() {
     g_ceph_context->get_perfcounters_collection()->remove(logger);
-    if (!qpair) {
+    if (qpair) {
       spdk_nvme_ctrlr_free_io_qpair(qpair);
       bdev->queue_number--;
     }
@@ -359,8 +359,8 @@ void SharedDriverQueueData::_aio_handle(Task *t, IOContext *ioc)
 
   int r = 0;
   uint64_t lba_off, lba_count;
-  uint32_t max_io_completion = (uint32_t)g_conf->get_val<uint64_t>("bluestore_spdk_max_io_completion");
-  uint64_t io_sleep_in_us = g_conf->get_val<uint64_t>("bluestore_spdk_io_sleep");
+  uint32_t max_io_completion = (uint32_t)g_conf().get_val<uint64_t>("bluestore_spdk_max_io_completion");
+  uint64_t io_sleep_in_us = g_conf().get_val<uint64_t>("bluestore_spdk_io_sleep");
 
   ceph::coarse_real_clock::time_point cur, start
     = ceph::coarse_real_clock::now();
@@ -459,7 +459,7 @@ void SharedDriverQueueData::_aio_handle(Task *t, IOContext *ioc)
     start = ceph::coarse_real_clock::now();
   }
 
-  if(reap_io)
+  if (reap_io)
     bdev->reap_ioc();
   dout(20) << __func__ << " end" << dendl;
 }
@@ -509,7 +509,7 @@ class NVMEManager {
 
     // only support one device per osd now!
     assert(shared_driver_datas.empty());
-    // index 0 is occured by master thread
+    // index 0 is occurred by master thread
     shared_driver_datas.push_back(new SharedDriverData(shared_driver_datas.size()+1, sn_tag, c, ns));
     *driver = shared_driver_datas.back();
   }
@@ -593,7 +593,7 @@ int NVMEManager::try_get(const string &sn_tag, SharedDriverData **driver)
     }
   }
 
-  auto coremask_arg = g_conf->get_val<std::string>("bluestore_spdk_coremask");
+  auto coremask_arg = g_conf().get_val<std::string>("bluestore_spdk_coremask");
   int m_core_arg = -1;
   try {
     auto core_value = stoull(coremask_arg, nullptr, 16);
@@ -611,7 +611,7 @@ int NVMEManager::try_get(const string &sn_tag, SharedDriverData **driver)
   }
   m_core_arg -= 1;
 
-  uint32_t mem_size_arg = (uint32_t)g_conf->get_val<uint64_t>("bluestore_spdk_mem");
+  uint32_t mem_size_arg = (uint32_t)g_conf().get_val<Option::size_t>("bluestore_spdk_mem");
 
 
   if (!init) {
@@ -702,7 +702,7 @@ void io_complete(void *t, const struct spdk_nvme_cpl *completion)
     task->fill_cb();
     task->release_segs(queue);
     // read submitted by AIO
-    if(!task->return_code) {
+    if (!task->return_code) {
       if (ctx->priv) {
 	if (!--ctx->num_running) {
           task->device->aio_callback(task->device->aio_callback_priv, ctx->priv);
@@ -783,9 +783,9 @@ int NVMEDevice::open(const string& p)
   // round size down to an even block
   size &= ~(block_size - 1);
 
-  dout(1) << __func__ << " size " << size << " (" << pretty_si_t(size) << "B)"
-          << " block_size " << block_size << " (" << pretty_si_t(block_size)
-          << "B)" << dendl;
+  dout(1) << __func__ << " size " << size << " (" << byte_u_t(size) << ")"
+          << " block_size " << block_size << " (" << byte_u_t(block_size)
+          << ")" << dendl;
 
 
   return 0;
@@ -795,6 +795,8 @@ void NVMEDevice::close()
 {
   dout(1) << __func__ << dendl;
 
+  delete queue_t;
+  queue_t = nullptr;
   name.clear();
   driver->remove_device(this);
 
@@ -832,7 +834,7 @@ void NVMEDevice::aio_submit(IOContext *ioc)
     assert(ioc->num_pending.load() == 0);  // we should be only thread doing this
     // Only need to push the first entry
     ioc->nvme_task_first = ioc->nvme_task_last = nullptr;
-    if(!queue_t)
+    if (!queue_t)
 	queue_t = new SharedDriverQueueData(this, driver);
     queue_t->_aio_handle(t, ioc);
   }

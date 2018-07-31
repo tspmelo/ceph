@@ -97,7 +97,7 @@ class MDiscoverReply : public Message {
 
   bool is_flag_error_dn() { return flag_error_dn; }
   bool is_flag_error_dir() { return flag_error_dir; }
-  std::string& get_error_dentry() { return error_dentry; }
+  const std::string& get_error_dentry() { return error_dentry; }
 
   int get_starts_with() { return starts_with; }
 
@@ -158,7 +158,7 @@ public:
   }
 
   //  void set_flag_forward() { flag_forward = true; }
-  void set_flag_error_dn(const std::string& dn) { 
+  void set_flag_error_dn(std::string_view dn) { 
     flag_error_dn = true; 
     error_dentry = dn; 
   }
@@ -168,14 +168,14 @@ public:
   void set_dir_auth_hint(int a) {
     dir_auth_hint = a;
   }
-  void set_error_dentry(const std::string& dn) {
+  void set_error_dentry(std::string_view dn) {
     error_dentry = dn;
   }
 
 
   // ...
   void decode_payload() override {
-    bufferlist::iterator p = payload.begin();
+    auto p = payload.cbegin();
     decode(base_ino, p);
     decode(base_dir_frag, p);
     decode(wanted_base_dir, p);

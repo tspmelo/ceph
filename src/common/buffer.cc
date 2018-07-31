@@ -18,6 +18,8 @@
 
 #include <sys/uio.h>
 
+#include "include/types.h"
+#include "include/buffer_raw.h"
 #include "include/compat.h"
 #include "include/mempool.h"
 #include "armor.h"
@@ -29,7 +31,6 @@
 #include "common/valgrind.h"
 #include "common/deleter.h"
 #include "common/RWLock.h"
-#include "include/types.h"
 #include "include/spinlock.h"
 #include "include/scope_guard.h"
 
@@ -39,7 +40,7 @@
 
 using namespace ceph;
 
-#define CEPH_BUFFER_ALLOC_UNIT  (MIN(CEPH_PAGE_SIZE, 4096))
+#define CEPH_BUFFER_ALLOC_UNIT  (std::min(CEPH_PAGE_SIZE, 4096u))
 #define CEPH_BUFFER_APPEND_SIZE (CEPH_BUFFER_ALLOC_UNIT - sizeof(raw_combined))
 
 #ifdef BUFFER_DEBUG
@@ -166,109 +167,6 @@ using namespace ceph;
   buffer::error_code::error_code(int error) :
     buffer::malformed_input(cpp_strerror(error).c_str()), code(error) {}
 
-  class buffer::raw {
-  public:
-    char *data;
-    unsigned len;
-    std::atomic<unsigned> nref { 0 };
-    int mempool;
-
-    std::pair<size_t, size_t> last_crc_offset {std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()};
-    std::pair<uint32_t, uint32_t> last_crc_val;
-
-    mutable ceph::spinlock crc_spinlock;
-
-    explicit raw(unsigned l, int mempool=mempool::mempool_buffer_anon)
-      : data(NULL), len(l), nref(0), mempool(mempool) {
-      mempool::get_pool(mempool::pool_index_t(mempool)).adjust_count(1, len);
-    }
-    raw(char *c, unsigned l, int mempool=mempool::mempool_buffer_anon)
-      : data(c), len(l), nref(0), mempool(mempool) {
-      mempool::get_pool(mempool::pool_index_t(mempool)).adjust_count(1, len);
-    }
-    virtual ~raw() {
-      mempool::get_pool(mempool::pool_index_t(mempool)).adjust_count(
-	-1, -(int)len);
-    }
-
-    void _set_len(unsigned l) {
-      mempool::get_pool(mempool::pool_index_t(mempool)).adjust_count(
-	-1, -(int)len);
-      len = l;
-      mempool::get_pool(mempool::pool_index_t(mempool)).adjust_count(1, len);
-    }
-
-    void reassign_to_mempool(int pool) {
-      if (pool == mempool) {
-	return;
-      }
-      mempool::get_pool(mempool::pool_index_t(mempool)).adjust_count(
-	-1, -(int)len);
-      mempool = pool;
-      mempool::get_pool(mempool::pool_index_t(pool)).adjust_count(1, len);
-    }
-
-    void try_assign_to_mempool(int pool) {
-      if (mempool == mempool::mempool_buffer_anon) {
-	reassign_to_mempool(pool);
-      }
-    }
-
-private:
-    // no copying.
-    // cppcheck-suppress noExplicitConstructor
-    raw(const raw &other) = delete;
-    const raw& operator=(const raw &other) = delete;
-public:
-    virtual char *get_data() {
-      return data;
-    }
-    virtual raw* clone_empty() = 0;
-    raw *clone() {
-      raw *c = clone_empty();
-      memcpy(c->data, data, len);
-      return c;
-    }
-    virtual bool can_zero_copy() const {
-      return false;
-    }
-    virtual int zero_copy_to_fd(int fd, loff_t *offset) {
-      return -ENOTSUP;
-    }
-    virtual bool is_page_aligned() {
-      return ((long)data & ~CEPH_PAGE_MASK) == 0;
-    }
-    bool is_n_page_sized() {
-      return (len & ~CEPH_PAGE_MASK) == 0;
-    }
-    virtual bool is_shareable() {
-      // true if safe to reference/share the existing buffer copy
-      // false if it is not safe to share the buffer, e.g., due to special
-      // and/or registered memory that is scarce
-      return true;
-    }
-    bool get_crc(const pair<size_t, size_t> &fromto,
-         pair<uint32_t, uint32_t> *crc) const {
-      std::lock_guard<decltype(crc_spinlock)> lg(crc_spinlock);
-      if (last_crc_offset == fromto) {
-        *crc = last_crc_val;
-        return true;
-      }
-      return false;
-    }
-    void set_crc(const pair<size_t, size_t> &fromto,
-         const pair<uint32_t, uint32_t> &crc) {
-      std::lock_guard<decltype(crc_spinlock)> lg(crc_spinlock);
-      last_crc_offset = fromto;
-      last_crc_val = crc;
-    }
-    void invalidate_crc() {
-      std::lock_guard<decltype(crc_spinlock)> lg(crc_spinlock);
-      last_crc_offset.first = std::numeric_limits<size_t>::max();
-      last_crc_offset.second = std::numeric_limits<size_t>::max();
-    }
-  };
-
   /*
    * raw_combined is always placed within a single allocation along
    * with the data buffer.  the data goes at the beginning, and
@@ -296,9 +194,9 @@ public:
 				int mempool = mempool::mempool_buffer_anon) {
       if (!align)
 	align = sizeof(size_t);
-      size_t rawlen = ROUND_UP_TO(sizeof(buffer::raw_combined),
+      size_t rawlen = round_up_to(sizeof(buffer::raw_combined),
 				  alignof(buffer::raw_combined));
-      size_t datalen = ROUND_UP_TO(len, alignof(buffer::raw_combined));
+      size_t datalen = round_up_to(len, alignof(buffer::raw_combined));
 
 #ifdef DARWIN
       char *ptr = (char *) valloc(rawlen + datalen);
@@ -929,7 +827,7 @@ public:
     return *this;
   }
 
-  void buffer::ptr::swap(ptr& other)
+  void buffer::ptr::swap(ptr& other) noexcept
   {
     raw *r = _raw;
     unsigned o = _off;
@@ -1076,6 +974,16 @@ public:
     assert(l <= unused_tail_length());
     char* c = _raw->data + _off + _len;
     maybe_inline_memcpy(c, p, l, 32);
+    _len += l;
+    return _len + _off;
+  }
+
+  unsigned buffer::ptr::append_zeros(unsigned l)
+  {
+    assert(_raw);
+    assert(l <= unused_tail_length());
+    char* c = _raw->data + _off + _len;
+    memset(c, 0, l);
     _len += l;
     return _len + _off;
   }
@@ -1355,7 +1263,7 @@ public:
       }
     }
     *data = p->c_str() + p_off;
-    size_t l = MIN(p->length() - p_off, want);
+    size_t l = std::min<size_t>(p->length() - p_off, want);
     p_off += l;
     if (p_off == p->length()) {
       ++p;
@@ -1369,7 +1277,7 @@ public:
   uint32_t buffer::list::iterator_impl<is_const>::crc32c(
     size_t length, uint32_t crc)
   {
-    length = MIN( length, get_remaining());
+    length = std::min<size_t>(length, get_remaining());
     while (length > 0) {
       const char *p;
       size_t l = get_ptr_and_advance(length, &p);
@@ -1506,7 +1414,7 @@ public:
 
   // -- buffer::list --
 
-  buffer::list::list(list&& other)
+  buffer::list::list(list&& other) noexcept
     : _buffers(std::move(other._buffers)),
       _len(other._len),
       _memcopy_count(other._memcopy_count),
@@ -1515,7 +1423,7 @@ public:
     other.clear();
   }
 
-  void buffer::list::swap(list& other)
+  void buffer::list::swap(list& other) noexcept
   {
     std::swap(_len, other._len);
     std::swap(_memcopy_count, other._memcopy_count);
@@ -1763,7 +1671,7 @@ public:
 
     if (max_buffers && _buffers.size() > max_buffers
 	&& _len > (max_buffers * align_size)) {
-      align_size = ROUND_UP_TO(ROUND_UP_TO(_len, max_buffers) / max_buffers, align_size);
+      align_size = round_up_to(round_up_to(_len, max_buffers) / max_buffers, align_size);
     }
     std::list<ptr>::iterator p = _buffers.begin();
     while (p != _buffers.end()) {
@@ -1815,7 +1723,7 @@ public:
   void buffer::list::reserve(size_t prealloc)
   {
     if (append_buffer.unused_tail_length() < prealloc) {
-      append_buffer = buffer::create_in_mempool(prealloc, get_mempool());
+      append_buffer = buffer::create_page_aligned(prealloc);
       append_buffer.set_length(0);   // unused, so far.
     }
   }
@@ -1839,24 +1747,11 @@ public:
     bl.last_p = bl.begin();
   }
 
-  void buffer::list::claim_prepend(list& bl, unsigned int flags)
-  {
-    // steal the other guy's buffers
-    _len += bl._len;
-    if (!(flags & CLAIM_ALLOW_NONSHAREABLE))
-      bl.make_shareable();
-    _buffers.splice(_buffers.begin(), bl._buffers );
-    bl._len = 0;
-    bl.last_p = bl.begin();
-    // we modified _buffers
-    last_p = begin();
-  }
-
   void buffer::list::claim_append_piecewise(list& bl)
   {
     // steal the other guy's buffers
     for (std::list<buffer::ptr>::const_iterator i = bl.buffers().begin();
-        i != bl.buffers().end(); i++) {
+        i != bl.buffers().end(); ++i) {
       append(*i, 0, i->length());
     }
     bl.clear();
@@ -1940,8 +1835,8 @@ public:
       
       // make a new append_buffer.  fill out a complete page, factoring in the
       // raw_combined overhead.
-      size_t need = ROUND_UP_TO(len, sizeof(size_t)) + sizeof(raw_combined);
-      size_t alen = ROUND_UP_TO(need, CEPH_BUFFER_ALLOC_UNIT) -
+      size_t need = round_up_to(len, sizeof(size_t)) + sizeof(raw_combined);
+      size_t alen = round_up_to(need, CEPH_BUFFER_ALLOC_UNIT) -
 	sizeof(raw_combined);
       append_buffer = raw_combined::create(alen, 0, get_mempool());
       append_buffer.set_length(0);   // unused, so far.
@@ -2007,9 +1902,17 @@ public:
   
   void buffer::list::append_zero(unsigned len)
   {
-    ptr bp(len);
-    bp.zero(false);
-    append(std::move(bp));
+    unsigned need = std::min(append_buffer.unused_tail_length(), len);
+    if (need) {
+      append_buffer.append_zeros(need);
+      append(append_buffer, append_buffer.length() - need, need);
+      len -= need;
+    }
+    if (len) {
+      ptr bp = buffer::create_page_aligned(len);
+      bp.zero(false);
+      append(std::move(bp));
+    }
   }
 
   
@@ -2355,15 +2258,14 @@ int buffer::list::write_file(const char *fn, int mode)
 
 static int do_writev(int fd, struct iovec *vec, uint64_t offset, unsigned veclen, unsigned bytes)
 {
-  ssize_t r = 0;
   while (bytes > 0) {
+    ssize_t r = 0;
 #ifdef HAVE_PWRITEV
     r = ::pwritev(fd, vec, veclen, offset);
 #else
     r = ::lseek64(fd, offset, SEEK_SET);
     if (r != offset) {
-      r = -errno;
-      return r;
+      return -errno;
     }
     r = ::writev(fd, vec, veclen);
 #endif
@@ -2457,7 +2359,7 @@ int buffer::list::write_fd(int fd, uint64_t offset) const
   while (left_pbrs) {
     ssize_t bytes = 0;
     unsigned iovlen = 0;
-    uint64_t size = MIN(left_pbrs, IOV_MAX);
+    uint64_t size = std::min<uint64_t>(left_pbrs, IOV_MAX);
     left_pbrs -= size;
     while (size > 0) {
       iov[iovlen].iov_base = (void *)p->c_str();
@@ -2590,9 +2492,8 @@ void buffer::list::hexdump(std::ostream &out, bool trailing_newline) const
   unsigned per = 16;
   bool was_zeros = false, did_star = false;
   for (unsigned o=0; o<length(); o += per) {
-    bool row_is_zeros = false;
     if (o + per < length()) {
-      row_is_zeros = true;
+      bool row_is_zeros = true;
       for (unsigned i=0; i<per && o+i<length(); i++) {
 	if ((*this)[o+i]) {
 	  row_is_zeros = false;

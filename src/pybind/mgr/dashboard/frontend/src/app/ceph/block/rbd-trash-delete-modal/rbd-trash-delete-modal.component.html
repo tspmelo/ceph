@@ -1,0 +1,65 @@
+<cd-modal>
+  <ng-container i18n
+                class="modal-title">Delete Image</ng-container>
+
+  <ng-container class="modal-content">
+    <form name="deleteForm"
+          class="form"
+          #formDir="ngForm"
+          [formGroup]="deleteForm"
+          novalidate>
+      <div class="modal-body">
+        <p>
+          <ng-container i18n>To confirm the deletion, enter</ng-container>&nbsp;
+          <kbd>{{ pattern }}</kbd>&nbsp;
+          <ng-container i18n>and click on</ng-container>&nbsp;
+          <kbd>Delete</kbd>.
+        </p>
+
+        <p class="text-danger"
+           *ngIf="!isExpired()">
+          The
+          <kbd>--force</kbd> flag is needed since this image hasn't expired yet. Expires at: {{ expiresAt | cdDate }}
+        </p>
+
+        <div class="form-group"
+             [ngClass]="{'has-error': deleteForm.showError('confirmation', formDir)}">
+          <input type="text"
+                 class="form-control"
+                 name="confirmation"
+                 id="confirmation"
+                 [placeholder]="pattern"
+                 [pattern]="pattern"
+                 autocomplete="off"
+                 formControlName="confirmation"
+                 autofocus>
+          <span class="help-block"
+                *ngIf="deleteForm.showError('confirmation', formDir, 'required')"
+                i18n>
+            This field is required.
+          </span>
+          <span class="help-block"
+                *ngIf="deleteForm.showError('confirmation', formDir, 'pattern')">
+            '{{ deleteForm.getValue('confirmation') }}'
+            <span i18n>doesn't match</span>
+            '{{ pattern }}'.
+          </span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="button-group text-right">
+          <cd-submit-button i18n
+                            [form]="deleteForm"
+                            (submitAction)="deleteRbd()">
+            Delete
+          </cd-submit-button>
+          <button i18n
+                  type="button"
+                  class="btn btn-sm btn-default"
+                  (click)="modalRef.hide()">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </ng-container>
+</cd-modal>

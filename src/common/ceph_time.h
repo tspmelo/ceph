@@ -17,6 +17,8 @@
 
 #include <chrono>
 #include <iostream>
+#include <string>
+#include <sys/time.h>
 
 #include "include/assert.h"
 
@@ -82,6 +84,10 @@ namespace ceph {
 
       static bool is_zero(const time_point& t) {
 	return (t == time_point::min());
+      }
+
+      static time_point zero() {
+        return time_point::min();
       }
 
       // Allow conversion to/from any clock with the same interface as
@@ -237,6 +243,14 @@ namespace ceph {
 	return time_point(seconds(ts.tv_sec) + nanoseconds(ts.tv_nsec));
       }
 
+      static bool is_zero(const time_point& t) {
+        return (t == time_point::min());
+      }
+
+      static time_point zero() {
+        return time_point::min();
+      }
+
       // A monotonic clock's timepoints are only meaningful to the
       // computer on which they were generated. Thus having an
       // optional skew is meaningless.
@@ -265,6 +279,14 @@ namespace ceph {
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 #endif
 	return time_point(seconds(ts.tv_sec) + nanoseconds(ts.tv_nsec));
+      }
+
+      static bool is_zero(const time_point& t) {
+        return (t == time_point::min());
+      }
+
+      static time_point zero() {
+        return time_point::min();
       }
     };
 
@@ -455,6 +477,22 @@ inline timespan to_timespan(signedspan z) {
   ceph_assert(z >= signedspan::zero());
   return std::chrono::duration_cast<timespan>(z);
 }
+
+std::string timespan_str(timespan t);
+
+// detects presence of Clock::to_timespec() and from_timespec()
+template <typename Clock, typename = std::void_t<>>
+struct converts_to_timespec : std::false_type {};
+
+template <typename Clock>
+struct converts_to_timespec<Clock, std::void_t<decltype(
+    Clock::from_timespec(Clock::to_timespec(
+        std::declval<typename Clock::time_point>()))
+  )>> : std::true_type {};
+
+template <typename Clock>
+constexpr bool converts_to_timespec_v = converts_to_timespec<Clock>::value;
+
 } // namespace ceph
 
 #endif // COMMON_CEPH_TIME_H

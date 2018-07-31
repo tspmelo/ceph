@@ -1,4 +1,4 @@
-// -*- mode:C++; tab-width:8; c-basic-offset:2; indent-tabs-mode:t -*- 
+// -*- mode:C++; tab-width:8; c-basic-offset:2; indent-tabs-mode:t -*-
 // vim: ts=8 sw=2 smarttab
 /*
  * Ceph - scalable distributed file system
@@ -15,7 +15,6 @@
 #ifndef __LIBRBD_HPP
 #define __LIBRBD_HPP
 
-#include <stdbool.h>
 #include <string>
 #include <list>
 #include <map>
@@ -85,19 +84,19 @@ namespace librbd {
     std::string name;
     int64_t pool;
     group_image_state_t state;
-  } group_image_status_t;
+  } group_image_info_t;
 
   typedef struct {
     std::string name;
     int64_t pool;
-  } group_spec_t;
+  } group_info_t;
 
   typedef rbd_group_snap_state_t group_snap_state_t;
 
   typedef struct {
     std::string name;
     group_snap_state_t state;
-  } group_snap_spec_t;
+  } group_snap_info_t;
 
   typedef rbd_image_info_t image_info_t;
 
@@ -213,10 +212,12 @@ public:
   int mirror_image_status_summary(IoCtx& io_ctx,
       std::map<mirror_image_status_state_t, int> *states);
 
-  // RBD consistency groups support functions
+  // RBD groups support functions
   int group_create(IoCtx& io_ctx, const char *group_name);
   int group_remove(IoCtx& io_ctx, const char *group_name);
   int group_list(IoCtx& io_ctx, std::vector<std::string> *names);
+  int group_rename(IoCtx& io_ctx, const char *src_group_name,
+                   const char *dest_group_name);
 
   int group_image_add(IoCtx& io_ctx, const char *group_name,
 		      IoCtx& image_io_ctx, const char *image_name);
@@ -225,14 +226,22 @@ public:
   int group_image_remove_by_id(IoCtx& io_ctx, const char *group_name,
                                IoCtx& image_io_ctx, const char *image_id);
   int group_image_list(IoCtx& io_ctx, const char *group_name,
-		       std::vector<group_image_status_t> *images);
+                       std::vector<group_image_info_t> *images,
+                       size_t group_image_info_size);
 
   int group_snap_create(IoCtx& io_ctx, const char *group_name,
 			const char *snap_name);
   int group_snap_remove(IoCtx& io_ctx, const char *group_name,
 			const char *snap_name);
+  int group_snap_rename(IoCtx& group_ioctx, const char *group_name,
+                        const char *old_snap_name, const char *new_snap_name);
   int group_snap_list(IoCtx& group_ioctx, const char *group_name,
-		      std::vector<group_snap_spec_t> *snaps);
+                      std::vector<group_snap_info_t> *snaps,
+                      size_t group_snap_info_size);
+
+  int namespace_create(IoCtx& ioctx, const char *namespace_name);
+  int namespace_remove(IoCtx& ioctx, const char *namespace_name);
+  int namespace_list(IoCtx& io_ctx, std::vector<std::string>* namespace_names);
 
 private:
   /* We don't allow assignment or copying */
@@ -285,6 +294,7 @@ public:
   int resize2(uint64_t size, bool allow_shrink, ProgressContext& pctx);
   int resize_with_progress(uint64_t size, ProgressContext& pctx);
   int stat(image_info_t &info, size_t infosize);
+  int get_name(std::string *name);
   int get_id(std::string *id);
   std::string get_block_name_prefix();
   int64_t get_data_pool_id();
@@ -294,9 +304,10 @@ public:
                    std::string *parent_id, std::string *parent_snapname);
   int old_format(uint8_t *old);
   int size(uint64_t *size);
-  int get_group(group_spec_t *group_spec);
+  int get_group(group_info_t *group_info, size_t group_info_size);
   int features(uint64_t *features);
   int update_features(uint64_t features, bool enabled);
+  int get_op_features(uint64_t *op_features);
   int overlap(uint64_t *overlap);
   int get_flags(uint64_t *flags);
   int set_image_notification(int fd, int type);
@@ -368,12 +379,14 @@ public:
   int snap_create(const char *snapname);
   int snap_remove(const char *snapname);
   int snap_remove2(const char *snapname, uint32_t flags, ProgressContext& pctx);
+  int snap_remove_by_id(uint64_t snap_id);
   int snap_rollback(const char *snap_name);
   int snap_rollback_with_progress(const char *snap_name, ProgressContext& pctx);
   int snap_protect(const char *snap_name);
   int snap_unprotect(const char *snap_name);
   int snap_is_protected(const char *snap_name, bool *is_protected);
   int snap_set(const char *snap_name);
+  int snap_set_by_id(uint64_t snap_id);
   int snap_rename(const char *srcname, const char *dstname);
   int snap_get_limit(uint64_t *limit);
   int snap_set_limit(uint64_t limit);
@@ -381,7 +394,9 @@ public:
   int snap_get_namespace_type(uint64_t snap_id,
                               snap_namespace_type_t *namespace_type);
   int snap_get_group_namespace(uint64_t snap_id,
-                               snap_group_namespace_t *group_namespace);
+                               snap_group_namespace_t *group_namespace,
+                               size_t snap_group_namespace_size);
+  int snap_get_trash_namespace(uint64_t snap_id, std::string* original_name);
 
   /* I/O */
   ssize_t read(uint64_t ofs, size_t len, ceph::bufferlist& bl);

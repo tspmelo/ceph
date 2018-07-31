@@ -14,7 +14,6 @@
 #include <map>
 #include <string>
 #include <memory>
-#include "include/memory.h"
 #include <boost/scoped_ptr.hpp>
 #include "include/encoding.h"
 #include "include/btree_map.h"
@@ -65,7 +64,7 @@ public:
   int set_merge_operator(const std::string& prefix,
          std::shared_ptr<MergeOperator> mop) override;
 
-  std::shared_ptr<MergeOperator> _find_merge_op(std::string prefix);
+  std::shared_ptr<MergeOperator> _find_merge_op(const std::string &prefix);
 
   static
   int _test_init(const string& dir) { return 0; };
@@ -98,7 +97,7 @@ public:
     void clear() {
       ops.clear();
     }
-    MDBTransactionImpl(MemDB* _db) :m_db(_db)
+    explicit MDBTransactionImpl(MemDB* _db) :m_db(_db)
     {
       ops.clear();
     }
