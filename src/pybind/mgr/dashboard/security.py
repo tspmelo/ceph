@@ -25,6 +25,7 @@ class Scope(object):
     GRAFANA = "grafana"
     USER = "user"
     DASHBOARD_SETTINGS = "dashboard-settings"
+    NFS = "nfs"
 
     @classmethod
     def all_scopes(cls):
