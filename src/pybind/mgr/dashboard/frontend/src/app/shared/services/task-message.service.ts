@@ -22,6 +22,16 @@ class TaskMessage {
   involves: (object) => string;
   errors: (metadata) => object;
 
+  constructor(
+    operation: TaskMessageOperation,
+    involves: (metadata) => string,
+    errors?: (metadata) => object
+  ) {
+    this.operation = operation;
+    this.involves = involves;
+    this.errors = errors || (() => ({}));
+  }
+
   failure(metadata): string {
     return `Failed to ${this.operation.failure} ${this.involves(metadata)}`;
   }
@@ -33,24 +43,12 @@ class TaskMessage {
   success(metadata): string {
     return `${this.operation.success} ${this.involves(metadata)}`;
   }
-
-  constructor(
-    operation: TaskMessageOperation,
-    involves: (metadata) => string,
-    errors?: (metadata) => object
-  ) {
-    this.operation = operation;
-    this.involves = involves;
-    this.errors = errors || (() => ({}));
-  }
 }
 
 @Injectable({
   providedIn: ServicesModule
 })
 export class TaskMessageService {
-  constructor() {}
-
   defaultMessage = new TaskMessage(
     new TaskMessageOperation('Executing', 'execute', 'Executed'),
     (metadata) => {

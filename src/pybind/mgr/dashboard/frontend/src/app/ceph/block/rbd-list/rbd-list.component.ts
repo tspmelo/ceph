@@ -60,14 +60,6 @@ export class RbdListComponent implements OnInit {
       this.createRbdFromTask(metadata['dest_pool_name'], metadata['dest_image_name'])
   };
 
-  private createRbdFromTask(pool: string, name: string): RbdModel {
-    const model = new RbdModel();
-    model.id = '-1';
-    model.name = name;
-    model.pool_name = pool;
-    return model;
-  }
-
   constructor(
     private authStorageService: AuthStorageService,
     private rbdService: RbdService,
@@ -198,6 +190,14 @@ export class RbdListComponent implements OnInit {
       this.itemFilter,
       this.builders
     );
+  }
+
+  private createRbdFromTask(pool: string, name: string): RbdModel {
+    const model = new RbdModel();
+    model.id = '-1';
+    model.name = name;
+    model.pool_name = pool;
+    return model;
   }
 
   onFetchError() {
