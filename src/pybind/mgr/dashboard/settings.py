@@ -43,6 +43,10 @@ class Options(object):
     # Orchestrator settings
     ORCHESTRATOR_BACKEND = ('', str)
 
+    # Ceph-iscsi settings
+    ISCSI_API_USERNAME = ('admin', str)
+    ISCSI_API_PASSWORD = ('admin', str)
+
     @staticmethod
     def has_default_value(name):
         return getattr(Settings, name, None) is None or \
