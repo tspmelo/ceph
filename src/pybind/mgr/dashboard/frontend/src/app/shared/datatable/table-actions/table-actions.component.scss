@@ -1,0 +1,5 @@
+@import '~bootstrap/scss/bootstrap-grid';
+
+::ng-deep .btn-toolbar .btn-group {
+  @extend .mr-1;
+}

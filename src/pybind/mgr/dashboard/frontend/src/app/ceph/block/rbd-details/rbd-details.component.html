@@ -48,7 +48,7 @@
               class="bold col-sm-1">Features</td>
           <td class="col-sm-3">
             <span *ngFor="let feature of selectedItem.features_name">
-              <span class="badge badge-pill badge-primary margin-right-sm">{{ feature }}</span>
+              <span class="badge badge-pill badge-dark mr-2">{{ feature }}</span>
             </span>
           </td>
         </tr>
@@ -57,7 +57,7 @@
               class="bold col-sm-1">Provisioned</td>
           <td class="col-sm-3">
             <span *ngIf="selectedItem.features_name?.indexOf('fast-diff') === -1">
-              <span class="text-muted"
+              <span class="form-text text-muted"
                     [tooltip]="usageNotAvailableTooltipTpl"
                     placement="right"
                     i18n>N/A</span>
@@ -72,7 +72,7 @@
               class="bold col-sm-1">Total provisioned</td>
           <td class="col-sm-3">
             <span *ngIf="selectedItem.features_name?.indexOf('fast-diff') === -1">
-              <span class="text-muted"
+              <span class="form-text text-muted"
                     [tooltip]="usageNotAvailableTooltipTpl"
                     placement="right"
                     i18n>N/A</span>

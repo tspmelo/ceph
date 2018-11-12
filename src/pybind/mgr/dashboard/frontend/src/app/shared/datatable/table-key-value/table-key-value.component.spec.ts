@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterTestingModule } from '@angular/router/testing';
 
 import { NgxDatatableModule } from '@swimlane/ngx-datatable';
+import { BsDropdownModule } from 'ngx-bootstrap/dropdown';
 
 import { configureTestBed } from '../../../../testing/unit-test-helper';
 import { ComponentsModule } from '../../components/components.module';
@@ -17,7 +18,13 @@ describe('TableKeyValueComponent', () => {
 
   configureTestBed({
     declarations: [TableComponent, TableKeyValueComponent],
-    imports: [FormsModule, NgxDatatableModule, ComponentsModule, RouterTestingModule]
+    imports: [
+      FormsModule,
+      NgxDatatableModule,
+      ComponentsModule,
+      RouterTestingModule,
+      BsDropdownModule.forRoot()
+    ]
   });
 
   beforeEach(() => {

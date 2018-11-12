@@ -1,4 +1,4 @@
-@import '../../../../defaults';
+@import 'defaults';
 
 ::ng-deep .login {
   height: 100%;
@@ -21,11 +21,5 @@
 
   .btn-password:focus {
     outline-color: $color-password-toggle-focus;
-  }
-
-  .checkbox-primary input[type='checkbox']:checked + label::before,
-  .checkbox-primary input[type='radio']:checked + label::before {
-    background-color: $color-login-checkbox-bg;
-    border-color: $color-login-checkbox-border;
   }
 }

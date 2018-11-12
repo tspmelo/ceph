@@ -97,7 +97,7 @@ describe('IscsiTargetDetailsComponent', () => {
         {
           children: [{ id: 'disk_rbd_disk_1', value: 'rbd/disk_1' }],
           settings: {
-            cssClasses: { expanded: 'fa fa-fw fa-hdd-o fa-lg', leaf: 'fa fa-fw fa-hdd-o' },
+            cssClasses: { expanded: 'fa fa-hdd-o fa-lg', leaf: 'fa fa-hdd-o' },
             selectionAllowed: false
           },
           value: 'Disks'
@@ -105,7 +105,7 @@ describe('IscsiTargetDetailsComponent', () => {
         {
           children: [{ value: 'node1:192.168.100.201' }],
           settings: {
-            cssClasses: { expanded: 'fa fa-fw fa-server fa-lg', leaf: 'fa fa-fw fa-server fa-lg' },
+            cssClasses: { expanded: 'fa fa-server fa-lg', leaf: 'fa fa-server fa-lg' },
             selectionAllowed: false
           },
           value: 'Portals'
@@ -117,7 +117,7 @@ describe('IscsiTargetDetailsComponent', () => {
                 {
                   id: 'disk_rbd_disk_1',
                   settings: {
-                    cssClasses: { expanded: 'fa fa-fw fa-hdd-o fa-lg', leaf: 'fa fa-fw fa-hdd-o' }
+                    cssClasses: { expanded: 'fa fa-hdd-o fa-lg', leaf: 'fa fa-hdd-o' }
                   },
                   value: 'rbd/disk_1'
                 }
@@ -127,7 +127,7 @@ describe('IscsiTargetDetailsComponent', () => {
             }
           ],
           settings: {
-            cssClasses: { expanded: 'fa fa-fw fa-user fa-lg', leaf: 'fa fa-fw fa-user' },
+            cssClasses: { expanded: 'fa fa-user fa-lg', leaf: 'fa fa-user' },
             selectionAllowed: false
           },
           value: 'Initiators'
@@ -135,14 +135,14 @@ describe('IscsiTargetDetailsComponent', () => {
         {
           children: [],
           settings: {
-            cssClasses: { expanded: 'fa fa-fw fa-users fa-lg', leaf: 'fa fa-fw fa-users' },
+            cssClasses: { expanded: 'fa fa-users fa-lg', leaf: 'fa fa-users' },
             selectionAllowed: false
           },
           value: 'Groups'
         }
       ],
       id: 'root',
-      settings: { cssClasses: { expanded: 'fa fa-fw fa-bullseye fa-lg' }, static: true },
+      settings: { cssClasses: { expanded: 'fa fa-bullseye fa-lg' }, static: true },
       value: 'iqn.2003-01.com.redhat.iscsi-gw:iscsi-igw'
     });
   });

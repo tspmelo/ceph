@@ -81,7 +81,7 @@ describe('RbdFormComponent', () => {
       expect(
         fixture.debugElement.query(By.css('cd-rbd-configuration-form')).nativeElement.parentElement
           .hidden
-      ).toBe(false);
+      ).toBe(true);
     });
   });
 });

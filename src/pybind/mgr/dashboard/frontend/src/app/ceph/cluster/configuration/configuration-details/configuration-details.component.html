@@ -58,7 +58,7 @@
           <td class="col-sm-3">
             <span *ngFor="let flag of selectedItem.flags">
               <span title="{{ flags[flag] }}">
-                <span class="badge badge-pill badge-primary margin-right-sm">{{ flag | uppercase }}</span>
+                <span class="badge badge-pill badge-dark mr-2">{{ flag | uppercase }}</span>
               </span>
             </span>
           </td>
@@ -68,7 +68,7 @@
               class="bold col-sm-1">Services</td>
           <td class="col-sm-3">
             <span *ngFor="let service of selectedItem.services">
-              <span class="badge badge-pill badge-primary margin-right-sm">{{ service }}</span>
+              <span class="badge badge-pill badge-dark mr-2">{{ service }}</span>
             </span>
           </td>
         </tr>

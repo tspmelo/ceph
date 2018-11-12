@@ -78,23 +78,23 @@ export class IscsiTargetDetailsComponent implements OnChanges, OnInit {
 
     const cssClasses = {
       target: {
-        expanded: 'fa fa-fw fa-bullseye fa-lg'
+        expanded: 'fa fa-bullseye fa-lg'
       },
       initiators: {
-        expanded: 'fa fa-fw fa-user fa-lg',
-        leaf: 'fa fa-fw fa-user'
+        expanded: 'fa fa-user fa-lg',
+        leaf: 'fa fa-user'
       },
       groups: {
-        expanded: 'fa fa-fw fa-users fa-lg',
-        leaf: 'fa fa-fw fa-users'
+        expanded: 'fa fa-users fa-lg',
+        leaf: 'fa fa-users'
       },
       disks: {
-        expanded: 'fa fa-fw fa-hdd-o fa-lg',
-        leaf: 'fa fa-fw fa-hdd-o'
+        expanded: 'fa fa-hdd-o fa-lg',
+        leaf: 'fa fa-hdd-o'
       },
       portals: {
-        expanded: 'fa fa-fw fa-server fa-lg',
-        leaf: 'fa fa-fw fa-server fa-lg'
+        expanded: 'fa fa-server fa-lg',
+        leaf: 'fa fa-server fa-lg'
       }
     };
 

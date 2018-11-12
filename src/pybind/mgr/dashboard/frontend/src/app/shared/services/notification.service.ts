@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 
 import * as _ from 'lodash';
-import { ToastOptions, ToastsManager } from 'ng2-toastr';
+import { IndividualConfig, ToastrService } from 'ngx-toastr';
 import { BehaviorSubject } from 'rxjs';
 
 import { NotificationType } from '../enum/notification-type.enum';
@@ -28,7 +28,7 @@ export class NotificationService {
   KEY = 'cdNotifications';
 
   constructor(
-    public toastr: ToastsManager,
+    public toastr: ToastrService,
     private taskMessageService: TaskMessageService,
     private cdDatePipe: CdDatePipe
   ) {
@@ -97,7 +97,7 @@ export class NotificationService {
     type: NotificationType,
     title: string,
     message?: string,
-    options?: any | ToastOptions,
+    options?: any | IndividualConfig,
     application?: string
   ): number;
   show(config: CdNotificationConfig | (() => CdNotificationConfig)): number;
@@ -105,7 +105,7 @@ export class NotificationService {
     arg: NotificationType | CdNotificationConfig | (() => CdNotificationConfig),
     title?: string,
     message?: string,
-    options?: any | ToastOptions,
+    options?: any | IndividualConfig,
     application?: string
   ): number {
     return window.setTimeout(() => {
@@ -145,7 +145,7 @@ export class NotificationService {
   renderTimeAndApplicationHtml(notification: CdNotification): string {
     return `<small class="date">${this.cdDatePipe.transform(
       notification.timestamp
-    )}</small><i class="pull-right custom-icon ${notification.applicationClass}" title="${
+    )}</small><i class="float-right custom-icon ${notification.applicationClass}" title="${
       notification.application
     }"></i>`;
   }
