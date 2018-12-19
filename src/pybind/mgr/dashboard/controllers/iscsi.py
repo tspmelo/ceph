@@ -3,11 +3,16 @@ from __future__ import absolute_import
 
 import cherrypy
 
+import rados
+import rbd
+
 from . import ApiController, RESTController, BaseController, Endpoint, ReadPermission
+from .. import mgr
+from .. import logger
 from ..rest_client import RequestException
 from ..security import Scope
 from ..services.iscsi_client import IscsiClient
-
+from ..exceptions import DashboardException
 
 @ApiController('/iscsi', Scope.ISCSI)
 class Iscsi(BaseController):
@@ -40,6 +45,87 @@ class IscsiTarget(RESTController):
         if target_iqn not in config['targets']:
             raise cherrypy.HTTPError(404)
         return IscsiTarget._config_to_target(target_iqn, config)
+
+    # TODO tasks / async calls
+    def create(self, target_iqn=None, target_controls=None,
+               portals=[], disks=[], clients=[], groups=[]):
+        # TODO remove disks, clients, etc.. that doesn't exist on request
+        # TODO support groups
+        if len(portals) < 2:
+            raise DashboardException(msg='At least two portal are required',
+                                     code='portals_required',
+                                     component='iscsi')
+        try:
+            logger.debug('Creating target {}'.format(target_iqn))
+            IscsiClient.instance().create_target(target_iqn, target_controls)
+            config = IscsiClient.instance().get_config()
+            target_config = config['targets'][target_iqn]
+            first_portal_ip = portals[0]['ip']
+            for portal in portals:
+                host = portal['host']
+                ip = portal['ip']
+                if host not in target_config['portals']:
+                    logger.debug('Creating portal {}:{}'.format(host, ip))
+                    IscsiClient.instance(host=first_portal_ip).create_gateway(target_iqn, host, ip)
+                else:
+                    logger.debug('Creating portal {}:{} - SKIPPED'.format(host, ip))
+            for disk in disks:
+                pool = disk['pool']
+                image = disk['image']
+                try:
+                    ioctx = mgr.rados.open_ioctx(pool)
+                    try:
+                        rbd.Image(ioctx, image)
+                    except rbd.ImageNotFound:
+                        raise DashboardException(msg='Image does not exist',
+                                                 code='image_does_not_exist',
+                                                 component='iscsi')
+                except rados.ObjectNotFound:
+                    raise DashboardException(msg='Pool does not exist',
+                                             code='pool_does_not_exist',
+                                             component='iscsi')
+                image_id = '{}.{}'.format(pool, image)
+                if image_id not in config['disks']:
+                    logger.debug('Creating disk {}'.format(image_id))
+                    IscsiClient.instance(host=first_portal_ip).create_disk(image_id)
+                else:
+                    logger.debug('Creating disk {} - SKIPPED'.format(image_id))
+                if image_id not in target_config['disks']:
+                    logger.debug('Creating target disk {}'.format(image_id))
+                    IscsiClient.instance(host=first_portal_ip).create_target_lun(target_iqn, image_id)
+                else:
+                    logger.debug('Creating target disk {} - SKIPPED'.format(image_id))
+                controls = disk['controls']
+                if controls:
+                    logger.debug('Creating disk controls')
+                    IscsiClient.instance(host=first_portal_ip).reconfigure_disk(image_id, controls)
+            for client in clients:
+                client_iqn = client['client_iqn']
+                if client_iqn not in target_config['clients']:
+                    logger.debug('Creating client {}'.format(client_iqn))
+                    IscsiClient.instance(host=first_portal_ip).create_client(target_iqn, client_iqn)
+                else:
+                    logger.debug('Creating client {} - SKIPPED'.format(client_iqn))
+                for lun in client['luns']:
+                    pool = lun['pool']
+                    image = lun['image']
+                    image_id = '{}.{}'.format(pool, image)
+                    if image_id not in target_config['clients'][client_iqn]['luns']:
+                        logger.debug('Creating client lun {}'.format(image_id))
+                        IscsiClient.instance(host=first_portal_ip).create_client_lun(target_iqn, client_iqn, image_id)
+                    else:
+                        logger.debug('Creating client lun {} - SKIPPED'.format(image_id))
+                user = client['auth']['user']
+                password = client['auth']['password']
+                chap = '{}/{}'.format(user, password) if user and password else ''
+                logger.debug('Creating auth {}'.format(chap))
+                IscsiClient.instance(host=first_portal_ip).create_client_auth(target_iqn, client_iqn, chap)
+            if target_controls:
+                logger.debug('Creating target controls')
+                IscsiClient.instance(host=first_portal_ip).reconfigure_target(target_iqn, target_controls)
+
+        except RequestException as e:
+            raise DashboardException(e=e, component='iscsi')
 
     @staticmethod
     def _config_to_target(target_iqn, config):
