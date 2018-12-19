@@ -12,11 +12,7 @@ describe('IscsiTabsComponent', () => {
   let fixture: ComponentFixture<IscsiTabsComponent>;
 
   configureTestBed({
-    imports: [
-      SharedModule,
-      TabsModule.forRoot(),
-      RouterTestingModule
-    ],
+    imports: [SharedModule, TabsModule.forRoot(), RouterTestingModule],
     declarations: [IscsiTabsComponent]
   });
 

@@ -1,0 +1,42 @@
+<cd-modal>
+  <ng-container class="modal-title"
+                i18n>Advanced Settings</ng-container>
+
+  <ng-container class="modal-content">
+    <form name="settingsForm"
+          class="form"
+          #formDir="ngForm"
+          [formGroup]="settingsForm"
+          novalidate>
+      <div class="modal-body">
+        <div class="alert-warning"
+             i18n>Changing these parameters from their default values is usually not necessary.</div>
+
+        <div class="form-group row"
+             *ngFor="let setting of iscsiService.targetAdvancedSettings"
+             [ngClass]="{'has-error': settingsForm.showError(setting.property, formDir)}">
+          <div class="col-sm-12">
+            <label class="control-label"
+                   for="{{ setting.property }}">{{ setting.property }}</label>
+            <input type="number"
+                   class="form-control"
+                   [formControlName]="setting.property">
+            <span class="help-block">{{ setting.help }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="button-group text-right">
+          <cd-submit-button i18n
+                            [form]="settingsForm"
+                            (submitAction)="save()">Confirm</cd-submit-button>
+          <button i18n
+                  type="button"
+                  class="btn btn-sm btn-default"
+                  (click)="modalRef.hide()">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </ng-container>
+</cd-modal>

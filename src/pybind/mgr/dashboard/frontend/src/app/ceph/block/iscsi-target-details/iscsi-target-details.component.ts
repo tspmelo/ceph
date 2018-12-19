@@ -183,5 +183,4 @@ export class IscsiTargetDetailsComponent implements OnChanges {
   }
 }
 
-
-//TODO renomear hosts to initiators.
+// TODO renomear hosts to initiators.

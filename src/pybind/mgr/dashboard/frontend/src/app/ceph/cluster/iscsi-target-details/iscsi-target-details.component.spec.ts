@@ -8,9 +8,8 @@ describe('IscsiTargetDetailsComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ IscsiTargetDetailsComponent ]
-    })
-    .compileComponents();
+      declarations: [IscsiTargetDetailsComponent]
+    }).compileComponents();
   }));
 
   beforeEach(() => {
