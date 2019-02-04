@@ -30,6 +30,7 @@ export class IscsiTargetFormComponent {
   target_default_controls: any;
   disk_default_controls: any;
 
+  isEdit = false;
   imagesAll: any[];
   imagesSelections: SelectOption[];
   portalsSelections: SelectOption[] = [];

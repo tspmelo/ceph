@@ -188,7 +188,8 @@ const routes: Routes = [
             data: { breadcrumbs: 'Targets' },
             children: [
               { path: '', component: IscsiTargetListComponent },
-              { path: 'add', component: IscsiTargetFormComponent, data: { breadcrumbs: 'Add' } }
+              { path: 'add', component: IscsiTargetFormComponent, data: { breadcrumbs: 'Add' } },
+              { path: 'edit/:target_iqn', component: IscsiTargetFormComponent, data: { breadcrumbs: 'Edit' } }
             ]
           }
         ]

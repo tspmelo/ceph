@@ -64,6 +64,10 @@ export class IscsiService {
     return this.http.get(`api/iscsi/target`);
   }
 
+  getTarget(target_iqn: string) {
+    return this.http.get(`api/iscsi/target/${target_iqn}`);
+  }
+
   status() {
     return this.http.get(`ui-api/iscsi/status`);
   }
@@ -78,6 +82,10 @@ export class IscsiService {
 
   createTarget(target) {
     return this.http.post(`api/iscsi/target`, target, { observe: 'response' });
+  }
+
+  editTarget(target) {
+    return this.http.put(`api/iscsi/target/${target.target_iqn}`, target, { observe: 'response' });
   }
 
   deleteTarget(targetIqn) {

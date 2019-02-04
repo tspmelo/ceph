@@ -66,13 +66,19 @@ export class IscsiTargetListComponent implements OnInit, OnDestroy {
         permission: 'create',
         icon: 'fa-plus',
         routerLink: () => '/block/iscsi/targets/add',
-        name: 'Add'
+        name: this.i18n('Add')
+      },
+      {
+        permission: 'update',
+        icon: 'fa-pencil',
+        routerLink: () => '/block/iscsi/targets/edit/' + this.selection.first().target_iqn,
+        name: this.i18n('Edit')
       },
       {
         permission: 'delete',
         icon: 'fa-times',
         click: () => this.deleteIscsiTargetModal(),
-        name: 'Delete'
+        name: this.i18n('Delete')
       }
     ];
   }
