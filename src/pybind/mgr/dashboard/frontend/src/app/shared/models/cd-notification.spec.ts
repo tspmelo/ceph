@@ -74,7 +74,7 @@ describe('cd-notification classes', () => {
         {
           application: 'Prometheus',
           applicationClass: 'prometheus-icon',
-          iconClass: 'fa-exclamation-triangle',
+          iconClass: 'fa-times',
           message: 'Something failed',
           options: undefined,
           textClass: 'text-danger',

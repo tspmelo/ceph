@@ -4,8 +4,8 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { RouterTestingModule } from '@angular/router/testing';
 
 import * as _ from 'lodash';
-import { ToastModule } from 'ng2-toastr';
 import { BsModalRef, ModalModule } from 'ngx-bootstrap/modal';
+import { ToastrModule } from 'ngx-toastr';
 
 import { configureTestBed, i18nProviders } from '../../../../../testing/unit-test-helper';
 import { SharedModule } from '../../../../shared/shared.module';
@@ -22,7 +22,7 @@ describe('OsdRecvSpeedModalComponent', () => {
       ReactiveFormsModule,
       RouterTestingModule,
       SharedModule,
-      ToastModule.forRoot()
+      ToastrModule.forRoot()
     ],
     declarations: [OsdRecvSpeedModalComponent],
     providers: [BsModalRef, i18nProviders]

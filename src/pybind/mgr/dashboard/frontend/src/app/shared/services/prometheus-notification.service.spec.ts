@@ -1,7 +1,7 @@
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
-import { ToastModule } from 'ng2-toastr';
+import { ToastrModule } from 'ngx-toastr';
 import { of } from 'rxjs';
 
 import {
@@ -27,7 +27,7 @@ describe('PrometheusNotificationService', () => {
   let shown: CdNotificationConfig[];
 
   configureTestBed({
-    imports: [ToastModule.forRoot(), SharedModule, HttpClientTestingModule],
+    imports: [ToastrModule.forRoot(), SharedModule, HttpClientTestingModule],
     providers: [PrometheusNotificationService, PrometheusAlertFormatter, i18nProviders]
   });
 
