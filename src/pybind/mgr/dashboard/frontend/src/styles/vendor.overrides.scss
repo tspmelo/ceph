@@ -7,47 +7,6 @@
   src: url('assets/Raleway-Regular.ttf') format('truetype');
 }
 
-/* Button */
-.btn-primary {
-  background-color: $color-primary;
-  border-color: $color-primary;
-}
-.btn-primary:hover,
-.btn-primary:focus,
-.btn-primary:active,
-.btn-primary.active,
-.open .dropdown-toggle.btn-primary {
-  background-color: lighten($color-primary, 10);
-  border-color: lighten($color-primary, 10);
-}
-.btn-primary:active,
-.btn-primary.active,
-.open .dropdown-toggle.btn-primary {
-  &:hover,
-  &:focus {
-    background-color: lighten($color-primary, 10);
-    border-color: lighten($color-primary, 10);
-  }
-}
-.btn-primary.disabled,
-.btn-primary[disabled],
-fieldset[disabled] .btn-primary,
-.btn-primary.disabled:hover,
-.btn-primary[disabled]:hover,
-fieldset[disabled] .btn-primary:hover,
-.btn-primary.disabled:focus,
-.btn-primary[disabled]:focus,
-fieldset[disabled] .btn-primary:focus,
-.btn-primary.disabled:active,
-.btn-primary[disabled]:active,
-fieldset[disabled] .btn-primary:active,
-.btn-primary.disabled.active,
-.btn-primary[disabled].active,
-fieldset[disabled] .btn-primary.active {
-  background-color: $color-primary;
-  border-color: $color-primary;
-}
-
 /* Login */
 .login-suse {
   font-family: 'Raleway', 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -58,27 +17,27 @@ fieldset[disabled] .btn-primary.active {
   header {
     background-color: $color-secondary;
 
-    .row {
-      margin: 0;
+    cd-language-selector {
+      a.dropdown-toggle {
+        color: $color-primary;
+      }
 
-      @media screen and (max-width: $screen-xs-max) {
-        margin-left: -15px;
+      ul {
+        position: absolute !important;
       }
     }
 
     .navbar {
       border: 0;
-      margin: 0;
+      padding: 0;
 
       .navbar-brand {
         height: 60px;
-        padding: 20px 15px;
+        padding: 20px 0;
       }
 
-      .navbar-nav.navbar-right {
+      ul.nav.navbar-nav {
         .dropdown-toggle {
-          display: block;
-          border: 0;
           padding: 22px 15px 21px;
 
           &:hover,
@@ -86,10 +45,6 @@ fieldset[disabled] .btn-primary.active {
             color: $color-black;
             background-color: $color-primary;
             text-decoration: none;
-          }
-
-          @media screen and (max-width: $screen-xs-max) {
-            margin-left: 15px;
           }
         }
 
@@ -120,6 +75,10 @@ fieldset[disabled] .btn-primary.active {
     min-height: 100vh;
     margin: -60px auto -67px;
     padding: 100px 0;
+
+    .col-sm-6.d-none.d-sm-block {
+      padding-right: 15px;
+    }
 
     h1 {
       margin-bottom: 3rem;
@@ -188,41 +147,53 @@ fieldset[disabled] .btn-primary.active {
 }
 
 /* About */
-.suse-logo {
-  width: 140px;
-  margin-bottom: 1.5rem;
+cd-about {
+  .suse-logo {
+    width: 140px;
+    margin-bottom: 1.5rem;
+  }
+
+  .modal-content {
+    overflow: hidden;
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    z-index: 1;
+  }
+
+  .modal-footer {
+    position: relative;
+  }
+
+  .green-background-1,
+  .green-background-2 {
+    width: 140%;
+    height: 400px;
+    left: -20%;
+    position: absolute;
+  }
+
+  .green-background-1 {
+    background-color: $color-green-contrast-1;
+    bottom: -240px;
+    transform: rotate(-11deg);
+  }
+
+  .green-background-2 {
+    background-color: $color-green-contrast-2;
+    bottom: -310px;
+    transform: rotate(-6deg);
+  }
 }
 
-.modal-content {
-  overflow: hidden;
-}
-
-.modal-header,
-.modal-body,
-.modal-footer {
-  z-index: 1;
-}
-
-.modal-footer {
-  position: relative;
-}
-
-.green-background-1,
-.green-background-2 {
-  width: 140%;
-  height: 400px;
-  left: -20%;
-  position: absolute;
-}
-
-.green-background-1 {
-  background-color: $color-green-contrast-1;
-  bottom: -240px;
-  transform: rotate(-11deg);
-}
-
-.green-background-2 {
-  background-color: $color-green-contrast-2;
-  bottom: -310px;
-  transform: rotate(-6deg);
+/* Navigation */
+cd-navigation img {
+  display: block;
+  box-sizing: border-box;
+  background: url(assets/suse_brand_bright.png) no-repeat;
+  width: 324px;
+  height: 25px;
+  padding-left: 324px;
 }
