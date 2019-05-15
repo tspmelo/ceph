@@ -156,13 +156,14 @@ export class RgwUserFormComponent implements OnInit {
       if (!params.hasOwnProperty('uid')) {
         return;
       }
+      const uid = decodeURIComponent(params.uid);
       this.loading = true;
       // Load the user data in 'edit' mode.
       this.editing = true;
       // Load the user and quota information.
       const observables = [];
-      observables.push(this.rgwUserService.get(params.uid));
-      observables.push(this.rgwUserService.getQuota(params.uid));
+      observables.push(this.rgwUserService.get(uid));
+      observables.push(this.rgwUserService.getQuota(uid));
       Observable.forkJoin(observables).subscribe(
         (resp: any[]) => {
           this.loading = false;

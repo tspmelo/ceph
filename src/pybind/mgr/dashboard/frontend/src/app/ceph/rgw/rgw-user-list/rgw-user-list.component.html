@@ -28,7 +28,7 @@
       <button type="button"
               class="btn btn-sm btn-primary"
               *ngIf="selection.hasSingleSelection"
-              routerLink="/rgw/user/edit/{{ selection.first()?.user_id }}">
+              routerLink="/rgw/user/edit/{{ encode(selection.first()?.user_id) }}">
         <i class="fa fa-fw fa-pencil"></i>
         <ng-container i18n>Edit</ng-container>
       </button>

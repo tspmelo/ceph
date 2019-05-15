@@ -27,6 +27,8 @@ export class RgwUserListComponent {
   users: object[] = [];
   selection: CdTableSelection = new CdTableSelection();
 
+  encode = encodeURIComponent;
+
   constructor(
     private router: Router,
     private rgwUserService: RgwUserService,

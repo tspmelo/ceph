@@ -1,6 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+import sys
+import types  # pylint: disable=import-error
+
+if sys.version_info >= (3, 0):
+    from urllib.parse import unquote  # pylint: disable=no-name-in-module,import-error
+else:
+    from urllib import unquote  # pylint: disable=no-name-in-module
+
 import re
 from ..awsauth import S3Auth
 from ..settings import Settings, Options
@@ -223,6 +231,10 @@ class RgwClient(RestClient):
             method=method, params=params, data=data, raw_content=True)
 
     def proxy(self, method, path, params, data):
+        if 'uid' in params:
+            if (sys.version_info < (3, 0) and isinstance(params['uid'], unicode)) \
+                    or isinstance(params['uid'], str):
+                params['uid'] = unquote(params['uid'])
         logger.debug("proxying method=%s path=%s params=%s data=%s", method,
                      path, params, data)
         return self._proxy_request(self.admin_path, path, method, params, data)
