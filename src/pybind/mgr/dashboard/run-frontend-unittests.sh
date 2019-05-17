@@ -49,3 +49,12 @@ fi
 if [ "$failed" = "true" ]; then
   exit 1
 fi
+
+# package-lock.json
+package_modified=`git status -s package-lock.json`
+if [[ ! -z $package_modified ]]; then
+  echo "Unstaged changes of 'package-lock.json' were found."
+  echo "Please make sure the changes commited are correct."
+  echo "This changes can occur because you are using a different version of node/npm locally."
+  failed=true
+fi
