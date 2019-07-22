@@ -14,18 +14,16 @@ export class PoolPageHelper extends PageHelper {
     return (n & (n - 1)) === 0;
   }
 
-  // @PageHelper.restrictTo(pages.index)
-  // exist(name: string, oughtToBePresent = true): promise.Promise<any> {
-
-  //   return PageHelper.getTableCellByContent(name).then((elem) => {
-  //     const waitFn = oughtToBePresent ? EC.visibilityOf(elem) : EC.invisibilityOf(elem);
-  //     return browser.wait(waitFn, Helper.TIMEOUT).catch(() => {
-  //       const visibility = oughtToBePresent ? 'invisible' : 'visible';
-  //       const msg = `Pool "${name}" is ${visibility}, but should not be. Waiting for a change timed out`;
-  //       return promise.Promise.reject(msg);
-  //     });
-  //   });
-  // }
+  @PageHelper.restrictTo(pages.index)
+  exist(name: string, oughtToBePresent = true) {
+    if (oughtToBePresent) {
+      PageHelper.getTableCellByContent(name)
+        .contains(name)
+        .should('have.text', name);
+    } else {
+      PageHelper.getTableCellByContent(name).should('not.exist');
+    }
+  }
 
   // @PageHelper.restrictTo(pages.create)
   // create(name: string, placement_groups: number): promise.Promise<any> {

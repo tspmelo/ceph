@@ -14,6 +14,6 @@ before(() => {
 });
 
 afterEach(function() {
-  Helper.checkConsole();
+  // Helper.checkConsole();
   cy.log('I run before every test in every spec file!!!!!!');
 });

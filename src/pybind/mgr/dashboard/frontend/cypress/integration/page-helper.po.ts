@@ -1,3 +1,5 @@
+/// <reference types="Cypress" />
+
 interface Pages {
   index: string;
 }
@@ -6,14 +8,11 @@ export abstract class PageHelper {
   pages: Pages;
 
   static getBreadcrumbText() {
-    return cy.get('.breadcrumb-item.active');
+    return cy.get('.breadcrumb-item.active span');
   }
 
   static getTabText(idx) {
-    return cy
-      .get('.breadcrumb-item.active')
-      .get(idx)
-      .invoke('text');
+    return cy.get('.nav.nav-tabs li').eq(idx);
   }
 
   static getTableCount() {
@@ -63,32 +62,31 @@ export abstract class PageHelper {
    * means if after the search for content has been completed, but more than a
    * single row is shown in the data table.
    */
-  // static getTableCellByContent(content: string) {
-  //   cy.get('.main-nav')
-  //     .find('li')
-  //     .first()
-  //     .as('firstNav'); // Alias first 'li' as @firstNav
+  static getTableCellByContent(content: string) {
+    cy.get('#pool-list > div .search input').as('searchInput');
+    cy.get('#pool-list > div > div > .dataTables_paginate input').as('rowAmountInput');
+    // cy.get('#pool-list > div datatable-footer').as('footer');
 
-  //   const searchInput = $('#pool-list > div .search input');
-  //   const rowAmountInput = $('#pool-list > div > div > .dataTables_paginate input');
-  //   const footer = $('#pool-list > div datatable-footer');
+    cy.get('@rowAmountInput').clear();
+    cy.get('@rowAmountInput').type('10');
+    cy.get('@searchInput').clear();
+    cy.get('@searchInput').type(content);
 
-  //   rowAmountInput.clear();
-  //   rowAmountInput.sendKeys('10');
-  //   searchInput.clear();
-  //   searchInput.sendKeys(content);
-
-  //   return footer.getAttribute('ng-reflect-row-count').then((rowCount: string) => {
-  //     const count = Number(rowCount);
-  //     if (count !== 0 && count > 1) {
-  //       return Promise.reject('getTableCellByContent: Result is ambigous');
-  //     } else {
-  //       return element(
-  //         by.cssContainingText('.datatable-body-cell-label', new RegExp(`^\\s${content}\\s$`))
-  //       );
-  //     }
-  //   });
-  // }
+    return cy.get(`.datatable-body-cell-label`);
+    // cy.get('@footer')
+    //   .get('[ng-reflect-row-count]')
+    //   .invoke('text')
+    //   .then((rowCount) => {
+    //     const count = Number(rowCount);
+    //     if (count !== 0 && count > 1) {
+    //       return Promise.reject('getTableCellByContent: Result is ambigous');
+    //     } else {
+    //       return element(
+    //         by.cssContainingText('.datatable-body-cell-label', new RegExp(`^\\s${content}\\s$`))
+    //       );
+    //     }
+    //   });
+  }
 
   /**
    * Decorator to be used on Helper methods to restrict access to one
@@ -97,7 +95,7 @@ export abstract class PageHelper {
    * readability.
    */
   static restrictTo(page): any {
-    return cy.url().should('include', page);
+    // return cy.url().should('include', page);
 
     // return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
     //   const fn: Function = descriptor.value;

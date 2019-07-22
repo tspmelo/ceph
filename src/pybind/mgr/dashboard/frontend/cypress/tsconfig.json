@@ -1,4 +1,15 @@
 {
+  "compilerOptions": {
+    "allowJs": true,
+    "baseUrl": "../node_modules",
+    "types": [
+      "cypress"
+    ]
+  },
   "extends": "../tsconfig.json",
-  "include": ["integration/*.ts", "support/*.ts", "../node_modules/cypress"]
+  "include": [
+    "integration/*.ts",
+    "support/*.ts",
+    "../node_modules/cypress"
+  ]
 }

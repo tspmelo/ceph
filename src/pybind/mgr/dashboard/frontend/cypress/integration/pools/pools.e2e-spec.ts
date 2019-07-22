@@ -21,24 +21,23 @@ describe('Pools page', () => {
       PoolPageHelper.getTabs().should('have.length', 2);
     });
 
-    // it('should show pools list tab at first', () => {
-    //   expect(PoolPageHelper.getTabText(0)).toEqual('Pools List');
-    // });
+    it('should show pools list tab at first', () => {
+      PoolPageHelper.getTabText(0).should('have.text', 'Pools List');
+    });
 
-    // it('should show overall performance as a second tab', () => {
-    //   expect(PoolPageHelper.getTabText(1)).toEqual('Overall Performance');
-    // });
+    it('should show overall performance as a second tab', () => {
+      PoolPageHelper.getTabText(1).should('have.text', 'Overall Performance');
+    });
   });
 
-  // it('should create a pool', () => {
-  //   helper.pools.exist(poolName, false).then(() => {
-  //     helper.pools.navigateTo('create');
-  //     helper.pools.create(poolName, 8).then(() => {
-  //       helper.pools.navigateTo();
-  //       helper.pools.exist(poolName, true);
-  //     });
-  //   });
-  // });
+  it('should create a pool', () => {
+    helper.pools.exist(poolName, false);
+    helper.pools.navigateTo('create');
+    // helper.pools.create(poolName, 8).then(() => {
+    //   helper.pools.navigateTo();
+    //   helper.pools.exist(poolName, true);
+    // });
+  });
 
   // it('should delete a pool', () => {
   //   helper.pools.exist(poolName);
