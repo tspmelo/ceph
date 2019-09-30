@@ -75,15 +75,44 @@ file(
   frontend/src/*/*/*/*/*/*.ts
   frontend/src/*/*/*/*/*/*.html)
 
+# these files are generated during build
+list(REMOVE_ITEM frontend_src
+  ${CMAKE_SOURCE_DIR}/src/pybind/mgr/dashboard/frontend/src/environments/environment.prod.ts
+  ${CMAKE_SOURCE_DIR}/src/pybind/mgr/dashboard/frontend/src/environments/environment.ts)
+
+execute_process(
+    COMMAND bash -c "cat ${CMAKE_SOURCE_DIR}/src/pybind/mgr/dashboard/frontend/package.json | jq -r .config.locale"
+    OUTPUT_VARIABLE default_lang)
+string(STRIP "${default_lang}" default_lang)
+
+if (DASHBOARD_FRONTEND_LANGS)
+  string(STRIP "${DASHBOARD_FRONTEND_LANGS}" DASHBOARD_FRONTEND_LANGS)
+  if("${DASHBOARD_FRONTEND_LANGS}" MATCHES "ALL")
+    set(build_target ":*")
+  else()
+    string(REPLACE " " "," build_target "${DASHBOARD_FRONTEND_LANGS}")
+    string(FIND "${build_target}" "${default_lang}" default_idx)
+    if (default_idx EQUAL -1)
+      # default language must be always built
+      string(CONCAT build_target "${build_target}" ",${default_lang}")
+    endif()
+    set(build_target ":\{${build_target}\}")
+  endif()
+else(DASHBOARD_FRONTEND_LANGS)
+  set(build_target ":${default_lang}")
+endif(DASHBOARD_FRONTEND_LANGS)
+
+message(STATUS "Will build dashboard frontend with the following script: build${build_target}")
+
 if(NOT CMAKE_BUILD_TYPE STREQUAL Debug)
-  set(npm_command npm run build -- --prod --progress=false)
+  set(npm_args --prod --progress=false)
 else()
-  set(npm_command npm run build -- --progress=false)
+  set(npm_args --progress=false)
 endif()
 
 add_npm_command(
   OUTPUT "${CMAKE_SOURCE_DIR}/src/pybind/mgr/dashboard/frontend/dist"
-  COMMAND ${npm_command}
+  COMMAND npx npm-run-all --print-label --max-parallel=2 -p "build${build_target} -- ${npm_args}"
   DEPENDS ${frontend_src} frontend/node_modules
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src/pybind/mgr/dashboard/frontend
   COMMENT "dashboard frontend is being created"
@@ -93,6 +122,7 @@ add_custom_target(mgr-dashboard-frontend-build
   ALL
   DEPENDS frontend/dist mgr-dashboard-frontend-deps
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src/pybind/mgr/dashboard/frontend)
+
 add_dependencies(tests mgr-dashboard-frontend-build)
 endif(WITH_MGR_DASHBOARD_FRONTEND AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|AARCH64|arm|ARM")
 
