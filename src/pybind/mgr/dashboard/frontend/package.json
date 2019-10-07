@@ -22,7 +22,7 @@
     "build:pl-PL": "LOCALE=pl-PL npm run build-i18n",
     "build:zh-CN": "LOCALE=zh-CN npm run build-i18n",
     "build:zh-TW": "LOCALE=it-IT npm run build-i18n",
-    "env_build": "cp src/environments/environment.tpl.ts src/environments/environment.prod.ts && cp src/environments/environment.tpl.ts src/environments/environment.ts  && node ./environment.build.js",
+    "env_build": "cp src/environments/environment.tpl.ts src/environments/environment.prod.ts && cp src/environments/environment.tpl.ts src/environments/environment.ts  && node ./environment.build.js $npm_package_config_locale",
     "i18n": "npm run i18n:extract && npm run i18n:push && npm run i18n:pull && npm run i18n:merge",
     "i18n:extract": "ng xi18n --i18n-format xlf --i18n-locale en-US --output-path locale --progress=false && ngx-extractor -i 'src/**/*.ts' -f xlf -o src/locale/messages.xlf -l en-US",
     "i18n:push": "npx i18ntool push -c i18n.config.json",
