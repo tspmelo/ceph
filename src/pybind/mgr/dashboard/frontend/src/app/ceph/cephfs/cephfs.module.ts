@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 
+import { NgApexchartsModule } from 'ng-apexcharts';
 import { ChartsModule } from 'ng2-charts';
 import { TreeModule } from 'ng2-tree';
 import { ProgressbarModule } from 'ngx-bootstrap/progressbar';
@@ -22,6 +23,7 @@ import { CephfsTabsComponent } from './cephfs-tabs/cephfs-tabs.component';
     AppRoutingModule,
     ChartsModule,
     TreeModule,
+    NgApexchartsModule,
     ProgressbarModule.forRoot(),
     TabsModule.forRoot()
   ],
