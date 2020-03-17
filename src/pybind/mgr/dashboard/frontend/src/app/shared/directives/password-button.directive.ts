@@ -25,7 +25,7 @@ export class PasswordButtonDirective implements OnInit {
 
   private update() {
     const inputElement = this.getInputElement();
-    if (inputElement && inputElement.type === 'text') {
+    if (inputElement?.type === 'text') {
       this.renderer.removeClass(this.iElement, 'fa-eye');
       this.renderer.addClass(this.iElement, 'fa-eye-slash');
     } else {

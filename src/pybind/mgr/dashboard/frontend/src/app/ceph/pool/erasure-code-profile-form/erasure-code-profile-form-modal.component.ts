@@ -345,7 +345,7 @@ export class ErasureCodeProfileFormModalComponent extends CrushNodeSelectionClas
       .filter((name) => {
         const pluginControl = pluginControls[name];
         const value = this.form.getValue(name);
-        const usable = (pluginControl && pluginControl.includes(plugin)) || !pluginControl;
+        const usable = pluginControl?.includes(plugin) || !pluginControl;
         return usable && value && value !== '';
       })
       .forEach((name) => {

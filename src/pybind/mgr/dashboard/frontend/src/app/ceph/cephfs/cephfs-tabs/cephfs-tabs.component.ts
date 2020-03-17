@@ -64,7 +64,7 @@ export class CephfsTabsComponent implements OnChanges, OnDestroy {
   private setupSelected(id: number, mdsInfo: any) {
     this.id = id;
     const firstMds: any = _.first(Object.values(mdsInfo));
-    this.grafanaId = firstMds && firstMds['name'];
+    this.grafanaId = firstMds?.['name'];
     this.details = {
       standbys: '',
       pools: [],

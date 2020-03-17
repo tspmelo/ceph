@@ -66,9 +66,9 @@ export class AboutComponent implements OnInit, OnDestroy {
       });
     }
     const browser = detect();
-    project.browserName = browser && browser.name ? browser.name : 'Not detected';
-    project.browserVersion = browser && browser.version ? browser.version : 'Not detected';
-    project.browserOS = browser && browser.os ? browser.os : 'Not detected';
+    project.browserName = browser?.name ?? 'Not detected';
+    project.browserVersion = browser?.version ?? 'Not detected';
+    project.browserOS = browser?.os ?? 'Not detected';
     return project;
   }
 }

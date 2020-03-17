@@ -203,10 +203,10 @@
                   <option *ngIf="!ecProfiles"
                           ngValue=""
                           i18n>Loading...</option>
-                  <option *ngIf="ecProfiles && ecProfiles.length === 0"
+                  <option *ngIf="ecProfiles?.length === 0"
                           [ngValue]="null"
                           i18n>-- No erasure code profile available --</option>
-                  <option *ngIf="ecProfiles && ecProfiles.length > 0"
+                  <option *ngIf="ecProfiles?.length > 0"
                           [ngValue]="null"
                           i18n>-- Select an erasure code profile --</option>
                   <option *ngFor="let ecp of ecProfiles"

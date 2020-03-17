@@ -160,8 +160,8 @@ export class PoolListComponent implements OnInit, OnDestroy {
 
   getPeerUUID(): any {
     const selection = this.selection.first();
-    const pool = this.data.find((o) => selection && selection.name === o['name']);
-    if (pool && pool['peer_uuids']) {
+    const pool = this.data.find((o) => selection?.name === o['name']);
+    if (pool?.['peer_uuids']) {
       return pool['peer_uuids'][0];
     }
 

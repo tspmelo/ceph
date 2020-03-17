@@ -86,7 +86,7 @@ export class BreadcrumbsComponent implements OnDestroy {
 
     const data = route.routeConfig && route.routeConfig.data;
 
-    if (data && data.breadcrumbs) {
+    if (data?.breadcrumbs) {
       let resolver: BreadcrumbsResolver;
 
       if (data.breadcrumbs.prototype instanceof BreadcrumbsResolver) {

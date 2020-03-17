@@ -328,7 +328,7 @@ describe('CdValidators', () => {
         y: new FormControl(
           5,
           CdValidators.custom('not-dividable-by-x', (y: number) => {
-            const x = (form && form.get('x').value) || 1;
+            const x = form?.get('x').value || 1;
             return y % x !== 0;
           })
         )
@@ -354,7 +354,7 @@ describe('CdValidators', () => {
         x: new FormControl(3),
         y: new FormControl(5)
       });
-      CdValidators.validateIf(form.get('x'), () => ((form && form.get('y').value) || 0) > 10, [
+      CdValidators.validateIf(form.get('x'), () => (form?.get('y').value || 0) > 10, [
         CdValidators.custom('min', (x: number) => x < 7),
         CdValidators.custom('max', (x: number) => x > 12)
       ]);
@@ -382,7 +382,7 @@ describe('CdValidators', () => {
     it('should validate automatically if dependency controls are defined', () => {
       CdValidators.validateIf(
         form.get('x'),
-        () => ((form && form.getValue('y')) || 0) > 10,
+        () => (form?.getValue('y') || 0) > 10,
         [Validators.min(7), Validators.max(12)],
         undefined,
         [form.get('y')]
@@ -396,7 +396,7 @@ describe('CdValidators', () => {
     it('should always validate the permanentValidators', () => {
       CdValidators.validateIf(
         form.get('x'),
-        () => ((form && form.getValue('y')) || 0) > 10,
+        () => (form?.getValue('y') || 0) > 10,
         [Validators.min(7), Validators.max(12)],
         [Validators.required],
         [form.get('y')]

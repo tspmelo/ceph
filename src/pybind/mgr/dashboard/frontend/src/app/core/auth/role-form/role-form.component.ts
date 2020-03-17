@@ -234,7 +234,7 @@ export class RoleFormComponent extends CdForm implements OnInit {
     // Add or remove the given permission(s) depending on the click event or if no
     // click event is given then add/remove them if they are absent/exist.
     if (
-      (event && event.target['checked']) ||
+      event?.target['checked'] ||
       !_.isEqual(permissions.sort(), _.intersection(scopes_permissions[scope], permissions).sort())
     ) {
       scopes_permissions[scope] = _.union(scopes_permissions[scope], permissions);

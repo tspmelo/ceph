@@ -162,10 +162,10 @@ export class IscsiTargetListComponent extends ListWithDetails implements OnInit,
 
   getEditDisableDesc(): string | undefined {
     const first = this.selection.first();
-    if (first && first.cdExecuting) {
+    if (first?.cdExecuting) {
       return first.cdExecuting;
     }
-    if (first && _.isUndefined(first['info'])) {
+    if (_.isUndefined(first?.['info'])) {
       return this.i18n('Unavailable gateway(s)');
     }
 
@@ -174,13 +174,13 @@ export class IscsiTargetListComponent extends ListWithDetails implements OnInit,
 
   getDeleteDisableDesc(): string | undefined {
     const first = this.selection.first();
-    if (first && first.cdExecuting) {
+    if (first?.cdExecuting) {
       return first.cdExecuting;
     }
-    if (first && _.isUndefined(first['info'])) {
+    if (_.isUndefined(first?.['info'])) {
       return this.i18n('Unavailable gateway(s)');
     }
-    if (first && first['info'] && first['info']['num_sessions']) {
+    if (first?.['info']?.['num_sessions']) {
       return this.i18n('Target has active sessions');
     }
 

@@ -8,8 +8,8 @@ export class JsErrorHandler implements ErrorHandler {
   handleError(error: any) {
     const loggingService = this.injector.get(LoggingService);
     const url = window.location.href;
-    const message = error && error.message;
-    const stack = error && error.stack;
+    const message = error?.message;
+    const stack = error?.stack;
     loggingService.jsError(url, message, stack).subscribe();
     throw error;
   }

@@ -57,7 +57,7 @@ export class RbdConfigurationFormComponent implements OnInit {
           const optionData = data.initialData
             .filter((entry: Record<string, any>) => entry.name === option.name)
             .pop();
-          if (optionData && optionData['source'] === dataType) {
+          if (optionData?.['source'] === dataType) {
             this.form.get(`configuration.${option.name}`).setValue(optionData['value']);
           }
         });

@@ -75,9 +75,7 @@ export class PrometheusService {
   getNotifications(
     notification?: AlertmanagerNotification
   ): Observable<AlertmanagerNotification[]> {
-    const url = `${this.baseURL}/notifications?from=${
-      notification && notification.id ? notification.id : 'last'
-    }`;
+    const url = `${this.baseURL}/notifications?from=${notification?.id ?? 'last'}`;
     return this.http.get<AlertmanagerNotification[]>(url);
   }
 }
