@@ -3,8 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { RouterTestingModule } from '@angular/router/testing';
 
+import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
 import { TreeModule } from 'angular-tree-component';
-import { TabsModule } from 'ngx-bootstrap/tabs';
 import { ToastrModule } from 'ngx-toastr';
 import { BehaviorSubject, of } from 'rxjs';
 
@@ -40,7 +40,7 @@ describe('IscsiTargetListComponent', () => {
       HttpClientTestingModule,
       RouterTestingModule,
       SharedModule,
-      TabsModule.forRoot(),
+      NgbNavModule,
       TreeModule,
       ToastrModule.forRoot()
     ],
