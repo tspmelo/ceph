@@ -4,7 +4,6 @@ import { RouterTestingModule } from '@angular/router/testing';
 
 import { ClickOutsideModule } from 'ng-click-outside';
 import { PopoverModule } from 'ngx-bootstrap/popover';
-import { ProgressbarModule } from 'ngx-bootstrap/progressbar';
 import { ToastrModule } from 'ngx-toastr';
 import { SimplebarAngularModule } from 'simplebar-angular';
 
@@ -33,7 +32,6 @@ describe('NotificationsSidebarComponent', () => {
       HttpClientTestingModule,
       PipesModule,
       PopoverModule.forRoot(),
-      ProgressbarModule.forRoot(),
       RouterTestingModule,
       ToastrModule.forRoot(),
       NoopAnimationsModule,

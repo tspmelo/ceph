@@ -5,7 +5,6 @@ import { RouterTestingModule } from '@angular/router/testing';
 
 import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
 import { BsDropdownModule } from 'ngx-bootstrap/dropdown';
-import { ProgressbarModule } from 'ngx-bootstrap/progressbar';
 import { ToastrModule } from 'ngx-toastr';
 
 import { configureTestBed, i18nProviders } from '../../../../../testing/unit-test-helper';
@@ -33,7 +32,6 @@ describe('OverviewComponent', () => {
       SharedModule,
       BsDropdownModule.forRoot(),
       NgbNavModule,
-      ProgressbarModule.forRoot(),
       HttpClientTestingModule,
       RouterTestingModule,
       ToastrModule.forRoot()

@@ -3,7 +3,6 @@ import { NgModule } from '@angular/core';
 
 import { TreeModule } from 'angular-tree-component';
 import { ChartsModule } from 'ng2-charts';
-import { ProgressbarModule } from 'ngx-bootstrap/progressbar';
 import { TabsModule } from 'ngx-bootstrap/tabs';
 
 import { AppRoutingModule } from '../../app-routing.module';
@@ -22,7 +21,6 @@ import { CephfsTabsComponent } from './cephfs-tabs/cephfs-tabs.component';
     AppRoutingModule,
     ChartsModule,
     TreeModule.forRoot(),
-    ProgressbarModule.forRoot(),
     TabsModule.forRoot()
   ],
   declarations: [
