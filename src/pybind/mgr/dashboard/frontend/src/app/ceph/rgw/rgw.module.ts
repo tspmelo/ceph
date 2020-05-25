@@ -4,7 +4,6 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule, Routes } from '@angular/router';
 
 import { NgBootstrapFormValidationModule } from 'ng-bootstrap-form-validation';
-import { AlertModule } from 'ngx-bootstrap/alert';
 import { BsDropdownModule } from 'ngx-bootstrap/dropdown';
 import { ModalModule } from 'ngx-bootstrap/modal';
 import { TabsModule } from 'ngx-bootstrap/tabs';
@@ -43,7 +42,6 @@ import { RgwUserSwiftKeyModalComponent } from './rgw-user-swift-key-modal/rgw-us
     FormsModule,
     ReactiveFormsModule,
     PerformanceCounterModule,
-    AlertModule.forRoot(),
     BsDropdownModule.forRoot(),
     TabsModule.forRoot(),
     ModalModule.forRoot(),

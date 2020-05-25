@@ -5,7 +5,6 @@ import { RouterModule } from '@angular/router';
 
 import { NgbNavModule, NgbProgressbarModule } from '@ng-bootstrap/ng-bootstrap';
 import { NgBootstrapFormValidationModule } from 'ng-bootstrap-form-validation';
-import { AlertModule } from 'ngx-bootstrap/alert';
 import { BsDropdownModule } from 'ngx-bootstrap/dropdown';
 import { ModalModule } from 'ngx-bootstrap/modal';
 
@@ -39,7 +38,6 @@ import { PoolListComponent } from './pool-list/pool-list.component';
     ReactiveFormsModule,
     BsDropdownModule.forRoot(),
     ModalModule.forRoot(),
-    AlertModule.forRoot(),
     NgBootstrapFormValidationModule,
     NgbNavModule,
     NgbProgressbarModule
