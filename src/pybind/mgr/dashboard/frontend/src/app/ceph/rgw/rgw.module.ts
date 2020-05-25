@@ -8,7 +8,6 @@ import { AlertModule } from 'ngx-bootstrap/alert';
 import { BsDropdownModule } from 'ngx-bootstrap/dropdown';
 import { ModalModule } from 'ngx-bootstrap/modal';
 import { TabsModule } from 'ngx-bootstrap/tabs';
-import { TooltipModule } from 'ngx-bootstrap/tooltip';
 
 import { ActionLabels, URLVerbs } from '../../shared/constants/app.constants';
 import { AuthGuardService } from '../../shared/services/auth-guard.service';
@@ -47,7 +46,6 @@ import { RgwUserSwiftKeyModalComponent } from './rgw-user-swift-key-modal/rgw-us
     AlertModule.forRoot(),
     BsDropdownModule.forRoot(),
     TabsModule.forRoot(),
-    TooltipModule.forRoot(),
     ModalModule.forRoot(),
     RouterModule,
     NgBootstrapFormValidationModule

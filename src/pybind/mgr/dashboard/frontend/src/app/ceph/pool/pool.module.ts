@@ -5,8 +5,10 @@ import { RouterModule, Routes } from '@angular/router';
 
 import { NgBootstrapFormValidationModule } from 'ng-bootstrap-form-validation';
 import { BsDropdownModule } from 'ngx-bootstrap/dropdown';
+import { PopoverModule } from 'ngx-bootstrap/popover';
 import { TabsModule } from 'ngx-bootstrap/tabs';
-import { TooltipModule } from 'ngx-bootstrap/tooltip';
+
+import { NgbTooltipModule } from '@ng-bootstrap/ng-bootstrap';
 
 import { ActionLabels, URLVerbs } from '../../shared/constants/app.constants';
 import { SharedModule } from '../../shared/shared.module';
@@ -23,13 +25,14 @@ import { PoolListComponent } from './pool-list/pool-list.component';
     CephSharedModule,
     CommonModule,
     TabsModule,
+    PopoverModule.forRoot(),
     SharedModule,
     RouterModule,
     ReactiveFormsModule,
     BsDropdownModule,
-    TooltipModule.forRoot(),
     BlockModule,
-    NgBootstrapFormValidationModule
+    NgBootstrapFormValidationModule,
+    NgbTooltipModule
   ],
   exports: [PoolListComponent, PoolFormComponent],
   declarations: [

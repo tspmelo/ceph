@@ -232,14 +232,14 @@
                     <button type="button"
                             class="btn btn-light tc_showSubuserButton"
                             i18n-tooltip
-                            tooltip="Edit"
+                            ngbTooltip="Edit"
                             (click)="showSubuserModal(i)">
                       <i [ngClass]="[icons.edit]"></i>
                     </button>
                     <button type="button"
                             class="btn btn-light tc_deleteSubuserButton"
                             i18n-tooltip
-                            tooltip="Delete"
+                            ngbTooltip="Delete"
                             (click)="deleteSubuser(i)">
                       <i [ngClass]="[icons.destroy]"></i>
                     </button>
@@ -294,14 +294,14 @@
                     <button type="button"
                             class="btn btn-light tc_showS3KeyButton"
                             i18n-tooltip
-                            tooltip="Show"
+                            ngbTooltip="Show"
                             (click)="showS3KeyModal(i)">
                       <i [ngClass]="[icons.show]"></i>
                     </button>
                     <button type="button"
                             class="btn btn-light tc_deleteS3KeyButton"
                             i18n-tooltip
-                            tooltip="Delete"
+                            ngbTooltip="Delete"
                             (click)="deleteS3Key(i)">
                       <i [ngClass]="[icons.destroy]"></i>
                     </button>
@@ -355,7 +355,7 @@
                     <button type="button"
                             class="btn btn-light tc_showSwiftKeyButton"
                             i18n-tooltip
-                            tooltip="Show"
+                            ngbTooltip="Show"
                             (click)="showSwiftKeyModal(i)">
                       <i [ngClass]="[icons.show]"></i>
                     </button>
@@ -394,14 +394,14 @@
                     <button type="button"
                             class="btn btn-light tc_editCapButton"
                             i18n-tooltip
-                            tooltip="Edit"
+                            ngbTooltip="Edit"
                             (click)="showCapabilityModal(i)">
                       <i [ngClass]="[icons.edit]"></i>
                     </button>
                     <button type="button"
                             class="btn btn-light tc_deleteCapButton"
                             i18n-tooltip
-                            tooltip="Delete"
+                            ngbTooltip="Delete"
                             (click)="deleteCapability(i)">
                       <i [ngClass]="[icons.destroy]"></i>
                     </button>
@@ -416,7 +416,7 @@
                           class="btn btn-light float-right tc_addCapButton"
                           [disabled]="hasAllCapabilities()"
                           i18n-tooltip
-                          tooltip="All capabilities are already added."
+                          ngbTooltip="All capabilities are already added."
                           [isDisabled]="!hasAllCapabilities()"
                           triggers="pointerenter pointerleave"
                           (click)="showCapabilityModal()">
