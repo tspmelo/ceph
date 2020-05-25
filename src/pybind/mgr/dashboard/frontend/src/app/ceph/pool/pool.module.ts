@@ -5,7 +5,6 @@ import { RouterModule, Routes } from '@angular/router';
 
 import { NgBootstrapFormValidationModule } from 'ng-bootstrap-form-validation';
 import { BsDropdownModule } from 'ngx-bootstrap/dropdown';
-import { PopoverModule } from 'ngx-bootstrap/popover';
 import { TabsModule } from 'ngx-bootstrap/tabs';
 import { TooltipModule } from 'ngx-bootstrap/tooltip';
 
@@ -24,7 +23,6 @@ import { PoolListComponent } from './pool-list/pool-list.component';
     CephSharedModule,
     CommonModule,
     TabsModule,
-    PopoverModule.forRoot(),
     SharedModule,
     RouterModule,
     ReactiveFormsModule,

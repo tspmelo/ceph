@@ -3,7 +3,6 @@ import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testin
 import { RouterTestingModule } from '@angular/router/testing';
 
 import { ClickOutsideModule } from 'ng-click-outside';
-import { PopoverModule } from 'ngx-bootstrap/popover';
 import { ToastrModule } from 'ngx-toastr';
 import { SimplebarAngularModule } from 'simplebar-angular';
 
@@ -31,7 +30,6 @@ describe('NotificationsSidebarComponent', () => {
     imports: [
       HttpClientTestingModule,
       PipesModule,
-      PopoverModule.forRoot(),
       RouterTestingModule,
       ToastrModule.forRoot(),
       NoopAnimationsModule,

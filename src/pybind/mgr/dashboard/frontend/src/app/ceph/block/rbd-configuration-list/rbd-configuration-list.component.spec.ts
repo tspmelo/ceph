@@ -6,7 +6,6 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { NgxDatatableModule } from '@swimlane/ngx-datatable';
 import { ChartsModule } from 'ng2-charts';
 import { AlertModule } from 'ngx-bootstrap/alert';
-import { PopoverModule } from 'ngx-bootstrap/popover';
 
 import { configureTestBed, i18nProviders } from '../../../../testing/unit-test-helper';
 import { TableComponent } from '../../../shared/datatable/table/table.component';
@@ -31,8 +30,7 @@ describe('RbdConfigurationListComponent', () => {
       ComponentsModule,
       AlertModule,
       ChartsModule,
-      PipesModule,
-      PopoverModule
+      PipesModule
     ],
     declarations: [RbdConfigurationListComponent, TableComponent],
     providers: [FormatterService, RbdConfigurationService, i18nProviders]

@@ -3,7 +3,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 
 import * as _ from 'lodash';
-import { PopoverModule } from 'ngx-bootstrap/popover';
 import { of as observableOf } from 'rxjs';
 
 import { configureTestBed } from '../../../../testing/unit-test-helper';
@@ -20,7 +19,7 @@ describe('ConfigOptionComponent', () => {
 
   configureTestBed({
     declarations: [ConfigOptionComponent, HelperComponent],
-    imports: [PopoverModule.forRoot(), ReactiveFormsModule, HttpClientTestingModule],
+    imports: [ReactiveFormsModule, HttpClientTestingModule],
     providers: [ConfigurationService]
   });
 
