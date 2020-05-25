@@ -3,6 +3,7 @@ import { NgModule } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 
+import { NgbTypeaheadModule } from '@ng-bootstrap/ng-bootstrap';
 import { TreeModule } from 'angular-tree-component';
 import { NgBootstrapFormValidationModule } from 'ng-bootstrap-form-validation';
 import { BsDatepickerModule } from 'ngx-bootstrap/datepicker';
@@ -10,7 +11,6 @@ import { BsDropdownModule } from 'ngx-bootstrap/dropdown';
 import { ModalModule } from 'ngx-bootstrap/modal';
 import { TabsModule } from 'ngx-bootstrap/tabs';
 import { TimepickerModule } from 'ngx-bootstrap/timepicker';
-import { TypeaheadModule } from 'ngx-bootstrap/typeahead';
 
 import { OrchestratorDocModalComponent } from '../../shared/components/orchestrator-doc-modal/orchestrator-doc-modal.component';
 import { SharedModule } from '../../shared/shared.module';
@@ -77,12 +77,12 @@ import { TelemetryComponent } from './telemetry/telemetry.component';
     BsDatepickerModule.forRoot(),
     ModalModule.forRoot(),
     MgrModulesModule,
-    TypeaheadModule.forRoot(),
     TimepickerModule.forRoot(),
     TreeModule.forRoot(),
     BsDatepickerModule.forRoot(),
     NgBootstrapFormValidationModule,
-    CephSharedModule
+    CephSharedModule,
+    NgbTypeaheadModule
   ],
   declarations: [
     HostsComponent,
