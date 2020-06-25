@@ -1,7 +1,8 @@
 import { Directive, ElementRef, HostListener, Input, OnInit, Renderer2 } from '@angular/core';
 
 import { I18n } from '@ngx-translate/i18n-polyfill';
-import { ToastrService } from 'ngx-toastr';
+
+import { ToastService } from '../services/toast.service';
 
 @Directive({
   selector: '[cdCopy2ClipboardButton]'
@@ -13,7 +14,7 @@ export class Copy2ClipboardButtonDirective implements OnInit {
   constructor(
     private elementRef: ElementRef,
     private renderer: Renderer2,
-    private toastr: ToastrService,
+    private toastService: ToastService,
     private i18n: I18n
   ) {}
 
@@ -41,9 +42,9 @@ export class Copy2ClipboardButtonDirective implements OnInit {
             navigator.clipboard.writeText(this.getInputElement().value);
           }
         });
-      this.toastr.success('Copied text to the clipboard successfully.');
+      this.toastService.success('Copied text to the clipboard successfully.');
     } catch (err) {
-      this.toastr.error('Failed to copy text to the clipboard.');
+      this.toastService.error('Failed to copy text to the clipboard.');
     }
   }
 }

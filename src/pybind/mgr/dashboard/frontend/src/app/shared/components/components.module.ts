@@ -10,6 +10,7 @@ import {
   NgbPopoverModule,
   NgbProgressbarModule,
   NgbTimepickerModule,
+  NgbToastModule,
   NgbTooltipModule
 } from '@ng-bootstrap/ng-bootstrap';
 import { NgBootstrapFormValidationModule } from 'ng-bootstrap-form-validation';
@@ -41,6 +42,7 @@ import { SelectComponent } from './select/select.component';
 import { SparklineComponent } from './sparkline/sparkline.component';
 import { SubmitButtonComponent } from './submit-button/submit-button.component';
 import { TelemetryNotificationComponent } from './telemetry-notification/telemetry-notification.component';
+import { ToastComponent } from './toast/toast.component';
 import { UsageBarComponent } from './usage-bar/usage-bar.component';
 import { ViewCacheComponent } from './view-cache/view-cache.component';
 
@@ -63,7 +65,8 @@ import { ViewCacheComponent } from './view-cache/view-cache.component';
     SimplebarAngularModule,
     RouterModule,
     NgbDatepickerModule,
-    NgbTimepickerModule
+    NgbTimepickerModule,
+    NgbToastModule
   ],
   declarations: [
     ViewCacheComponent,
@@ -89,7 +92,8 @@ import { ViewCacheComponent } from './view-cache/view-cache.component';
     TelemetryNotificationComponent,
     OrchestratorDocPanelComponent,
     OrchestratorDocModalComponent,
-    DateTimePickerComponent
+    DateTimePickerComponent,
+    ToastComponent
   ],
   providers: [],
   exports: [
@@ -112,7 +116,8 @@ import { ViewCacheComponent } from './view-cache/view-cache.component';
     PwdExpirationNotificationComponent,
     TelemetryNotificationComponent,
     OrchestratorDocPanelComponent,
-    DateTimePickerComponent
+    DateTimePickerComponent,
+    ToastComponent
   ]
 })
 export class ComponentsModule {}
