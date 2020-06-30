@@ -2,8 +2,11 @@
   <ul ngbNav
       #nav="ngbNav"
       id="tabset-osd-details"
-      class="nav-tabs">
-    <li ngbNavItem>
+      class="nav-tabs"
+      stateId="osd-details">
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="devices">
       <a ngbNavLink
          i18n>Devices</a>
       <ng-template ngbNavContent>
@@ -11,7 +14,9 @@
                         [osdId]="osd.id"></cd-device-list>
       </ng-template>
     </li>
-    <li ngbNavItem>
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="attributes">
       <a ngbNavLink
          i18n>Attributes (OSD map)</a>
       <ng-template ngbNavContent>
@@ -20,7 +25,9 @@
         </cd-table-key-value>
       </ng-template>
     </li>
-    <li ngbNavItem>
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="metadata">
       <a ngbNavLink
          i18n>Metadata</a>
       <ng-template ngbNavContent>
@@ -34,14 +41,18 @@
         </ng-template>
       </ng-template>
     </li>
-    <li ngbNavItem>
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="device-health">
       <a ngbNavLink
          i18n>Device health</a>
       <ng-template ngbNavContent>
         <cd-smart-list [osdId]="osd.id"></cd-smart-list>
       </ng-template>
     </li>
-    <li ngbNavItem>
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="performance-counter">
       <a ngbNavLink
          i18n>Performance counter</a>
       <ng-template ngbNavContent>
@@ -51,7 +62,9 @@
         </cd-table-performance-counter>
       </ng-template>
     </li>
-    <li ngbNavItem>
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="histogram">
       <a ngbNavLink
          i18n>Histogram</a>
       <ng-template ngbNavContent>
@@ -75,6 +88,8 @@
       </ng-template>
     </li>
     <li ngbNavItem
+        cdStatefulTab
+        stateId="performance-details"
         *ngIf="grafanaPermission.read">
       <a ngbNavLink
          i18n>Performance Details</a>

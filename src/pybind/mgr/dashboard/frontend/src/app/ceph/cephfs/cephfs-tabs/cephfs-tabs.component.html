@@ -2,8 +2,11 @@
   <ul ngbNav
       #nav="ngbNav"
       (navChange)="softRefresh()"
-      class="nav-tabs">
-    <li ngbNavItem>
+      class="nav-tabs"
+      stateId="cephfs-tabs">
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="details">
       <a ngbNavLink
          i18n>Details</a>
       <ng-template ngbNavContent>
@@ -11,7 +14,9 @@
         </cd-cephfs-detail>
       </ng-template>
     </li>
-    <li ngbNavItem>
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="clients">
       <a ngbNavLink>
         <ng-container i18n>Clients</ng-container>
         <span class="badge badge-pill badge-tab ml-1">{{ clients.data.length }}</span>
@@ -23,14 +28,18 @@
         </cd-cephfs-clients>
       </ng-template>
     </li>
-    <li ngbNavItem>
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="directories">
       <a ngbNavLink
          i18n>Directories</a>
       <ng-template ngbNavContent>
         <cd-cephfs-directories [id]="id"></cd-cephfs-directories>
       </ng-template>
     </li>
-    <li ngbNavItem>
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="performance-details">
       <a ngbNavLink
          i18n>Performance Details</a>
       <ng-template ngbNavContent>

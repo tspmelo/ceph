@@ -1,8 +1,11 @@
 <ng-container *ngIf="selection">
   <ul ngbNav
       #nav="ngbNav"
-      class="nav-tabs">
-    <li ngbNavItem>
+      class="nav-tabs"
+      stateId="nfs-details">
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="details">
       <a ngbNavLink
          i18n>Details</a>
       <ng-template ngbNavContent>
@@ -10,7 +13,9 @@
         </cd-table-key-value>
       </ng-template>
     </li>
-    <li ngbNavItem>
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="clients">
       <a ngbNavLink
          i18n>Clients ({{ clients.length }})</a>
       <ng-template ngbNavContent>

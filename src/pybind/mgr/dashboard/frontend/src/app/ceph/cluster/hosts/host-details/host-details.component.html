@@ -1,8 +1,11 @@
 <ng-container *ngIf="selection">
   <ul ngbNav
       #nav="ngbNav"
-      class="nav-tabs">
-    <li ngbNavItem>
+      class="nav-tabs"
+      stateId="host-details">
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="devices">
       <a ngbNavLink
          i18n>Devices</a>
       <ng-template ngbNavContent>
@@ -10,6 +13,8 @@
       </ng-template>
     </li>
     <li ngbNavItem
+        cdStatefulTab
+        stateId="inventory"
         *ngIf="permissions.hosts.read">
       <a ngbNavLink
          i18n>Inventory</a>
@@ -18,6 +23,8 @@
       </ng-template>
     </li>
     <li ngbNavItem
+        cdStatefulTab
+        stateId="daemons"
         *ngIf="permissions.hosts.read">
       <a ngbNavLink
          i18n>Daemons</a>
@@ -27,6 +34,8 @@
       </ng-template>
     </li>
     <li ngbNavItem
+        cdStatefulTab
+        stateId="performance-details"
         *ngIf="permissions.grafana.read">
       <a ngbNavLink
          i18n>Performance Details</a>
@@ -37,7 +46,9 @@
         </cd-grafana>
       </ng-template>
     </li>
-    <li ngbNavItem>
+    <li ngbNavItem
+        cdStatefulTab
+        stateId="device-health">
       <a ngbNavLink
          i18n>Device health</a>
       <ng-template ngbNavContent>
