@@ -1,10 +1,8 @@
 <ul ngbNav
     #nav="ngbNav"
     class="nav-tabs"
-    stateId="image-list">
-  <li ngbNavItem
-      cdStatefulTab
-      stateId="issues">
+    cdStatefulTab="image-list">
+  <li ngbNavItem="issues">
     <a ngbNavLink
        i18n>Issues</a>
     <ng-template ngbNavContent>
@@ -16,9 +14,7 @@
       </cd-table>
     </ng-template>
   </li>
-  <li ngbNavItem
-      cdStatefulTab
-      stateId="syncing">
+  <li ngbNavItem="syncing">
     <a ngbNavLink
        i18n>Syncing</a>
     <ng-template ngbNavContent>
@@ -30,9 +26,7 @@
       </cd-table>
     </ng-template>
   </li>
-  <li ngbNavItem
-      cdStatefulTab
-      stateId="ready">
+  <li ngbNavItem="ready">
     <a ngbNavLink
        i18n>Ready</a>
     <ng-template ngbNavContent>

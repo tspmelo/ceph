@@ -2,10 +2,8 @@
   <ul ngbNav
       #nav="ngbNav"
       class="nav-tabs"
-      stateId="nfs-details">
-    <li ngbNavItem
-        cdStatefulTab
-        stateId="details">
+      cdStatefulTab="nfs-details">
+    <li ngbNavItem="details">
       <a ngbNavLink
          i18n>Details</a>
       <ng-template ngbNavContent>
@@ -13,9 +11,7 @@
         </cd-table-key-value>
       </ng-template>
     </li>
-    <li ngbNavItem
-        cdStatefulTab
-        stateId="clients">
+    <li ngbNavItem="clients">
       <a ngbNavLink
          i18n>Clients ({{ clients.length }})</a>
       <ng-template ngbNavContent>

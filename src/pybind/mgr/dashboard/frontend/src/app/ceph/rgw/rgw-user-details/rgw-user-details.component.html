@@ -2,10 +2,8 @@
   <ul ngbNav
       #nav="ngbNav"
       class="nav-tabs"
-      stateId="rgw-user-details">
-    <li ngbNavItem
-        cdStatefulTab
-        stateId="details">
+      cdStatefulTab="rgw-user-details">
+    <li ngbNavItem="details">
       <a ngbNavLink
          i18n>Details</a>
       <ng-template ngbNavContent>
@@ -133,9 +131,7 @@
         </div>
       </ng-template>
     </li>
-    <li ngbNavItem
-        cdStatefulTab
-        stateId="keys"
+    <li ngbNavItem="keys"
         *ngIf="keys.length">
       <a ngbNavLink
          i18n>Keys</a>
