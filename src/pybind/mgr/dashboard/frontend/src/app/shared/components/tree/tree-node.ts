@@ -1,5 +1,5 @@
 export interface TreeNode {
-  id: number;
+  id: string;
   name: string;
   children?: TreeNode[];
   other?: any;

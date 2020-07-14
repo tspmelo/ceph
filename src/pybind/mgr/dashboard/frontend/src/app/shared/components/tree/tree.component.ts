@@ -24,11 +24,11 @@ export class TreeComponent implements OnChanges {
 
   @Input() nameTpl: TemplateRef<any>;
 
-  @Output() nSelect = new EventEmitter<number>();
+  @Output() nSelect = new EventEmitter<TreeNode>();
 
   treeControl = new NestedTreeControl<TreeNode>((node) => node.children);
   dataSource = new ArrayDataSource(this.data);
-  activeNode: number;
+  activeNode: string;
 
   ngOnChanges() {
     this.dataSource = new ArrayDataSource(this.data);
@@ -38,8 +38,8 @@ export class TreeComponent implements OnChanges {
 
   hasChild = (_: number, node: TreeNode) => !!node.children && node.children.length > 0;
 
-  clickNode(id: number) {
-    this.activeNode = id;
-    this.nSelect.emit(id);
+  clickNode(node: TreeNode) {
+    this.activeNode = node.id;
+    this.nSelect.emit(node);
   }
 }

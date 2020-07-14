@@ -1,15 +1,9 @@
 import { Component, Input, OnChanges, OnInit, TemplateRef, ViewChild } from '@angular/core';
 
 import { I18n } from '@ngx-translate/i18n-polyfill';
-import {
-  ITreeOptions,
-  TreeComponent,
-  TreeModel,
-  TreeNode,
-  TREE_ACTIONS
-} from 'angular-tree-component';
 import * as _ from 'lodash';
 
+import { TreeNode } from '../../../shared/components/tree/tree-node';
 import { TableComponent } from '../../../shared/datatable/table/table.component';
 import { Icons } from '../../../shared/enum/icons.enum';
 import { CdTableColumn } from '../../../shared/models/cd-table-column';
@@ -41,8 +35,6 @@ export class IscsiTargetDetailsComponent implements OnChanges, OnInit {
     }
   }
 
-  @ViewChild('tree') tree: TreeComponent;
-
   icons = Icons;
   columns: CdTableColumn[];
   data: any;
@@ -50,15 +42,7 @@ export class IscsiTargetDetailsComponent implements OnChanges, OnInit {
   selectedItem: any;
   title: string;
 
-  nodes: any[] = [];
-  treeOptions: ITreeOptions = {
-    useVirtualScroll: true,
-    actionMapping: {
-      mouse: {
-        click: this.onNodeSelected.bind(this)
-      }
-    }
-  };
+  nodes: TreeNode[] = [];
 
   constructor(
     private i18n: I18n,
@@ -132,35 +116,41 @@ export class IscsiTargetDetailsComponent implements OnChanges, OnInit {
       }
     };
 
-    const disks: any[] = [];
-    _.forEach(this.selectedItem.disks, (disk) => {
-      const cdId = 'disk_' + disk.pool + '_' + disk.image;
-      this.metadata[cdId] = {
+    const disks: TreeNode[] = [];
+    _.forEach(this.selectedItem.disks, (disk, diskKey) => {
+      const metaId = 'disk_' + disk.pool + '_' + disk.image;
+      this.metadata[metaId] = {
         controls: disk.controls,
         backstore: disk.backstore
       };
       ['wwn', 'lun'].forEach((k) => {
         if (k in disk) {
-          this.metadata[cdId][k] = disk[k];
+          this.metadata[metaId][k] = disk[k];
         }
       });
       disks.push({
+        id: `d:${diskKey}`,
         name: `${disk.pool}/${disk.image}`,
-        cdId: cdId,
-        cdIcon: cssClasses.disks.leaf
+        other: {
+          metaId,
+          cdIcon: cssClasses.disks.leaf
+        }
       });
     });
 
-    const portals: any[] = [];
-    _.forEach(this.selectedItem.portals, (portal) => {
+    const portals: TreeNode[] = [];
+    _.forEach(this.selectedItem.portals, (portal, portalKey) => {
       portals.push({
+        id: `p:${portalKey}`,
         name: `${portal.host}:${portal.ip}`,
-        cdIcon: cssClasses.portals.leaf
+        other: {
+          cdIcon: cssClasses.portals.leaf
+        }
       });
     });
 
-    const clients: any[] = [];
-    _.forEach(this.selectedItem.clients, (client) => {
+    const clients: TreeNode[] = [];
+    _.forEach(this.selectedItem.clients, (client, clientKey) => {
       const client_metadata = _.cloneDeep(client.auth);
       if (client.info) {
         _.extend(client_metadata, client.info);
@@ -171,12 +161,15 @@ export class IscsiTargetDetailsComponent implements OnChanges, OnInit {
       }
       this.metadata['client_' + client.client_iqn] = client_metadata;
 
-      const luns: any[] = [];
-      client.luns.forEach((lun: Record<string, any>) => {
+      const luns: TreeNode[] = [];
+      client.luns.forEach((lun: Record<string, any>, lunKey: number) => {
         luns.push({
+          id: `c:${clientKey},l:${lunKey}`,
           name: `${lun.pool}/${lun.image}`,
-          cdId: 'disk_' + lun.pool + '_' + lun.image,
-          cdIcon: cssClasses.disks.leaf
+          other: {
+            metaId: 'disk_' + lun.pool + '_' + lun.image,
+            cdIcon: cssClasses.disks.leaf
+          }
         });
       });
 
@@ -185,81 +178,109 @@ export class IscsiTargetDetailsComponent implements OnChanges, OnInit {
         status = Object.keys(client.info.state).includes('LOGGED_IN') ? 'logged_in' : 'logged_out';
       }
       clients.push({
+        id: `c:${clientKey}`,
         name: client.client_iqn,
-        status: status,
-        cdId: 'client_' + client.client_iqn,
         children: luns,
-        cdIcon: cssClasses.initiators.leaf
+        other: {
+          metaId: 'client_' + client.client_iqn,
+          status: status,
+          cdIcon: cssClasses.initiators.leaf
+        }
       });
     });
 
-    const groups: any[] = [];
-    _.forEach(this.selectedItem.groups, (group) => {
-      const luns: any[] = [];
-      group.disks.forEach((disk: Record<string, any>) => {
+    const groups: TreeNode[] = [];
+    _.forEach(this.selectedItem.groups, (group, groupKey) => {
+      const luns: TreeNode[] = [];
+      group.disks.forEach((disk: Record<string, any>, diskKey: number) => {
         luns.push({
+          id: `g:${groupKey},d:${diskKey}`,
           name: `${disk.pool}/${disk.image}`,
-          cdId: 'disk_' + disk.pool + '_' + disk.image,
-          cdIcon: cssClasses.disks.leaf
+          other: {
+            metaId: 'disk_' + disk.pool + '_' + disk.image,
+            cdIcon: cssClasses.disks.leaf
+          }
         });
       });
 
-      const initiators: any[] = [];
-      group.members.forEach((member: string) => {
+      const initiators: TreeNode[] = [];
+      group.members.forEach((member: string, initiatorKey: number) => {
         initiators.push({
+          id: `g:${groupKey},i:${initiatorKey}`,
           name: member,
-          cdId: 'client_' + member
+          other: {
+            metaId: 'client_' + member
+          }
         });
       });
 
       groups.push({
+        id: `g:${groupKey}`,
         name: group.group_id,
-        cdIcon: cssClasses.groups.leaf,
         children: [
           {
+            id: `g:${groupKey},disks`,
             name: 'Disks',
             children: luns,
-            cdIcon: cssClasses.disks.expanded
+            other: {
+              cdIcon: cssClasses.disks.expanded
+            }
           },
           {
+            id: `g:${groupKey},initiators`,
             name: 'Initiators',
             children: initiators,
-            cdIcon: cssClasses.initiators.expanded
+            other: {
+              cdIcon: cssClasses.initiators.expanded
+            }
           }
-        ]
+        ],
+        other: {
+          cdIcon: cssClasses.groups.leaf
+        }
       });
     });
 
     this.nodes = [
       {
+        id: 'root',
         name: this.selectedItem.target_iqn,
-        cdId: 'root',
-        isExpanded: true,
-        cdIcon: cssClasses.target.expanded,
+        other: {
+          metaId: 'root',
+          cdIcon: cssClasses.target.expanded
+        },
         children: [
           {
+            id: 'r,d',
             name: 'Disks',
-            isExpanded: true,
             children: disks,
-            cdIcon: cssClasses.disks.expanded
+            other: {
+              cdIcon: cssClasses.disks.expanded
+            }
           },
           {
+            id: 'r,p',
             name: 'Portals',
-            isExpanded: true,
             children: portals,
-            cdIcon: cssClasses.portals.expanded
+            other: {
+              cdIcon: cssClasses.portals.expanded
+            }
           },
           {
+            id: 'r,i',
             name: 'Initiators',
-            isExpanded: true,
             children: clients,
-            cdIcon: cssClasses.initiators.expanded
+            other: {
+              cdIcon: cssClasses.initiators.expanded
+            }
           },
           {
+            id: 'r,g',
             name: 'Groups',
-            isExpanded: true,
             children: groups,
-            cdIcon: cssClasses.groups.expanded
+            other: {
+              cdIcon: cssClasses.groups.expanded
+            }
           }
         ]
       }
@@ -273,13 +294,13 @@ export class IscsiTargetDetailsComponent implements OnChanges, OnInit {
     return value;
   }
 
-  onNodeSelected(tree: TreeModel, node: TreeNode) {
-    TREE_ACTIONS.ACTIVATE(tree, node, true);
-    if (node.data.cdId) {
-      this.title = node.data.name;
-      const tempData = this.metadata[node.data.cdId] || {};
+  onNodeSelected(node: TreeNode) {
+    this.title = node.name;
+    const id = node?.other?.metaId;
+    if (id) {
+      const tempData = this.metadata[id] || {};
 
-      if (node.data.cdId === 'root') {
+      if (id === 'root') {
         this.detailTable?.toggleColumn({ prop: 'default', isHidden: true });
         this.data = _.map(this.settings.target_default_controls, (value, key) => {
           value = this.format(value);
@@ -299,7 +320,7 @@ export class IscsiTargetDetailsComponent implements OnChanges, OnInit {
             });
           });
         }
-      } else if (node.data.cdId.toString().startsWith('disk_')) {
+      } else if (id.startsWith('disk_')) {
         this.detailTable?.toggleColumn({ prop: 'default', isHidden: true });
         this.data = _.map(this.settings.disk_default_controls[tempData.backstore], (value, key) => {
           value = this.format(value);
@@ -340,9 +361,5 @@ export class IscsiTargetDetailsComponent implements OnChanges, OnInit {
     }
 
     this.detailTable?.updateColumns();
-  }
-
-  onUpdateData() {
-    this.tree.treeModel.expandAll();
   }
 }
