@@ -2,7 +2,6 @@ import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { DebugElement } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { TreeModule } from 'angular-tree-component';
 import { of } from 'rxjs';
 
 import { configureTestBed } from '../../../../testing/unit-test-helper';
@@ -15,7 +14,7 @@ describe('CrushmapComponent', () => {
   let fixture: ComponentFixture<CrushmapComponent>;
   let debugElement: DebugElement;
   configureTestBed({
-    imports: [HttpClientTestingModule, TreeModule.forRoot(), SharedModule],
+    imports: [HttpClientTestingModule, SharedModule],
     declarations: [CrushmapComponent],
     providers: [HealthService]
   });

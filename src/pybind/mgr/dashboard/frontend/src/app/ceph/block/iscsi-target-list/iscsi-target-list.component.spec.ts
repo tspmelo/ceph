@@ -4,7 +4,6 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { RouterTestingModule } from '@angular/router/testing';
 
 import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
-import { TreeModule } from 'angular-tree-component';
 import { ToastrModule } from 'ngx-toastr';
 import { BehaviorSubject, of } from 'rxjs';
 
@@ -41,7 +40,6 @@ describe('IscsiTargetListComponent', () => {
       HttpClientTestingModule,
       RouterTestingModule,
       SharedModule,
-      TreeModule,
       ToastrModule.forRoot(),
       NgbNavModule
     ],

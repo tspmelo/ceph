@@ -4,7 +4,6 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule, Routes } from '@angular/router';
 
 import { NgbNavModule, NgbPopoverModule, NgbTooltipModule } from '@ng-bootstrap/ng-bootstrap';
-import { TreeModule } from 'angular-tree-component';
 import { NgBootstrapFormValidationModule } from 'ng-bootstrap-form-validation';
 
 import { ActionLabels, URLVerbs } from '../../shared/constants/app.constants';
@@ -48,8 +47,7 @@ import { RbdTrashRestoreModalComponent } from './rbd-trash-restore-modal/rbd-tra
     NgbTooltipModule,
     SharedModule,
     RouterModule,
-    NgBootstrapFormValidationModule,
-    TreeModule.forRoot()
+    NgBootstrapFormValidationModule
   ],
   declarations: [
     RbdListComponent,

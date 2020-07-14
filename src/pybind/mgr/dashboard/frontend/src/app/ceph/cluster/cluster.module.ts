@@ -11,7 +11,6 @@ import {
   NgbTooltipModule,
   NgbTypeaheadModule
 } from '@ng-bootstrap/ng-bootstrap';
-import { TreeModule } from 'angular-tree-component';
 import { NgBootstrapFormValidationModule } from 'ng-bootstrap-form-validation';
 
 import { SharedModule } from '../../shared/shared.module';
@@ -65,7 +64,6 @@ import { TelemetryComponent } from './telemetry/telemetry.component';
     MgrModulesModule,
     NgbTypeaheadModule,
     NgbTimepickerModule,
-    TreeModule.forRoot(),
     NgBootstrapFormValidationModule,
     CephSharedModule,
     NgbDatepickerModule,

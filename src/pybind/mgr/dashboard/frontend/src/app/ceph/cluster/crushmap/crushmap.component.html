@@ -10,7 +10,7 @@
                [ngClass]="[icons.large, icons.spinner, icons.spin]"></i>
 
             <cd-tree [data]="nodes"
-                     (nSelect)="onNodeSelected($event)"
+                     (selectNode)="onNodeSelected($event)"
                      [nameTpl]="nameTpl">
             </cd-tree>
           </div>
