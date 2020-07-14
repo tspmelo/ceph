@@ -1,0 +1,40 @@
+<cdk-tree #tree
+          [dataSource]="dataSource"
+          [treeControl]="treeControl">
+  <!-- This is the tree node template for leaf nodes -->
+  <cdk-nested-tree-node *cdkTreeNodeDef="let node">
+    <div class="p-1 pl-3">
+      <ng-container *ngTemplateOutlet="innerTpl; context: {$implicit: node}"></ng-container>
+    </div>
+  </cdk-nested-tree-node>
+
+  <!-- This is the tree node template for expandable nodes -->
+  <cdk-nested-tree-node *cdkTreeNodeDef="let node; when: hasChild">
+    <button class="btn"
+            [attr.aria-label]="'toggle ' + node.name"
+            cdkTreeNodeToggle>
+      <i class="fa"
+         [ngClass]="treeControl.isExpanded(node) ? 'fa-chevron-down' : 'fa-chevron-right'"
+         aria-hidden="true"></i>
+    </button>
+
+    <ng-container *ngTemplateOutlet="innerTpl; context: {$implicit: node}"></ng-container>
+
+    <div [class.tree-invisible]="!treeControl.isExpanded(node)">
+      <ng-container cdkTreeNodeOutlet></ng-container>
+    </div>
+  </cdk-nested-tree-node>
+</cdk-tree>
+
+<ng-template #innerTpl
+             let-node>
+  <span (click)="clickNode(node.id)"
+        class="inner"
+        [class]="{'active': activeNode === node.id}">
+    <ng-container *ngIf="nameTpl">
+      <ng-container *ngTemplateOutlet="nameTpl; context: {$implicit: node}"></ng-container>
+    </ng-container>
+
+    <span *ngIf="!nameTpl">{{node.name}}</span>
+  </span>
+</ng-template>

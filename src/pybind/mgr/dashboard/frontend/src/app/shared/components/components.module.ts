@@ -1,3 +1,4 @@
+import { CdkTreeModule } from '@angular/cdk/tree';
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -41,6 +42,7 @@ import { SelectComponent } from './select/select.component';
 import { SparklineComponent } from './sparkline/sparkline.component';
 import { SubmitButtonComponent } from './submit-button/submit-button.component';
 import { TelemetryNotificationComponent } from './telemetry-notification/telemetry-notification.component';
+import { TreeComponent } from './tree/tree.component';
 import { UsageBarComponent } from './usage-bar/usage-bar.component';
 import { ViewCacheComponent } from './view-cache/view-cache.component';
 
@@ -63,7 +65,8 @@ import { ViewCacheComponent } from './view-cache/view-cache.component';
     SimplebarAngularModule,
     RouterModule,
     NgbDatepickerModule,
-    NgbTimepickerModule
+    NgbTimepickerModule,
+    CdkTreeModule
   ],
   declarations: [
     ViewCacheComponent,
@@ -89,7 +92,8 @@ import { ViewCacheComponent } from './view-cache/view-cache.component';
     TelemetryNotificationComponent,
     OrchestratorDocPanelComponent,
     OrchestratorDocModalComponent,
-    DateTimePickerComponent
+    DateTimePickerComponent,
+    TreeComponent
   ],
   providers: [],
   exports: [
@@ -112,7 +116,8 @@ import { ViewCacheComponent } from './view-cache/view-cache.component';
     PwdExpirationNotificationComponent,
     TelemetryNotificationComponent,
     OrchestratorDocPanelComponent,
-    DateTimePickerComponent
+    DateTimePickerComponent,
+    TreeComponent
   ]
 })
 export class ComponentsModule {}
