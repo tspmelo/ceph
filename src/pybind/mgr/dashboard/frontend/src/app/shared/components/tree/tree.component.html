@@ -28,7 +28,7 @@
 
 <ng-template #innerTpl
              let-node>
-  <span (click)="clickNode(node.id)"
+  <span (click)="clickNode(node)"
         class="inner"
         [class]="{'active': activeNode === node.id}">
     <ng-container *ngIf="nameTpl">

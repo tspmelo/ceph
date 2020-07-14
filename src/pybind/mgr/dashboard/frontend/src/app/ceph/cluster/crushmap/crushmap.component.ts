@@ -77,18 +77,14 @@ export class CrushmapComponent implements OnInit {
     return resultNode;
   }
 
-  onNodeSelected(nodeId: number) {
-    if (nodeId !== undefined) {
-      const { name, type, status, ...remain } = this.metadataKeyMap[nodeId];
+  onNodeSelected(node: TreeNode) {
+    if (node.id !== undefined) {
+      const { name, type, status, ...remain } = this.metadataKeyMap[node.id];
       this.metadata = remain;
-      this.metadataTitle = name + ' (' + type + ')';
+      this.metadataTitle = node.name;
     } else {
       delete this.metadata;
       delete this.metadataTitle;
     }
   }
-
-  // onUpdateData() {
-  //   this.tree.treeModel.expandAll();
-  // }
 }
