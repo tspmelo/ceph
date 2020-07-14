@@ -1,0 +1,34 @@
+@use '../../../../styles/defaults/bootstrap-defaults' as bd;
+
+.tree-invisible {
+  display: none;
+}
+
+cdk-nested-tree-node {
+  display: block;
+
+  .inner {
+    padding: 5px;
+
+    &.active {
+      background-color: bd.$color-primary;
+    }
+
+    &:hover {
+      background-color: bd.$color-primary-transparent1;
+    }
+  }
+
+  cdk-nested-tree-node {
+    padding-left: 20px;
+  }
+}
+
+.btn {
+  padding-left: 0;
+  padding-right: 0;
+
+  &:focus {
+    box-shadow: none;
+  }
+}
