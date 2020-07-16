@@ -1,9 +1,6 @@
 /* You can add global styles to this file, and also import other style files */
 @use './src/styles/defaults' as *;
 
-// Angular2-Tree Component
-@import '~angular-tree-component/dist/angular-tree-component.css';
-
 // Fork-Awesome
 $fa-font-path: '~fork-awesome/fonts';
 $font-family-icon: 'ForkAwesome';
@@ -167,12 +164,4 @@ bfv-messages {
 .badge-tab {
   background-color: $color-light-shade-gray;
   color: $color-solid-gray;
-}
-
-// angular-tree-component
-tree-root {
-  tree-viewport {
-    // Fix visual bug when tree is empty
-    min-height: 1em;
-  }
 }

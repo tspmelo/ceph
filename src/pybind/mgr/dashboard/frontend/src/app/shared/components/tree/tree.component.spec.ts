@@ -1,17 +1,15 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 
+import { configureTestBed } from '../../../../testing/unit-test-helper';
 import { TreeComponent } from './tree.component';
 
 describe('TreeComponent', () => {
   let component: TreeComponent;
   let fixture: ComponentFixture<TreeComponent>;
 
-  beforeEach(async(() => {
-    TestBed.configureTestingModule({
-      declarations: [ TreeComponent ]
-    })
-    .compileComponents();
-  }));
+  configureTestBed({
+    declarations: [TreeComponent]
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(TreeComponent);
