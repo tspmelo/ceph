@@ -23,8 +23,9 @@ export class TreeComponent implements OnChanges {
   @Input() data: TreeNode[];
 
   @Input() nameTpl: TemplateRef<any>;
+  @Input() loadingTpl: TemplateRef<any>;
 
-  @Output() nSelect = new EventEmitter<TreeNode>();
+  @Output() selectNode = new EventEmitter<TreeNode>();
 
   treeControl = new NestedTreeControl<TreeNode>((node) => node.children);
   dataSource = new ArrayDataSource(this.data);
@@ -36,10 +37,10 @@ export class TreeComponent implements OnChanges {
     this.treeControl.expandAll();
   }
 
-  hasChild = (_: number, node: TreeNode) => !!node.children && node.children.length > 0;
+  hasChild = (_: number, node: TreeNode) => !!node.children && node.children.length > 0 || node.hasChildren;
 
   clickNode(node: TreeNode) {
     this.activeNode = node.id;
-    this.nSelect.emit(node);
+    this.selectNode.emit(node);
   }
 }

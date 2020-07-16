@@ -11,13 +11,11 @@
         </button>
       </div>
       <div class="card-body">
-        <tree-root *ngIf="nodes"
-                   [nodes]="nodes"
-                   [options]="treeOptions">
-          <ng-template #loadingTemplate>
-            <i [ngClass]="[icons.spinner, icons.spin]"></i>
-          </ng-template>
-        </tree-root>
+        <cd-tree [data]="nodes"
+                 (selectNode)="selectNode($event)"
+                 [loadingTpl]="loadingTemplate"
+                 >
+        </cd-tree>
       </div>
     </div>
   </div>
@@ -72,4 +70,8 @@
              let-value="value">
   <span class="quota-origin"
         (click)="selectOrigin(value)">{{value}}</span>
+</ng-template>
+
+<ng-template #loadingTemplate>
+  <i [ngClass]="[icons.spinner, icons.spin]"></i>
 </ng-template>

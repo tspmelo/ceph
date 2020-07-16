@@ -5,7 +5,6 @@ import { Validators } from '@angular/forms';
 import { RouterTestingModule } from '@angular/router/testing';
 
 import { NgbActiveModal, NgbModalModule, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
-import { TreeComponent, TreeModule, TREE_ACTIONS } from 'angular-tree-component';
 import { NgBootstrapFormValidationModule } from 'ng-bootstrap-form-validation';
 import { ToastrModule } from 'ngx-toastr';
 import { Observable, of } from 'rxjs';
@@ -369,7 +368,6 @@ describe('CephfsDirectoriesComponent', () => {
         HttpClientTestingModule,
         SharedModule,
         RouterTestingModule,
-        TreeModule.forRoot(),
         NgBootstrapFormValidationModule.forRoot(),
         ToastrModule.forRoot(),
         NgbModalModule
@@ -404,12 +402,12 @@ describe('CephfsDirectoriesComponent', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
 
-    spyOn(TREE_ACTIONS, 'TOGGLE_ACTIVE').and.callFake(mockLib.treeActions.toggleActive);
+    // spyOn(TREE_ACTIONS, 'TOGGLE_ACTIVE').and.callFake(mockLib.treeActions.toggleActive);
 
-    component.treeComponent = {
-      sizeChanged: () => null,
-      treeModel: { getNodeById: mockLib.getNodeById, update: () => null }
-    } as TreeComponent;
+    // component.treeComponent = {
+    //   sizeChanged: () => null,
+    //   treeModel: { getNodeById: mockLib.getNodeById, update: () => null }
+    // } as TreeComponent;
   });
 
   it('should create', () => {
