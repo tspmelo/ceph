@@ -12,6 +12,7 @@ import {
   NgbTimepickerModule,
   NgbTooltipModule
 } from '@ng-bootstrap/ng-bootstrap';
+import { NgApexchartsModule } from 'ng-apexcharts';
 import { NgBootstrapFormValidationModule } from 'ng-bootstrap-form-validation';
 import { ClickOutsideModule } from 'ng-click-outside';
 import { ChartsModule } from 'ng2-charts';
@@ -21,6 +22,7 @@ import { DirectivesModule } from '../directives/directives.module';
 import { PipesModule } from '../pipes/pipes.module';
 import { AlertPanelComponent } from './alert-panel/alert-panel.component';
 import { BackButtonComponent } from './back-button/back-button.component';
+import { ChartComponent } from './chart/chart.component';
 import { ConfigOptionComponent } from './config-option/config-option.component';
 import { ConfirmationModalComponent } from './confirmation-modal/confirmation-modal.component';
 import { CriticalConfirmationModalComponent } from './critical-confirmation-modal/critical-confirmation-modal.component';
@@ -53,6 +55,7 @@ import { UsageBarComponent } from './usage-bar/usage-bar.component';
     NgbProgressbarModule,
     NgbTooltipModule,
     ChartsModule,
+    NgApexchartsModule,
     ReactiveFormsModule,
     PipesModule,
     DirectivesModule,
@@ -87,7 +90,8 @@ import { UsageBarComponent } from './usage-bar/usage-bar.component';
     TelemetryNotificationComponent,
     OrchestratorDocPanelComponent,
     DateTimePickerComponent,
-    DocComponent
+    DocComponent,
+    ChartComponent
   ],
   providers: [],
   exports: [
@@ -110,7 +114,8 @@ import { UsageBarComponent } from './usage-bar/usage-bar.component';
     TelemetryNotificationComponent,
     OrchestratorDocPanelComponent,
     DateTimePickerComponent,
-    DocComponent
+    DocComponent,
+    ChartComponent
   ]
 })
 export class ComponentsModule {}

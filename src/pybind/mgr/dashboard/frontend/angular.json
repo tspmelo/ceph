@@ -28,12 +28,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
-            "allowedCommonJsDependencies": [
-              "chart.js",
-              "core-js",
-              "file-saver",
-              "lodash"
-            ],
+            "allowedCommonJsDependencies": ["chart.js", "core-js", "file-saver", "lodash"],
             "i18nLocale": "en",
             "aot": true,
             "i18nMissingTranslation": "ignore",
@@ -56,15 +51,13 @@
                 "output": "."
               }
             ],
-            "styles": [
-              "node_modules/ngx-toastr/toastr.css",
-              "src/styles.scss"
+            "styles": ["node_modules/ngx-toastr/toastr.css", "src/styles.scss"],
+            "scripts": [
+              "node_modules/chart.js/dist/Chart.bundle.js",
+              "node_modules/apexcharts/dist/apexcharts.min.js"
             ],
-            "scripts": ["node_modules/chart.js/dist/Chart.bundle.js"],
             "stylePreprocessorOptions": {
-              "includePaths": [
-                "src"
-              ]
+              "includePaths": ["src"]
             }
           },
           "configurations": {
@@ -191,14 +184,8 @@
         "lint": {
           "builder": "@angular-devkit/build-angular:tslint",
           "options": {
-            "tsConfig": [
-              "src/tsconfig.app.json",
-              "tsconfig.spec.json",
-              "cypress/tsconfig.json"
-            ],
-            "exclude": [
-              "**/node_modules/**"
-            ]
+            "tsConfig": ["src/tsconfig.app.json", "tsconfig.spec.json", "cypress/tsconfig.json"],
+            "exclude": ["**/node_modules/**"]
           }
         }
       },

@@ -8,6 +8,7 @@ import {
   ViewChild
 } from '@angular/core';
 
+import { ChartOptions } from '../../models/chart-options';
 import { ChartTooltip } from '../../models/chart-tooltip';
 import { DimlessBinaryPipe } from '../../pipes/dimless-binary.pipe';
 
@@ -95,7 +96,63 @@ export class SparklineComponent implements OnInit, OnChanges {
 
   public labels: Array<any> = [];
 
-  constructor(private dimlessBinaryPipe: DimlessBinaryPipe) {}
+  public chartOptions: Partial<ChartOptions>;
+
+  constructor(private dimlessBinaryPipe: DimlessBinaryPipe) {
+    this.chartOptions = {
+      series: [
+        {
+          data: []
+        }
+      ],
+      chart: {
+        height: 50,
+        type: 'line',
+        toolbar: { show: false }
+      },
+      markers: {
+        size: 3,
+        colors: ['#FFA241B'],
+        strokeColors: '#fff',
+        strokeWidth: 2,
+        hover: {
+          size: 5
+        }
+      },
+      xaxis: {
+        labels: {
+          show: false
+        },
+        tooltip: { enabled: false }
+      },
+      yaxis: {
+        labels: {
+          show: false
+        }
+      },
+      tooltip: {
+        x: { show: false },
+        y: {
+          formatter: (value: any) => {
+            if (this.isBinary) {
+              return this.dimlessBinaryPipe.transform(value);
+            } else {
+              return value;
+            }
+          },
+          title: {
+            formatter: () => ''
+          }
+        }
+      },
+      stroke: {
+        width: 2
+      },
+      fill: {
+        opacity: 0
+      }
+    };
+  }
 
   ngOnInit() {
     const getStyleTop = (tooltip: any) => {
@@ -126,5 +183,7 @@ export class SparklineComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges) {
     this.datasets[0].data = changes['data'].currentValue;
     this.labels = [...Array(changes['data'].currentValue.length)];
+    // Apex
+    this.chartOptions.series[0].data = changes['data'].currentValue;
   }
 }
