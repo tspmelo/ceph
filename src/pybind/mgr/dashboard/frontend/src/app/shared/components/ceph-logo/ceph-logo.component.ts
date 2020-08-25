@@ -7,5 +7,5 @@ import { Component, Input } from '@angular/core';
 })
 
 export class CephLogo {
-  @Input() variant: string;
+  @Input() hasText: boolean;
 }

@@ -1,13 +1,18 @@
-.ceph-text {
-  fill:#333c46;
-  fill-opacity:1;
-  fill-rule:nonzero;
-  stroke:none
+.logo {
+  // background-image: url(../../../../assets/Ceph_Logo.svg);
+  mask: url(../../../../assets/Ceph_Logo.svg);
 }
 
-.ceph-icon {
-  fill:#f0424d;
-  fill-opacity:1;
-  fill-rule:nonzero;
-  stroke:none
+.logo {
+  display: inline-block;
+  width: 70px;
+  height: 70px;
+  mask-size: cover;
+  background: black;
+}
+
+.logo:hover,
+.logo:focus {
+  // filter: invert(50%) sepia(49%) saturate(5225%) hue-rotate(328deg) brightness(90%) contrast(109%);
+  background: red;
 }
