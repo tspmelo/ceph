@@ -203,9 +203,16 @@ class IscsiClient(RestClient):
         })
 
     @RestClient.api_delete('/api/hostgroup/{target_iqn}/{group_name}')
-    def delete_group(self, target_iqn, group_name, request=None):
+    def delete_group(self, target_iqn, group_name, disks=None, members=None, request=None):
         logger.debug("iSCSI[%s] Deleting group: %s/%s", self.gateway_name, target_iqn, group_name)
-        return request()
+        if members or disks:
+            return request({
+                'action': 'remove',
+                'members': ','.join(members),
+                'disks': ','.join(disks)
+            })
+        else:
+            return request()
 
     @RestClient.api_put('/api/discoveryauth')
     def update_discoveryauth(self, user, password, mutual_user, mutual_password, request=None):
