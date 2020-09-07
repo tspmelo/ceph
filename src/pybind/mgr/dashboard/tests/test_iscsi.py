@@ -839,6 +839,26 @@ class IscsiClientMock(object):
             target_config['groups'][group_name]['disks'][image_id] = {}
         target_config['groups'][group_name]['members'] = members
 
+    def update_group(self, target_iqn, group_name, members, image_ids):
+        target_config = self.config['targets'][target_iqn]
+        group = target_config['groups'][group_name]
+        old_members = group['members']
+        disks = group['disks']
+        target_config['groups'][group_name] = {
+            "disks": {},
+            "members": []
+        }
+
+        for image_id in disks.keys():
+            if image_id not in image_ids:
+                target_config['groups'][group_name]['disks'][image_id] = {}
+
+        new_members = []
+        for member_iqn in old_members:
+            if member_iqn not in members:
+                new_members.append(member_iqn)
+        target_config['groups'][group_name]['members'] = new_members
+
     def delete_group(self, target_iqn, group_name):
         target_config = self.config['targets'][target_iqn]
         del target_config['groups'][group_name]
