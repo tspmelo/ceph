@@ -324,8 +324,8 @@ class IscsiTarget(RESTController):
         deleted_portal_names = list(old_portal_names - new_portal_names)
         validate_rest_api(deleted_portal_names)
         IscsiTarget._validate(new_target_iqn, target_controls, portals, disks, groups, settings)
-        IscsiTarget._validate_delete(gateway, target_iqn, config, new_target_iqn, target_controls,
-                                     disks, clients, groups)
+        # IscsiTarget._validate_delete(gateway, target_iqn, config, new_target_iqn, target_controls,
+        #                              disks, clients, groups)
         config = IscsiTarget._delete(target_iqn, config, 0, 50, new_target_iqn, target_controls,
                                      portals, disks, clients, groups)
         IscsiTarget._create(new_target_iqn, target_controls, acl_enabled, auth, portals, disks,
@@ -370,15 +370,17 @@ class IscsiTarget(RESTController):
 
                 old_group_disks = set(target_config['groups'][group_id]['disks'].keys())
                 new_group_disks = set(map(lambda x: '{}/{}'.format(x['pool'], x['image']), group['disks']))
-                deleted_group_disk = old_group_disks - new_group_disks
+                local_deleted_disks = list(old_group_disks - new_group_disks)
+                deleted_group_disk.append((group_id, local_deleted_disks))
 
                 old_group_members = set(target_config['groups'][group_id]['members'])
                 new_group_members = set(group['members'])
-                deleted_group_member = old_group_members - new_group_members
+                local_deleted_members = list(old_group_members - new_group_members)
+                deleted_group_member.append((group_id, local_deleted_members))
 
-                if deleted_group_disk or deleted_group_member:
-                    IscsiClient.instance(gateway_name=gateway_name).delete_group(
-                                target_iqn, group_id, deleted_group_disk, deleted_group_member)
+                if local_deleted_disks or local_deleted_members:
+                    IscsiClient.instance(gateway_name=gateway_name).update_group(
+                                target_iqn, group_id, local_deleted_members, local_deleted_disks)
             TaskManager.current_task().inc_progress(task_progress_inc)
         deleted_clients = []
         deleted_client_luns = []
@@ -399,8 +401,7 @@ class IscsiTarget(RESTController):
             TaskManager.current_task().inc_progress(task_progress_inc)
         for image_id in target_config['disks']:
             if IscsiTarget._target_lun_deletion_required(target, new_target_iqn,
-                                                         new_target_controls,
-                                                         new_disks, image_id):
+                                                         new_target_controls, new_disks, image_id):
                 all_clients = target_config['clients'].keys()
                 not_deleted_clients = [c for c in all_clients if c not in deleted_clients]
                 for client_iqn in not_deleted_clients:
@@ -461,9 +462,9 @@ class IscsiTarget(RESTController):
         if not new_client:
             return True
         # Check if client belongs to a groups that has been deleted
-        for group in target['groups']:
-            if group['group_id'] in deleted_groups and client_iqn in group['members']:
-                return True
+        # for group in target['groups']:
+        #     if group['group_id'] in deleted_groups and client_iqn in group['members']:
+        #         return True
         return False
 
     @staticmethod
@@ -472,16 +473,31 @@ class IscsiTarget(RESTController):
         if not new_client:
             return True
 
+        was_in_group = False
+        for group in target['groups']:
+            if client_iqn in group['members']:
+                was_in_group = True
+
         # Disks inherited from groups must be considered
+        is_in_group = False
         for group in new_groups:
             if client_iqn in group['members']:
-                new_client['luns'] += group['disks']
+                is_in_group = True
+
+        if not was_in_group and is_in_group:
+            return True
+
+        if is_in_group or was_in_group:
+            return False
+
         new_lun = IscsiTarget._get_disk(new_client.get('luns', []), image_id)
         if not new_lun:
             return True
+
         old_client = IscsiTarget._get_client(target['clients'], client_iqn)
         if not old_client:
             return False
+
         old_lun = IscsiTarget._get_disk(old_client.get('luns', []), image_id)
         return new_lun != old_lun
 
