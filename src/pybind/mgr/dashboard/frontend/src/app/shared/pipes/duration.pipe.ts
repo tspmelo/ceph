@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
-import moment from 'moment';
+import { DateTime } from 'luxon';
 
 @Pipe({
   name: 'duration',
@@ -9,7 +9,7 @@ import moment from 'moment';
 export class DurationPipe implements PipeTransform {
   transform(date: any, isRelative = false): string {
     if (isRelative) {
-      return moment(date).fromNow();
+      return DateTime.fromISO(date).toRelative();
     } else {
       return this._forHumans(date);
     }

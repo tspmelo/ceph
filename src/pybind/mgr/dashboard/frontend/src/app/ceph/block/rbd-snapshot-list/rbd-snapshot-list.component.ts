@@ -1,7 +1,7 @@
 import { Component, Input, OnChanges, OnInit, TemplateRef, ViewChild } from '@angular/core';
 
 import { NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
-import moment from 'moment';
+import { DateTime } from 'luxon';
 import { of } from 'rxjs';
 
 import { RbdService } from '../../../shared/api/rbd.service';
@@ -181,7 +181,7 @@ export class RbdSnapshotListComponent implements OnInit, OnChanges {
     } else {
       // Auto-create a name for the snapshot: <image_name>_<timestamp_ISO_8601>
       // https://en.wikipedia.org/wiki/ISO_8601
-      snapName = `${this.rbdName}_${moment().toISOString(true)}`;
+      snapName = `${this.rbdName}_${DateTime.local().toISO()}`;
     }
     this.modalRef.componentInstance.setSnapName(snapName);
     this.modalRef.componentInstance.onSubmit.subscribe((snapshotName: string) => {

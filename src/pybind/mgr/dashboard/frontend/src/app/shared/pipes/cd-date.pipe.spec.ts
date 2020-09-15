@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 
-import moment from 'moment';
+import { DateTime } from 'luxon';
 
 import { CdDatePipe } from './cd-date.pipe';
 
@@ -18,7 +18,7 @@ describe('CdDatePipe', () => {
   });
 
   it('transforms with some date', () => {
-    const result = moment(1527085564486).format('M/D/YY LTS');
+    const result = DateTime.fromMillis(1527085564486).toFormat('M/d/yy tt');
     expect(pipe.transform(1527085564486)).toBe(result);
   });
 });

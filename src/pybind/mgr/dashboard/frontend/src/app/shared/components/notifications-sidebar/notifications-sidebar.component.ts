@@ -10,7 +10,7 @@ import {
 
 import { Mutex } from 'async-mutex';
 import _ from 'lodash';
-import moment from 'moment';
+import { DateTime } from 'luxon';
 import { Subscription } from 'rxjs';
 
 import { Icons } from '../../enum/icons.enum';
@@ -114,14 +114,18 @@ export class NotificationsSidebarComponent implements OnInit, OnDestroy {
         this.mutex.acquire().then((release) => {
           _.filter(
             summary.finished_tasks,
-            (task: FinishedTask) => !this.last_task || moment(task.end_time).isAfter(this.last_task)
+            (task: FinishedTask) =>
+              !this.last_task || DateTime.fromISO(task.end_time) > DateTime.fromISO(this.last_task)
           ).forEach((task) => {
             const config = this.notificationService.finishedTaskToNotification(task, task.success);
             const notification = new CdNotification(config);
             notification.timestamp = task.end_time;
             notification.duration = task.duration;
 
-            if (!this.last_task || moment(task.end_time).isAfter(this.last_task)) {
+            if (
+              !this.last_task ||
+              DateTime.fromISO(task.end_time) > DateTime.fromISO(this.last_task)
+            ) {
               this.last_task = task.end_time;
               window.localStorage.setItem('last_task', this.last_task);
             }

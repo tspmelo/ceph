@@ -40,19 +40,19 @@ describe('DateTimePickerComponent', () => {
     component.control = new FormControl();
     component.hasTime = false;
     fixture.detectChanges();
-    expect(component.format).toBe('YYYY-MM-DD');
+    expect(component.format).toBe('yyyy-MM-dd');
   });
 
   it('should init with time enabled', () => {
     component.control = new FormControl();
     component.hasSeconds = false;
     fixture.detectChanges();
-    expect(component.format).toBe('YYYY-MM-DD HH:mm');
+    expect(component.format).toBe('yyyy-MM-dd HH:mm');
   });
 
   it('should init with seconds enabled', () => {
     component.control = new FormControl();
     fixture.detectChanges();
-    expect(component.format).toBe('YYYY-MM-DD HH:mm:ss');
+    expect(component.format).toBe('yyyy-MM-dd HH:mm:ss');
   });
 });

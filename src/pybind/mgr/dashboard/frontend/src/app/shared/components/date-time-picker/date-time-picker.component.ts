@@ -2,7 +2,7 @@ import { Component, Input, OnInit } from '@angular/core';
 import { FormControl } from '@angular/forms';
 
 import { NgbCalendar, NgbDateStruct, NgbTimeStruct } from '@ng-bootstrap/ng-bootstrap';
-import moment from 'moment';
+import { DateTime } from 'luxon';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -32,21 +32,21 @@ export class DateTimePickerComponent implements OnInit {
   ngOnInit() {
     this.minDate = this.calendar.getToday();
     if (!this.hasTime) {
-      this.format = 'YYYY-MM-DD';
+      this.format = 'yyyy-MM-dd';
     } else if (this.hasSeconds) {
-      this.format = 'YYYY-MM-DD HH:mm:ss';
+      this.format = 'yyyy-MM-dd HH:mm:ss';
     } else {
-      this.format = 'YYYY-MM-DD HH:mm';
+      this.format = 'yyyy-MM-dd HH:mm';
     }
 
-    let mom = moment(this.control?.value, this.format);
+    let mom = DateTime.fromFormat(this.control?.value || '', this.format);
 
-    if (!mom.isValid() || mom.isBefore(moment())) {
-      mom = moment();
+    if (!mom.isValid || mom < DateTime.local()) {
+      mom = DateTime.local();
     }
 
-    this.date = { year: mom.year(), month: mom.month() + 1, day: mom.date() };
-    this.time = { hour: mom.hour(), minute: mom.minute(), second: mom.second() };
+    this.date = { year: mom.year, month: mom.month, day: mom.day };
+    this.time = { hour: mom.hour, minute: mom.minute, second: mom.second };
 
     this.onModelChange();
   }
@@ -54,9 +54,8 @@ export class DateTimePickerComponent implements OnInit {
   onModelChange() {
     if (this.date) {
       const datetime = Object.assign({}, this.date, this.time);
-      datetime.month--;
       setTimeout(() => {
-        this.control.setValue(moment(datetime).format(this.format));
+        this.control.setValue(DateTime.fromObject(datetime).toFormat(this.format));
       });
     } else {
       setTimeout(() => {

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 
-import moment from 'moment';
+import { DateTime } from 'luxon';
 
 import { CdDevice } from '../models/devices';
 
@@ -17,14 +17,15 @@ export class DeviceService {
       return device;
     }
     const hasDate = (float: string): boolean => !!Number.parseFloat(float);
-    const weeks = (isoDate1: string, isoDate2: string): number =>
-      !isoDate1 || !isoDate2 || !hasDate(isoDate1) || !hasDate(isoDate2)
+    const weeks = (isoDate1: string, isoDate2: string): number => {
+      return !isoDate1 || !isoDate2 || !hasDate(isoDate1) || !hasDate(isoDate2)
         ? null
-        : moment.duration(moment(isoDate1).diff(moment(isoDate2))).asWeeks();
+        : DateTime.fromISO(isoDate1).diff(DateTime.fromISO(isoDate2)).as('weeks');
+    };
 
-    const ageOfStamp = moment
-      .duration(moment(moment.now()).diff(moment(device.life_expectancy_stamp)))
-      .asWeeks();
+    const ageOfStamp = DateTime.local()
+      .diff(DateTime.fromISO(device.life_expectancy_stamp))
+      .as('weeks');
     const max = weeks(device.life_expectancy_max, device.life_expectancy_stamp);
     const min = weeks(device.life_expectancy_min, device.life_expectancy_stamp);
 
