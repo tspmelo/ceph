@@ -9,8 +9,8 @@ import {
   TreeNode,
   TREE_ACTIONS
 } from 'angular-tree-component';
+import { formatISO } from 'date-fns';
 import _ from 'lodash';
-import moment from 'moment';
 
 import { CephfsService } from '../../../shared/api/cephfs.service';
 import { ConfirmationModalComponent } from '../../../shared/components/confirmation-modal/confirmation-modal.component';
@@ -534,7 +534,7 @@ export class CephfsDirectoriesComponent implements OnInit, OnChanges {
         {
           type: 'text',
           name: 'name',
-          value: `${moment().toISOString(true)}`,
+          value: `${formatISO(new Date())}`,
           required: true
         }
       ],

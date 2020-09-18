@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
-import moment from 'moment';
+import { formatDistance, parseISO } from 'date-fns';
 
 @Pipe({
   name: 'duration',
@@ -9,7 +9,7 @@ import moment from 'moment';
 export class DurationPipe implements PipeTransform {
   transform(date: any, isRelative = false): string {
     if (isRelative) {
-      return moment(date).fromNow();
+      return formatDistance(parseISO(date), new Date());
     } else {
       return this._forHumans(date);
     }

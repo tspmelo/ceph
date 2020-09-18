@@ -5,8 +5,8 @@ import { ActivatedRoute, Router, Routes } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 
 import { NgbPopoverModule, NgbTooltipModule } from '@ng-bootstrap/ng-bootstrap';
+import { parseJSON } from 'date-fns';
 import _ from 'lodash';
-import moment from 'moment';
 import { ToastrModule } from 'ngx-toastr';
 import { of, throwError } from 'rxjs';
 
@@ -526,8 +526,8 @@ describe('SilenceFormComponent', () => {
       silence = {
         createdBy: 'some creator',
         comment: 'some comment',
-        startsAt: moment(baseTime).toISOString(),
-        endsAt: moment(endsAt).toISOString(),
+        startsAt: parseJSON(baseTime).toISOString(),
+        endsAt: parseJSON(endsAt).toISOString(),
         matchers: [
           {
             name: 'some attribute name',

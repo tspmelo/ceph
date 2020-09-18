@@ -1,4 +1,4 @@
-import moment from 'moment';
+import { sub } from 'date-fns';
 
 import { DurationPipe } from './duration.pipe';
 
@@ -18,7 +18,7 @@ describe('DurationPipe', () => {
   });
 
   it('transforms date into a human readable relative duration', () => {
-    const date = moment().subtract(130, 'seconds');
+    const date = sub(new Date(), { seconds: 130 });
     expect(pipe.transform(date, true)).toBe('2 minutes ago');
   });
 });

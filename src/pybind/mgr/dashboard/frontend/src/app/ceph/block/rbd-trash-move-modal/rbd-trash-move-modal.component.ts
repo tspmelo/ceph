@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import moment from 'moment';
+import { differenceInSeconds, isValid, parse } from 'date-fns';
 
 import { RbdService } from '../../../shared/api/rbd.service';
 import { CdFormBuilder } from '../../../shared/forms/cd-form-builder';
@@ -46,11 +46,12 @@ export class RbdTrashMoveModalComponent implements OnInit {
         '',
         [
           CdValidators.custom('format', (expiresAt: string) => {
-            const result = expiresAt === '' || moment(expiresAt, 'YYYY-MM-DD HH:mm:ss').isValid();
+            const result =
+              expiresAt === '' || isValid(parse(expiresAt, 'YYYY-MM-dd HH:mm:ss', new Date()));
             return !result;
           }),
           CdValidators.custom('expired', (expiresAt: string) => {
-            const result = moment().isAfter(expiresAt);
+            const result = new Date() > new Date(expiresAt);
             return result;
           })
         ]
@@ -69,7 +70,7 @@ export class RbdTrashMoveModalComponent implements OnInit {
     const expiresAt = this.moveForm.getValue('expiresAt');
 
     if (expiresAt) {
-      delay = moment(expiresAt, 'YYYY-MM-DD HH:mm:ss').diff(moment(), 'seconds', true);
+      delay = differenceInSeconds(new Date(expiresAt), new Date());
     }
 
     if (delay < 0) {

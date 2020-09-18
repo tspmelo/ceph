@@ -1,7 +1,5 @@
 import { TestBed } from '@angular/core/testing';
 
-import moment from 'moment';
-
 import { CdDevice } from '../models/devices';
 import { DeviceService } from './device.service';
 
@@ -32,8 +30,8 @@ describe('DeviceService', () => {
 
     beforeEach(() => {
       // Mock 'moment.now()' to simplify testing by enabling testing with fixed dates.
-      now = spyOn(moment, 'now').and.returnValue(
-        moment('2019-10-01T00:00:00.00000+0100').valueOf()
+      now = spyOn(Date.prototype, 'setDate').and.returnValue(
+        new Date('2019-10-01T00:00:00.00000+0100')
       );
     });
 

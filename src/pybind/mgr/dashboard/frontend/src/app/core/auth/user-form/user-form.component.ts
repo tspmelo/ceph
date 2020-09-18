@@ -3,8 +3,8 @@ import { Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
+import { add, format, fromUnixTime, getUnixTime, parse, set } from 'date-fns';
 import _ from 'lodash';
-import moment from 'moment';
 import { forkJoin as observableForkJoin } from 'rxjs';
 
 import { AuthService } from '../../../shared/api/auth.service';
@@ -139,9 +139,10 @@ export class UserFormComponent extends CdForm implements OnInit {
         } else {
           if (this.pwdExpirationSettings.pwdExpirationSpan > 0) {
             const pwdExpirationDateField = this.userForm.get('pwdExpirationDate');
-            const expirationDate = moment();
-            expirationDate.add(this.pwdExpirationSettings.pwdExpirationSpan, 'day');
-            pwdExpirationDateField.setValue(expirationDate.format(this.pwdExpirationFormat));
+            const expirationDate = add(new Date(), {
+              days: this.pwdExpirationSettings.pwdExpirationSpan
+            });
+            pwdExpirationDateField.setValue(format(expirationDate, this.pwdExpirationFormat));
             pwdExpirationDateField.setValidators([Validators.required]);
           }
 
@@ -176,7 +177,7 @@ export class UserFormComponent extends CdForm implements OnInit {
     if (expirationDate) {
       this.userForm
         .get('pwdExpirationDate')
-        .setValue(moment(expirationDate * 1000).format(this.pwdExpirationFormat));
+        .setValue(format(fromUnixTime(expirationDate), this.pwdExpirationFormat));
     }
   }
 
@@ -187,14 +188,14 @@ export class UserFormComponent extends CdForm implements OnInit {
     );
     const expirationDate = this.userForm.get('pwdExpirationDate').value;
     if (expirationDate) {
-      const mom = moment(expirationDate, this.pwdExpirationFormat);
+      let mom = parse(expirationDate, this.pwdExpirationFormat, new Date());
       if (
         this.mode !== this.userFormMode.editing ||
-        this.response.pwdExpirationDate !== mom.unix()
+        this.response.pwdExpirationDate !== getUnixTime(mom)
       ) {
-        mom.set({ hour: 23, minute: 59, second: 59 });
+        mom = set(mom, { hours: 23, minutes: 59, seconds: 59 });
       }
-      userFormModel['pwdExpirationDate'] = mom.unix();
+      userFormModel['pwdExpirationDate'] = getUnixTime(mom);
     }
     return userFormModel;
   }

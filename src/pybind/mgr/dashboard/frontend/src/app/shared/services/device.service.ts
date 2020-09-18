@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 
-import moment from 'moment';
+import { differenceInWeeks, parseISO } from 'date-fns';
 
 import { CdDevice } from '../models/devices';
 
@@ -20,11 +20,10 @@ export class DeviceService {
     const weeks = (isoDate1: string, isoDate2: string): number =>
       !isoDate1 || !isoDate2 || !hasDate(isoDate1) || !hasDate(isoDate2)
         ? null
-        : moment.duration(moment(isoDate1).diff(moment(isoDate2))).asWeeks();
+        : differenceInWeeks(parseISO(isoDate1), parseISO(isoDate2));
+    };
 
-    const ageOfStamp = moment
-      .duration(moment(moment.now()).diff(moment(device.life_expectancy_stamp)))
-      .asWeeks();
+    const ageOfStamp = differenceInWeeks(new Date(), parseISO(device.life_expectancy_stamp));
     const max = weeks(device.life_expectancy_max, device.life_expectancy_stamp);
     const min = weeks(device.life_expectancy_min, device.life_expectancy_stamp);
 

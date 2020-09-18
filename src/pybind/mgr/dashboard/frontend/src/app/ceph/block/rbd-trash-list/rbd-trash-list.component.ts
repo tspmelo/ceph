@@ -2,7 +2,6 @@ import { Component, OnInit, TemplateRef, ViewChild } from '@angular/core';
 
 import { NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
 import _ from 'lodash';
-import moment from 'moment';
 
 import { RbdService } from '../../../shared/api/rbd.service';
 import { TableStatusViewCache } from '../../../shared/classes/table-status-view-cache';
@@ -170,7 +169,7 @@ export class RbdTrashListComponent implements OnInit {
     }
 
     images.forEach((image) => {
-      image.cdIsExpired = moment().isAfter(image.deferment_end_time);
+      image.cdIsExpired = new Date() < new Date(image.deferment_end_time);
     });
 
     return images;
@@ -219,7 +218,7 @@ export class RbdTrashListComponent implements OnInit {
   }
 
   isExpired(expiresAt: string): boolean {
-    return moment().isAfter(expiresAt);
+    return new Date() > new Date(expiresAt);
   }
 
   purgeModal() {

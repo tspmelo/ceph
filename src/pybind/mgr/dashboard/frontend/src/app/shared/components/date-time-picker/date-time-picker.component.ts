@@ -2,7 +2,18 @@ import { Component, Input, OnInit } from '@angular/core';
 import { FormControl } from '@angular/forms';
 
 import { NgbCalendar, NgbDateStruct, NgbTimeStruct } from '@ng-bootstrap/ng-bootstrap';
-import moment from 'moment';
+import {
+  format,
+  getDate,
+  getHours,
+  getMinutes,
+  getMonth,
+  getSeconds,
+  getYear,
+  isValid,
+  parse,
+  parseISO
+} from 'date-fns';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -32,31 +43,31 @@ export class DateTimePickerComponent implements OnInit {
   ngOnInit() {
     this.minDate = this.calendar.getToday();
     if (!this.hasTime) {
-      this.format = 'YYYY-MM-DD';
+      this.format = 'YYYY-MM-dd';
     } else if (this.hasSeconds) {
-      this.format = 'YYYY-MM-DD HH:mm:ss';
+      this.format = 'YYYY-MM-dd HH:mm:ss';
     } else {
-      this.format = 'YYYY-MM-DD HH:mm';
+      this.format = 'YYYY-MM-dd HH:mm';
     }
 
-    let mom = moment(this.control?.value, this.format);
+    let mom = parse(this.control?.value, this.format, new Date());
 
-    if (!mom.isValid() || mom.isBefore(moment())) {
-      mom = moment();
+    if (!isValid(mom) || mom < new Date()) {
+      mom = new Date();
     }
 
-    this.date = { year: mom.year(), month: mom.month() + 1, day: mom.date() };
-    this.time = { hour: mom.hour(), minute: mom.minute(), second: mom.second() };
+    this.date = { year: getYear(mom), month: getMonth(mom), day: getDate(mom) };
+    this.time = { hour: getHours(mom), minute: getMinutes(mom), second: getSeconds(mom) };
 
     this.onModelChange();
   }
 
   onModelChange() {
     if (this.date) {
-      const datetime = Object.assign({}, this.date, this.time);
-      datetime.month--;
+      // 2020-09-17T19:57:29Z
+      const datetime = `${this.date.year}-${this.date.month}-${this.date.day}T${this.time.hour}:${this.time.minute}:${this.time.second}Z`;
       setTimeout(() => {
-        this.control.setValue(moment(datetime).format(this.format));
+        this.control.setValue(format(parseISO(datetime), this.format));
       });
     } else {
       setTimeout(() => {

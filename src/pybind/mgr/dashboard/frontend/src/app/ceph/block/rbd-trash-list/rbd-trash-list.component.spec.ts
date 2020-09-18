@@ -5,7 +5,6 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { RouterTestingModule } from '@angular/router/testing';
 
 import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
-import moment from 'moment';
 import { ToastrModule } from 'ngx-toastr';
 import { of } from 'rxjs';
 
@@ -117,7 +116,7 @@ describe('RbdTrashListComponent', () => {
       images.push({
         id: id,
         pool_name: 'pl',
-        deferment_end_time: moment()
+        deferment_end_time: new Date()
       });
     };
 
