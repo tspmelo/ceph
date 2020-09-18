@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { RbdService } from '../../../shared/api/rbd.service';
 import { CdFormBuilder } from '../../../shared/forms/cd-form-builder';
@@ -46,11 +46,11 @@ export class RbdTrashMoveModalComponent implements OnInit {
         '',
         [
           CdValidators.custom('format', (expiresAt: string) => {
-            const result = expiresAt === '' || moment(expiresAt, 'YYYY-MM-DD HH:mm:ss').isValid();
+            const result = expiresAt === '' || dayjs(expiresAt, 'YYYY-MM-DD HH:mm:ss').isValid();
             return !result;
           }),
           CdValidators.custom('expired', (expiresAt: string) => {
-            const result = moment().isAfter(expiresAt);
+            const result = dayjs().isAfter(expiresAt);
             return result;
           })
         ]
@@ -69,7 +69,7 @@ export class RbdTrashMoveModalComponent implements OnInit {
     const expiresAt = this.moveForm.getValue('expiresAt');
 
     if (expiresAt) {
-      delay = moment(expiresAt, 'YYYY-MM-DD HH:mm:ss').diff(moment(), 'seconds', true);
+      delay = dayjs(expiresAt, 'YYYY-MM-DD HH:mm:ss').diff(dayjs(), 'second', true);
     }
 
     if (delay < 0) {

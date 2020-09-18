@@ -2,8 +2,11 @@ import { Component, Input, OnInit } from '@angular/core';
 import { FormControl } from '@angular/forms';
 
 import { NgbCalendar, NgbDateStruct, NgbTimeStruct } from '@ng-bootstrap/ng-bootstrap';
-import moment from 'moment';
+import dayjs from 'dayjs';
+import objectSupport from 'dayjs/plugin/objectSupport';
 import { Subscription } from 'rxjs';
+
+dayjs.extend(objectSupport);
 
 @Component({
   selector: 'cd-date-time-picker',
@@ -39,10 +42,10 @@ export class DateTimePickerComponent implements OnInit {
       this.format = 'YYYY-MM-DD HH:mm';
     }
 
-    let mom = moment(this.control?.value, this.format);
+    let mom = dayjs(this.control?.value, this.format);
 
-    if (!mom.isValid() || mom.isBefore(moment())) {
-      mom = moment();
+    if (!mom.isValid() || mom.isBefore(dayjs())) {
+      mom = dayjs();
     }
 
     this.date = { year: mom.year(), month: mom.month() + 1, day: mom.date() };
@@ -56,7 +59,7 @@ export class DateTimePickerComponent implements OnInit {
       const datetime = Object.assign({}, this.date, this.time);
       datetime.month--;
       setTimeout(() => {
-        this.control.setValue(moment(datetime).format(this.format));
+        this.control.setValue(dayjs(datetime).format(this.format));
       });
     } else {
       setTimeout(() => {

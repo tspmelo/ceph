@@ -2,8 +2,8 @@ import { Component } from '@angular/core';
 import { Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
+import dayjs from 'dayjs';
 import _ from 'lodash';
-import moment from 'moment';
 
 import { PrometheusService } from '../../../../shared/api/prometheus.service';
 import {
@@ -116,7 +116,7 @@ export class SilenceFormComponent {
 
   private createForm() {
     const formatValidator = CdValidators.custom('format', (expiresAt: string) => {
-      const result = expiresAt === '' || moment(expiresAt, this.datetimeFormat).isValid();
+      const result = expiresAt === '' || dayjs(expiresAt, this.datetimeFormat).isValid();
       return !result;
     });
     this.form = this.formBuilder.group(
@@ -134,20 +134,20 @@ export class SilenceFormComponent {
   }
 
   private setupDates() {
-    const now = moment().format(this.datetimeFormat);
+    const now = dayjs().format(this.datetimeFormat);
     this.form.silentSet('startsAt', now);
     this.updateDate();
     this.subscribeDateChanges();
   }
 
   private updateDate(updateStartDate?: boolean) {
-    const date = moment(
+    const date = dayjs(
       this.form.getValue(updateStartDate ? 'endsAt' : 'startsAt'),
       this.datetimeFormat
     ).toDate();
     const next = this.timeDiff.calculateDate(date, this.form.getValue('duration'), updateStartDate);
     if (next) {
-      const nextDate = moment(next).format(this.datetimeFormat);
+      const nextDate = dayjs(next).format(this.datetimeFormat);
       this.form.silentSet(updateStartDate ? 'startsAt' : 'endsAt', nextDate);
     }
   }
@@ -165,8 +165,8 @@ export class SilenceFormComponent {
   }
 
   private onDateChange(updateStartDate?: boolean) {
-    const startsAt = moment(this.form.getValue('startsAt'), this.datetimeFormat);
-    const endsAt = moment(this.form.getValue('endsAt'), this.datetimeFormat);
+    const startsAt = dayjs(this.form.getValue('startsAt'), this.datetimeFormat);
+    const endsAt = dayjs(this.form.getValue('endsAt'), this.datetimeFormat);
     if (startsAt.isBefore(endsAt)) {
       this.updateDuration();
     } else {
@@ -175,8 +175,8 @@ export class SilenceFormComponent {
   }
 
   private updateDuration() {
-    const startsAt = moment(this.form.getValue('startsAt'), this.datetimeFormat).toDate();
-    const endsAt = moment(this.form.getValue('endsAt'), this.datetimeFormat).toDate();
+    const startsAt = dayjs(this.form.getValue('startsAt'), this.datetimeFormat).toDate();
+    const endsAt = dayjs(this.form.getValue('endsAt'), this.datetimeFormat).toDate();
     this.form.silentSet('duration', this.timeDiff.calculateDuration(startsAt, endsAt));
   }
 
@@ -234,7 +234,7 @@ export class SilenceFormComponent {
     this.id = silence.id;
     if (this.edit) {
       ['startsAt', 'endsAt'].forEach((attr) =>
-        this.form.silentSet(attr, moment(silence[attr]).format(this.datetimeFormat))
+        this.form.silentSet(attr, dayjs(silence[attr]).format(this.datetimeFormat))
       );
       this.updateDuration();
     }
@@ -313,8 +313,8 @@ export class SilenceFormComponent {
   private getSubmitData(): AlertmanagerSilence {
     const payload = this.form.value;
     delete payload.duration;
-    payload.startsAt = moment(payload.startsAt, this.datetimeFormat).toISOString();
-    payload.endsAt = moment(payload.endsAt, this.datetimeFormat).toISOString();
+    payload.startsAt = dayjs(payload.startsAt, this.datetimeFormat).toISOString();
+    payload.endsAt = dayjs(payload.endsAt, this.datetimeFormat).toISOString();
     payload.matchers = this.matchers;
     if (this.edit) {
       payload.id = this.id;

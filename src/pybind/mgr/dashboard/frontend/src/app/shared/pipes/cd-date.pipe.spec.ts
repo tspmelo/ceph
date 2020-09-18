@@ -1,7 +1,5 @@
 import { DatePipe } from '@angular/common';
 
-import moment from 'moment';
-
 import { CdDatePipe } from './cd-date.pipe';
 
 describe('CdDatePipe', () => {
@@ -18,7 +16,6 @@ describe('CdDatePipe', () => {
   });
 
   it('transforms with some date', () => {
-    const result = moment(1527085564486).format('M/D/YY LTS');
-    expect(pipe.transform(1527085564486)).toBe(result);
+    expect(pipe.transform(1527085564486)).toBe('5/23/18 2:26:04 PM');
   });
 });

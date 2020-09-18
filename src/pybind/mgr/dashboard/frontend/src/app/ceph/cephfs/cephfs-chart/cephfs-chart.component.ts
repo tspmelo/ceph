@@ -1,8 +1,8 @@
 import { Component, ElementRef, Input, OnChanges, OnInit, ViewChild } from '@angular/core';
 
 import { ChartDataSets, ChartOptions, ChartPoint, ChartType } from 'chart.js';
+import dayjs from 'dayjs';
 import _ from 'lodash';
-import moment from 'moment';
 
 import { ChartTooltip } from '../../../shared/models/chart-tooltip';
 
@@ -124,7 +124,7 @@ export class CephfsChartComponent implements OnChanges, OnInit {
       (tooltip: any) => tooltip.caretX + 'px',
       (tooltip: any) => tooltip.caretY - tooltip.height - 23 + 'px'
     );
-    chartTooltip.getTitle = (ts) => moment(ts, 'x').format('LTS');
+    chartTooltip.getTitle = (ts) => dayjs(ts, 'x').format('LTS');
     chartTooltip.checkOffset = true;
     const chartOptions: ChartOptions = {
       title: {

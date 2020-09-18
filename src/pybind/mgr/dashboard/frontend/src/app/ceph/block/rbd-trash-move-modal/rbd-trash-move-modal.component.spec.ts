@@ -4,7 +4,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { RouterTestingModule } from '@angular/router/testing';
 
 import { NgbActiveModal, NgbPopoverModule } from '@ng-bootstrap/ng-bootstrap';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { ToastrModule } from 'ngx-toastr';
 
 import { configureTestBed } from '../../../../testing/unit-test-helper';
@@ -72,7 +72,7 @@ describe('RbdTrashMoveModalComponent', () => {
     });
 
     it('with delay < 0', () => {
-      const oldDate = moment().subtract(24, 'hour').toDate();
+      const oldDate = dayjs().subtract(24, 'hour').toDate();
       component.moveForm.patchValue({ expiresAt: oldDate });
 
       component.moveImage();
@@ -82,7 +82,7 @@ describe('RbdTrashMoveModalComponent', () => {
     });
 
     it('with delay < 0', () => {
-      const oldDate = moment().add(24, 'hour').toISOString();
+      const oldDate = dayjs().add(24, 'hour').toISOString();
       component.moveForm.patchValue({ expiresAt: oldDate });
 
       component.moveImage();

@@ -1,6 +1,9 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
-import moment from 'moment';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+
+dayjs.extend(relativeTime)
 
 @Pipe({
   name: 'relativeDate'
@@ -10,6 +13,6 @@ export class RelativeDatePipe implements PipeTransform {
     if (!value) {
       return 'unknown';
     }
-    return moment(value * 1000).fromNow();
+    return dayjs(value * 1000).fromNow();
   }
 }

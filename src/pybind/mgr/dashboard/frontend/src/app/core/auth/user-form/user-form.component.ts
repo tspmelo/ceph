@@ -3,8 +3,8 @@ import { Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
+import dayjs from 'dayjs';
 import _ from 'lodash';
-import moment from 'moment';
 import { forkJoin as observableForkJoin } from 'rxjs';
 
 import { AuthService } from '../../../shared/api/auth.service';
@@ -139,8 +139,7 @@ export class UserFormComponent extends CdForm implements OnInit {
         } else {
           if (this.pwdExpirationSettings.pwdExpirationSpan > 0) {
             const pwdExpirationDateField = this.userForm.get('pwdExpirationDate');
-            const expirationDate = moment();
-            expirationDate.add(this.pwdExpirationSettings.pwdExpirationSpan, 'day');
+            const expirationDate = dayjs().add(this.pwdExpirationSettings.pwdExpirationSpan, 'day');
             pwdExpirationDateField.setValue(expirationDate.format(this.pwdExpirationFormat));
             pwdExpirationDateField.setValidators([Validators.required]);
           }
@@ -176,7 +175,7 @@ export class UserFormComponent extends CdForm implements OnInit {
     if (expirationDate) {
       this.userForm
         .get('pwdExpirationDate')
-        .setValue(moment(expirationDate * 1000).format(this.pwdExpirationFormat));
+        .setValue(dayjs(expirationDate * 1000).format(this.pwdExpirationFormat));
     }
   }
 
@@ -187,12 +186,12 @@ export class UserFormComponent extends CdForm implements OnInit {
     );
     const expirationDate = this.userForm.get('pwdExpirationDate').value;
     if (expirationDate) {
-      const mom = moment(expirationDate, this.pwdExpirationFormat);
+      let mom = dayjs(expirationDate, this.pwdExpirationFormat);
       if (
         this.mode !== this.userFormMode.editing ||
         this.response.pwdExpirationDate !== mom.unix()
       ) {
-        mom.set({ hour: 23, minute: 59, second: 59 });
+        mom = mom.set({ hour: 23, minute: 59, second: 59 });
       }
       userFormModel['pwdExpirationDate'] = mom.unix();
     }

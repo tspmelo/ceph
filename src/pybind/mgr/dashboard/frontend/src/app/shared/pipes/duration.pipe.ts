@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 @Pipe({
   name: 'duration',
@@ -9,7 +9,7 @@ import moment from 'moment';
 export class DurationPipe implements PipeTransform {
   transform(date: any, isRelative = false): string {
     if (isRelative) {
-      return moment(date).fromNow();
+      return dayjs(date).fromNow();
     } else {
       return this._forHumans(date);
     }
